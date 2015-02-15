@@ -1,0 +1,92 @@
+local eventType = nil;
+local eventDate = nil;
+local eventCategory = nil;
+local evenShortDescription = nil;
+local revealedBreaches = nil;
+local performedActions = nil;
+local personId = nil;
+local orgUnn = nil;
+local documentId = nil;
+local classManager = nil;
+
+function getClassManager()
+    return classManager;
+end
+function setClassManager(classManagerValue)
+    classManager = classManagerValue;
+end
+
+function getEventType()
+    return eventType;
+end
+function setEventType(eventTypeValue)
+    eventType = eventTypeValue;
+end
+
+function getEventDate()
+    return eventDate;
+end
+function setEventDate(eventDateValue)
+    eventDate = eventDateValue;
+end
+
+function getEventCategory()
+    return eventCategory;
+end
+function setEventCategory(eventCategoryValue)
+    eventCategory = eventCategoryValue;
+end
+
+function getEvenShortDescription()
+    return evenShortDescription;
+end
+function setEvenShortDescription(evenShortDescriptionValue)
+    evenShortDescription = evenShortDescriptionValue;
+end
+
+function getRevealedBreaches()
+    return revealedBreaches;
+end
+function setRevealedBreaches(revealedBreachesValue)
+    revealedBreaches = revealedBreachesValue;
+end
+
+function getPerformedActions()
+    return performedActions;
+end
+function setPerformedActions(performedActionsValue)
+    performedActions = performedActionsValue;
+end
+
+function getPersonId()
+    return personId;
+end
+function setPersonId(personIdValue)
+    personId = personIdValue;
+end
+
+function getOrgUnn()
+    return orgUnn;
+end
+function setOrgUnn(orgUnnValue)
+    orgUnn = orgUnnValue;
+end
+
+function getDocumentId()
+    return documentId;
+end
+function setDocumentId(documentIdValue)
+    documentId = documentIdValue;
+end
+
+function clearEntity()
+	setEventType(nil)
+	setDocumentId(nil)
+	setOrgUnn(nil)
+	setPersonId(nil)
+	setPerformedActions(nil)
+	setRevealedBreaches(nil)
+	setEvenShortDescription(nil)
+	setEventCategory(nil)
+	setEventDate(nil)
+end

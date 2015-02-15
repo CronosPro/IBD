@@ -1,0 +1,538 @@
+local ClassManager = nil;
+local Entity = nil;
+local unloadController = nil;
+local formsController = nil;
+local constanta = nil;
+local childForms = {};
+local objectList = nil;
+
+function getObjectList()
+    return objectList;
+end
+function setObjectList(objectListValue)
+    objectList = objectListValue;
+end
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function Форма_Open( form	)	
+    setClassManager(Arg.ClassManager)	
+    setControllersReferences()	
+    return true;
+end
+
+function Форма_Load( form )
+    getClassManager().setClass(form, form)	
+    setControls(form);	
+    setObjectList(Arg.FormModule)
+	--form.X = getObjectList().getCurrentForm().X+getObjectList().getCurrentForm().Width	
+    if (Arg.Data ~= nil) then
+        for key,entity in pairs(Arg.Data) do
+			if (entity.getEntityBaseCode() == constanta.getCnstAddress()) then				
+				Entity = entity;			
+				form.RecordNumber = entity.getEntityRecord().SN;					            	
+			end
+        end
+    end
+	if (Entity == nil) then
+		Форма_UnloadForm( form);
+	else
+		setFormFromEntity(Entity);	
+		table.insert(childForms,form);	
+	end	
+end
+
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+    constanta = getClassManager().getClass("Constanta");
+end
+
+function Форма_UnloadForm( form, mode )
+    unloadController.doUnload(getClassManager(), form, childForms);
+    getClassManager().setClass(form, nil)
+    return true;
+end
+
+local lblCountry = nil;
+local dpdCountry = nil;
+local dpdCountryCodes = nil;
+local lblRegion = nil;
+local dpdRegion = nil;
+local dpdRegionCodes = nil;
+local lblDistrict = nil;
+local dpdDistrict = nil;
+local dpdDistrictCodes = nil;
+local lblCityType = nil;
+local dpdCityType = nil;
+local dpdCityTypeCodes = nil;
+local lblCity = nil;
+local dpdCity = nil;
+local dpdCityCodes = nil;
+local lblStreetType = nil;
+local dpdStreetType = nil;
+local dpdStreetTypeCodes = nil;
+local lblStreet = nil;
+local dpdStreet = nil;
+local dpdStreetCodes = nil;
+local lblHouse = nil;
+local txtHouse = nil;
+local lblBuilding = nil;
+local txtBuilding = nil;
+local lblFlat = nil;
+local txtFlat = nil;
+---local lblTextFormAddress = nil;
+--local txtTextFormAddress = nil;
+local lblAddressCharacteristic = nil;
+local txtAddressCharacteristic = nil;
+local btnSave = nil;
+local btnClose = nil;
+local lblInfoPanel = nil;
+local txtInfoPanel = nil;
+local pnlButtons = null;
+
+function setControls(form)
+    lblCountry = form.lblCountry;
+    dpdCountry = form.dpdCountry;
+	lblRegion = form.lblRegion;
+    dpdRegion = form.dpdRegion;
+    lblDistrict = form.lblDistrict;
+    dpdDistrict = form.dpdDistrict;
+    lblCityType = form.lblCityType;
+    dpdCityType = form.dpdCityType;
+    lblCity = form.lblCity;
+    dpdCity = form.dpdCity;
+    lblStreetType = form.lblStreetType;
+    dpdStreetType = form.dpdStreetType;
+    lblStreet = form.lblStreet;
+    dpdStreet = form.dpdStreet;
+    lblHouse = form.lblHouse;
+    txtHouse = form.txtHouse;
+    lblBuilding = form.lblBuilding;
+    txtBuilding = form.txtBuilding;
+    lblFlat = form.lblFlat;
+    txtFlat = form.txtFlat;
+    --lblTextFormAddress = form.lblTextFormAddress;
+    --txtTextFormAddress = form.txtTextFormAddress;
+    lblAddressCharacteristic = form.lblAddressCharacteristic;
+    txtAddressCharacteristic = form.txtAddressCharacteristic;
+	pnlButtons = form.pnlButtons;
+    btnSave = form.btnSave;
+    btnClose = form.btnClose;
+    lblInfoPanel = form.lblInfoPanel;
+    txtInfoPanel = form.txtInfoPanel;
+    populateLists();
+	setTxtInfoPanelBackColor(constanta.getSystemBackColor());
+end
+
+function populateLists()
+	
+end
+
+function setFormFromEntity(entity)
+    setDpdCountrySelectedItem(entity.getCountry());
+    setDpdRegionSelectedItem(entity.getRegion());
+    setDpdDistrictSelectedItem(entity.getDistrict());
+    setDpdCityTypeSelectedItem(entity.getCityType());
+    setDpdCitySelectedItem(entity.getCity());
+    setDpdStreetTypeSelectedItem(entity.getStreetType());
+    setDpdStreetSelectedItem(entity.getStreet());
+    setTxtHouseText(entity.getHouse());
+    setTxtBuildingText(entity.getBuilding());
+    setTxtFlatText(entity.getFlat());
+   -- setTxtTextFormAddressText(entity.getTextFormAddress());
+	setTxtAddressCharacteristicText(entity.getAddressCharacteristic());
+end
+
+function setLblCountryText( lblCountryValue )
+   lblCountry.Value = lblCountryValue
+end
+function getLblCountryText( )
+    return lblCountry.Value
+end
+
+function addDpdCountryItem( dpdCountryValue )
+   dpdCountry:Add(dpdCountryValue)
+end
+function addDpdCountryItems( dpdCountryValues )
+    if dpdCountryValues ~= nil then
+        for key, value in pairs (dpdCountryValues) do
+            addDpdCountryItem(value)
+        end
+    end
+end
+function clearDpdCountryItesm( )
+   dpdCountry:Clear(index)
+end
+function getDpdCountrySelectedItem( )
+    return dpdCountry.Text
+end
+function setDpdCountrySelectedItem( dpdCountryItemValue)
+    dpdCountry.Value = dpdCountryItemValue
+end
+function getDpdCountrySelectedIndex( )
+    return dpdCountry.SelectedIndex
+end
+function getDpdCountrySelectedCode( )
+    return dpdCountry.Value
+end
+function setDpdCountrySelectedIndex( dpdCountryIndexValue )
+    dpdCountry.SelectedIndex = dpdCountryIndexValue
+end
+
+function setLblRegionText( lblRegionValue )
+   lblRegion.Value = lblRegionValue
+end
+function getLblRegionText( )
+    return lblRegion.Value
+end
+
+function addDpdRegionItem( dpdRegionValue )
+   dpdRegion:Add(dpdRegionValue)
+end
+function addDpdRegionItems( dpdRegionValues )
+    if dpdRegionValues ~= nil then
+        for key, value in pairs (dpdRegionValues) do
+            addDpdRegionItem(value)
+        end
+    end
+end
+function clearDpdRegionItesm( )
+   dpdRegion:Clear(index)
+end
+function getDpdRegionSelectedItem( )
+    return dpdRegion.Text
+end
+function setDpdRegionSelectedItem( dpdRegionItemValue)
+    dpdRegion.Value = dpdRegionItemValue
+end
+function getDpdRegionSelectedIndex( )
+    return dpdRegion.SelectedIndex
+end
+function getDpdRegionSelectedCode( )
+    return dpdRegion.Value
+end
+function setDpdRegionSelectedIndex( dpdRegionIndexValue )
+    dpdRegion.SelectedIndex = dpdRegionIndexValue
+end
+
+function setLblDistrictText( lblDistrictValue )
+   lblDistrict.Value = lblDistrictValue
+end
+function getLblDistrictText( )
+    return lblDistrict.Value
+end
+
+function addDpdDistrictItem( dpdDistrictValue )
+   dpdDistrict:Add(dpdDistrictValue)
+end
+function addDpdDistrictItems( dpdDistrictValues )
+    if dpdDistrictValues ~= nil then
+        for key, value in pairs (dpdDistrictValues) do
+            addDpdDistrictItem(value)
+        end
+    end
+end
+function clearDpdDistrictItesm( )
+   dpdDistrict:Clear(index)
+end
+function getDpdDistrictSelectedItem( )
+    return dpdDistrict.Text
+end
+function setDpdDistrictSelectedItem( dpdDistrictItemValue)
+    dpdDistrict.Value = dpdDistrictItemValue
+end
+function getDpdDistrictSelectedIndex( )
+    return dpdDistrict.SelectedIndex
+end
+function getDpdDistrictSelectedCode( )
+    return dpdDistrict.Value
+end
+function setDpdDistrictSelectedIndex( dpdDistrictIndexValue )
+    dpdDistrict.SelectedIndex = dpdDistrictIndexValue
+end
+
+function setLblCityTypeText( lblCityTypeValue )
+   lblCityType.Value = lblCityTypeValue
+end
+function getLblCityTypeText( )
+    return lblCityType.Value
+end
+
+function addDpdCityTypeItem( dpdCityTypeValue )
+   dpdCityType:Add(dpdCityTypeValue)
+end
+function addDpdCityTypeItems( dpdCityTypeValues )
+    if dpdCityTypeValues ~= nil then
+        for key, value in pairs (dpdCityTypeValues) do
+            addDpdCityTypeItem(value)
+        end
+    end
+end
+function clearDpdCityTypeItesm( )
+   dpdCityType:Clear(index)
+end
+function getDpdCityTypeSelectedItem( )
+    return dpdCityType.Text
+end
+function setDpdCityTypeSelectedItem( dpdCityTypeItemValue)
+    dpdCityType.Value = dpdCityTypeItemValue
+end
+function getDpdCityTypeSelectedIndex( )
+    return dpdCityType.SelectedIndex
+end
+function getDpdCityTypeSelectedCode( )
+    return dpdCityType.Value
+end
+function setDpdCityTypeSelectedIndex( dpdCityTypeIndexValue )
+    dpdCityType.SelectedIndex = dpdCityTypeIndexValue
+end
+
+function setLblCityText( lblCityValue )
+   lblCity.Value = lblCityValue
+end
+function getLblCityText( )
+    return lblCity.Value
+end
+
+function addDpdCityItem( dpdCityValue )
+   dpdCity:Add(dpdCityValue)
+end
+function addDpdCityItems( dpdCityValues )
+    if dpdCityValues ~= nil then
+        for key, value in pairs (dpdCityValues) do
+            addDpdCityItem(value)
+        end
+    end
+end
+function clearDpdCityItesm( )
+   dpdCity:Clear(index)
+end
+function getDpdCitySelectedItem( )
+    return dpdCity.Text
+end
+function setDpdCitySelectedItem( dpdCityItemValue)
+    dpdCity.Value = dpdCityItemValue
+end
+function getDpdCitySelectedIndex( )
+    return dpdCity.SelectedIndex
+end
+function getDpdCitySelectedCode( )
+    return dpdCity.Value
+end
+function setDpdCitySelectedIndex( dpdCityIndexValue )
+    dpdCity.SelectedIndex = dpdCityIndexValue
+end
+
+function setLblStreetTypeText( lblStreetTypeValue )
+   lblStreetType.Value = lblStreetTypeValue
+end
+function getLblStreetTypeText( )
+    return lblStreetType.Value
+end
+
+function addDpdStreetTypeItem( dpdStreetTypeValue )
+   dpdStreetType:Add(dpdStreetTypeValue)
+end
+function addDpdStreetTypeItems( dpdStreetTypeValues )
+    if dpdStreetTypeValues ~= nil then
+        for key, value in pairs (dpdStreetTypeValues) do
+            addDpdStreetTypeItem(value)
+        end
+    end
+end
+function clearDpdStreetTypeItesm( )
+   dpdStreetType:Clear(index)
+end
+function getDpdStreetTypeSelectedItem( )
+    return dpdStreetType.Text
+end
+function setDpdStreetTypeSelectedItem( dpdStreetTypeItemValue)
+    dpdStreetType.Value = dpdStreetTypeItemValue
+end
+function getDpdStreetTypeSelectedIndex( )
+    return dpdStreetType.SelectedIndex
+end
+function getDpdStreetTypeSelectedCode( )
+    return dpdStreetType.Value
+end
+function setDpdStreetTypeSelectedIndex( dpdStreetTypeIndexValue )
+    dpdStreetType.SelectedIndex = dpdStreetTypeIndexValue
+end
+
+function setLblStreetText( lblStreetValue )
+   lblStreet.Value = lblStreetValue
+end
+function getLblStreetText( )
+    return lblStreet.Value
+end
+
+function addDpdStreetItem( dpdStreetValue )
+   dpdStreet:Add(dpdStreetValue)
+end
+function addDpdStreetItems( dpdStreetValues )
+    if dpdStreetValues ~= nil then
+        for key, value in pairs (dpdStreetValues) do
+            addDpdStreetItem(value)
+        end
+    end
+end
+function clearDpdStreetItesm( )
+   dpdStreet:Clear(index)
+end
+function getDpdStreetSelectedItem( )
+    return dpdStreet.Text
+end
+function setDpdStreetSelectedItem( dpdStreetItemValue)
+    dpdStreet.Value = dpdStreetItemValue
+end
+function getDpdStreetSelectedIndex( )
+    return dpdStreet.SelectedIndex
+end
+function getDpdStreetSelectedCode( )
+    return dpdStreet.Value
+end
+function setDpdStreetSelectedIndex( dpdStreetIndexValue )
+    dpdStreet.SelectedIndex = dpdStreetIndexValue
+end
+
+function setLblHouseText( lblHouseValue )
+   lblHouse.Value = lblHouseValue
+end
+function getLblHouseText( )
+    return lblHouse.Value
+end
+
+function setTxtHouseText( txtHouseValue )
+    txtHouse.Value = txtHouseValue
+end
+function getTxtHouseText( )
+    return txtHouse.Value
+end
+
+function setLblBuildingText( lblBuildingValue )
+   lblBuilding.Value = lblBuildingValue
+end
+function getLblBuildingText( )
+    return lblBuilding.Value
+end
+
+function setTxtBuildingText( txtBuildingValue )
+    txtBuilding.Value = txtBuildingValue
+end
+function getTxtBuildingText( )
+    return txtBuilding.Value
+end
+
+function setLblFlatText( lblFlatValue )
+   lblFlat.Value = lblFlatValue
+end
+function getLblFlatText( )
+    return lblFlat.Value
+end
+
+function setTxtFlatText( txtFlatValue )
+    txtFlat.Value = txtFlatValue
+end
+function getTxtFlatText( )
+    return txtFlat.Value
+end
+--[[
+function setLblTextFormAddressText( lblTextFormAddressValue )
+   lblTextFormAddress.Value = lblTextFormAddressValue
+end
+function getLblTextFormAddressText( )
+    return lblTextFormAddress.Value
+end
+
+function setTxtTextFormAddressText( txtTextFormAddressValue )
+    txtTextFormAddress.Value = txtTextFormAddressValue
+end
+function getTxtTextFormAddressText( )
+    return txtTextFormAddress.Value
+end
+--]]
+function setLblAddressCharacteristicText( lblAddressCharacteristicValue )
+   lblAddressCharacteristic.Value = lblAddressCharacteristicValue
+end
+function getLblAddressCharacteristicText( )
+    return lblAddressCharacteristic.Value
+end
+
+function setTxtAddressCharacteristicText( txtAddressCharacteristicValue )
+    txtAddressCharacteristic.Value = txtAddressCharacteristicValue
+end
+function getTxtAddressCharacteristicText( )
+    return txtAddressCharacteristic.Value
+end
+
+function setBtnSaveText( btnSaveValue )
+   btnSave.Text = btnSaveValue
+end
+function getBtnSaveText( )
+    return btnSave.Text
+end
+
+function setBtnCloseText( btnCloseValue )
+   btnClose.Text = btnCloseValue
+end
+function getBtnCloseText( )
+    return btnClose.Text
+end
+
+function btnClose_Click( control )
+    setFormFromEntity(Entity);
+    Форма_UnloadForm( control.Form);
+end
+
+function setTxtInfoPanelText( txtInfoPanelValue )
+    txtInfoPanel.Text = txtInfoPanelValue
+end
+function getTxtInfoPanelText( )
+    return txtInfoPanel.Text
+end
+function setTxtInfoPanelBackColor( txtInfoPanelBackColor )
+   txtInfoPanel.BackColor = txtInfoPanelBackColor
+end
+
+function setPnlButtonsVisibility( pnlButtonsVisibilityValue )
+   pnlButtons.Visible = pnlButtonsVisibilityValue
+end
+function getPnlButtons( )
+    return pnlButtons
+end
+---------------------------------------------
+function btnSave_Click( control )	
+	Entity.setBeanFromView(control.Form.Module)			
+	if (Entity.saveBeanToDb(getClassManager())  == true) then	
+		setTxtInfoPanelText("Запись успешно сохранена в базу данных");
+		Форма_UnloadForm( btnSave.Form);
+	else
+		setTxtInfoPanelText("ВНИМАНИЕ!!! Запись не сохранена в базу данных");
+	end
+end
+
+function dpdCountry_SelectedIndexChanged( control, index )
+	dpdCountry.ToolTip = getDpdCountrySelectedItem();
+end
+
+function dpdDistrict_SelectedIndexChanged( control, index )
+	dpdDistrict.ToolTip = getDpdDistrictSelectedItem();
+end
+
+function dpdCity_SelectedIndexChanged( control, index )
+	dpdCity.ToolTip = getDpdCitySelectedItem();
+end
+
+function dpdStreet_SelectedIndexChanged( control, index )
+	dpdStreet.ToolTip = getDpdStreetSelectedItem();
+end
+function Форма_BeforeSaveForm( event )
+	event.PermitSave = false;
+end

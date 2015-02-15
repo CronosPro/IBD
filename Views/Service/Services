@@ -1,0 +1,479 @@
+local ClassManager = nil;
+local Entity = nil;
+local unloadController = nil;
+local formsController = nil;
+local validationController = nil;
+local requestController = nil;
+local constanta = nil;
+local service = nil;
+local childForms = {};
+local currentForm = nil;
+local lblDataBase = nil;
+local dpdDataBase = nil;
+local lblField = nil;
+local dpdField = nil;
+local btnEliminateDuplicates = nil;
+local lblEliminateDuplicatesExplanation = nil;
+local frmDataBaseServices = nil;
+local btnDocumentAnalyze = nil;
+local lblInfo = nil;
+local logger = nil;
+local bankProperties = {};
+local childForms = {}
+
+
+function initLogger(ClassManager)
+	if logger == nil then
+		logger = ClassManager.getClass("Logger");	
+	end
+end
+
+function getBankProperties()
+    return bankProperties;
+end
+function addBankProperties(newBankProperties)
+    table.insert(bankProperties,newBankProperties);
+end
+function setBankProperties(newBankProperties)
+    bankProperties = newBankProperties;
+end
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function getObjectList()
+    return objectList;
+end
+function setObjectList(objectListValue)
+    objectList = objectListValue;
+end
+
+function Форма_Open( form	)	
+    setClassManager(Arg.ClassManager)	
+	getClassManager().setClass(form,form)
+    setControllersReferences()	
+	setCurrentForm(form);	
+    return true;
+end
+
+function Форма_Load( form )    	
+	setControls(form)	
+	setFormBackColor(constanta.getSystemBackColor());			
+end
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+	validationController = getClassManager().getClass("ValidationController");
+	requestController = getClassManager().getClass("RequestController");
+	service = getClassManager().getClass("Service");
+    constanta = getClassManager().getClass("Constanta");
+end
+
+function Форма_UnloadForm( form, mode )
+    unloadController.doUnload(getClassManager(), form, childForms);
+    getClassManager().setClass(form, nil)
+    return true;
+end
+
+function setControls(form)
+    lblDataBase = form.lblDataBase;
+    dpdDataBase = form.dpdDataBase;
+    lblField = form.lblField;
+    dpdField = form.dpdField;
+    btnEliminateDuplicates = form.btnEliminateDuplicates;
+    lblEliminateDuplicatesExplanation = form.lblEliminateDuplicatesExplanation;
+	lblInfo = form.lblInfo;
+    populateLists();
+end
+
+function populateLists()	
+	setBankProperties(getClassManager().getClass("DBWorker").descoverDataBaseProperties(getClassManager()))		
+	local bankBases = {}
+	for key, value in pairs (getBankProperties()) do			
+		table.insert(bankBases, getClassManager().getClass("DBWorker").getDataBaseConcatenatedName(getClassManager(), key))			
+	end	
+	table.sort(bankBases)		
+	addDpdDataBaseItems(bankBases)		
+end
+
+function setFormBackColor( formBackColor )
+   getCurrentForm().BackColor = formBackColor
+end
+-------------------------------------------------------
+function setControlEnabled(control, isEnabled)
+	control.Enabled = isEnabled;
+end
+function setControlFocused(control, isFocused)
+	control.Focused = isFocused;
+end
+-----------------------------------------------------
+function setCurrentForm(currentFormNew)
+    currentForm = currentFormNew;
+end
+function getCurrentForm()
+    return currentForm;
+end
+-----------------------------------------------------
+
+function setLblDataBaseText( lblDataBaseValue )
+   lblDataBase.Text = lblDataBaseValue
+end
+function getLblDataBaseText( )
+    return lblDataBase.Text
+end
+
+function addDpdDataBaseItem( dpdDataBaseValue )
+   dpdDataBase:Add(dpdDataBaseValue)
+end
+function addDpdDataBaseItems( dpdDataBaseValues )
+    if dpdDataBaseValues ~= nil then        
+		for key, value in pairs (dpdDataBaseValues) do			
+            addDpdDataBaseItem(value)			
+        end
+    end	
+end
+function clearDpdDataBaseItems( )
+   dpdDataBase:Clear(index)
+end
+function getDpdDataBaseSelectedItem( )
+    return dpdDataBase.Text
+end
+function setDpdDataBaseSelectedItem( dpdDataBaseItemValue)
+    dpdDataBase.Text = dpdDataBaseItemValue
+end
+function getDpdDataBaseSelectedIndex( )
+    return dpdDataBase.SelectedIndex
+end
+function getDpdDataBaseSelectedCode( )
+    return dpdDataBase.Text
+end
+function setDpdDataBaseSelectedIndex( dpdDataBaseIndexValue )
+    dpdDataBase.SelectedIndex = dpdDataBaseIndexValue
+end
+function setDpdDataBaseEnabled( isDpdDataBaseEnabled )
+   dpdDataBase.Enabled = isDpdDataBaseEnabled
+end
+
+function setLblFieldText( lblFieldValue )
+   lblField.Text = lblFieldValue
+end
+function getLblFieldText( )
+    return lblField.Text
+end
+
+function addDpdFieldItem( dpdFieldValue )
+   dpdField:Add(dpdFieldValue)
+end
+function addDpdFieldItems( dpdFieldValues )
+    if dpdFieldValues ~= nil then
+        for key, value in pairs (dpdFieldValues) do
+            addDpdFieldItem(value)
+        end
+    end
+end
+function clearDpdFieldItems( )
+   dpdField:Clear()   
+   dpdField:Redraw()
+   setBtnEliminateDuplicatesEnabled(false)
+end
+function getDpdFieldSelectedItem( )
+    return dpdField.Text
+end
+function setDpdFieldSelectedItem( dpdFieldItemValue)
+    dpdField.SelectedItem = dpdFieldItemValue
+end
+function getDpdFieldSelectedIndex( )
+    return dpdField.SelectedIndex
+end
+function setDpdFieldSelectedIndex( dpdFieldIndexValue )
+    dpdField.SelectedIndex = dpdFieldIndexValue
+end
+function setDpdFieldEnabled( isDpdFieldEnabled )
+   dpdField.Enabled = isDpdFieldEnabled
+end
+
+function setLblEliminateDuplicatesExplanationText( lblEliminateDuplicatesExplanationValue )
+   lblEliminateDuplicatesExplanation.Text = lblEliminateDuplicatesExplanationValue
+end
+function getLblEliminateDuplicatesExplanationText( )
+    return lblEliminateDuplicatesExplanation.Text
+end
+
+function setBtnEliminateDuplicatesText( btnEliminateDuplicatesValue )
+   btnEliminateDuplicates.Text = btnEliminateDuplicatesValue
+end
+function getBtnEliminateDuplicatesText( )
+    return btnEliminateDuplicates.Text
+end
+function setBtnEliminateDuplicatesEnabled( isBtnEliminateDuplicatesEnabled )
+   btnEliminateDuplicates.Enabled = isBtnEliminateDuplicatesEnabled
+end
+
+function setFrmDataBaseServicesEnabled( frmDataBaseServicesValue )
+   frmDataBaseServices.Enabled = frmDataBaseServicesValue
+end
+function isFrmDataBaseServicesEnabled( )
+   return frmDataBaseServices.Enabled
+end
+function setFrmDataBaseServicesVisible( frmDataBaseServicesValue )
+   frmDataBaseServices.Visible = frmDataBaseServicesValue
+end
+function isFrmDataBaseServicesVisible( )
+   return frmDataBaseServices.Visible
+end
+
+function setBtnDocumentAnalyzeText( btnDocumentAnalyzeValue )
+   btnDocumentAnalyze.Text = btnDocumentAnalyzeValue
+end
+function getBtnDocumentAnalyzeText( )
+    return btnDocumentAnalyze.Text
+end
+function setBtnDocumentAnalyzeEnabled( isBtnDocumentAnalyzeEnabled )
+   btnDocumentAnalyze.Enabled = isBtnDocumentAnalyzeEnabled
+end
+
+function setLblInfoText( lblInfoValue )
+   lblInfo.Text = lblInfoValue
+end
+function getLblInfoText( )
+    return lblInfo.Text
+end
+
+----------------------------------------------------------------------
+function btnDocumentAnalyze_Click( control )
+	local result, errStr = ShellExecute("\\\\Sb6\\iao\\Release\\Demo Document Analyzer.exe", "", false, "open", "", 1)  -- запускаем приложение
+	if ( result == nil ) then
+		MsgBox ("При попытке открыть файл произошла ошибка: "..errStr ) -- если запуск завершился неудачей, выводим сообщение об ошибке
+	end
+end
+
+function dpdDataBase_SelectedIndexChanged( control, index )		
+	clearDpdFieldItems()		
+	local dataBaseName = getDpdDataBaseSelectedItem();		
+	if (string.len(dataBaseName) > 0) then
+		local dataBaseCode = dataBaseName:split(" - ")[2]	
+		local dataBaseFields = getBankProperties()[dataBaseCode];	
+		local baseFields = {}	
+		for key, value in pairs (dataBaseFields) do		
+			table.insert(baseFields, getClassManager().getClass("DBWorker").getDataBaseFieldConcatenatedName(ClassManager, dataBaseCode, key))			
+		end
+		table.sort(baseFields)
+		addDpdFieldItems(baseFields)		
+	end
+end
+
+function dpdField_SelectedIndexChanged( control, index )
+	detectEliminateDuplicateReady()
+end
+
+function btnEliminateDuplicates_Click( control )
+	initLogger(ClassManager);
+	logger.writeDebugMessage( ClassManager,"------------------------Метод btnEliminateDuplicates_Click() класса DataLoader------------------------")	
+	local dataBaseCode = getDpdDataBaseSelectedItem():split(" - ")[2];
+	local dataBaseFieldNumber = tonumber(getDpdFieldSelectedItem():split(" - ")[1]);	
+	local processedRecordCounter = 0;
+	local isNecessaryToSave = false;
+	if (dataBaseFieldNumber ~= nil) then
+		local savingCconfiguration = {"{1,"..dataBaseCode..","..dataBaseFieldNumber.."}"};
+		local records = CroApp.GetBank():GetBase(dataBaseCode):GetRecordSet();		
+		local entity = getClassManager().newEntity(getClassManager(), dataBaseCode, true, true);	
+		logger.writeDebugMessage( ClassManager,"Количество записей для обработки: "..records.Count)		
+		for record in records.Records do					
+			entity.setBeanFromRecord(record);
+			local splitAttribute = entity.getAttributeByFieldNumber(dataBaseFieldNumber);										
+			if (CroApp.GetBank():GetBase(dataBaseCode):GetField(dataBaseFieldNumber):TestStatus(Field.Multiple)) then				
+				local multipleFieldTable = {}
+				logger.writeDebugMessage( ClassManager,"Количество понятий множественного поля для обработки: "..table.count(splitAttribute))					
+				for index, termin in pairs(splitAttribute) do					
+					logger.writeDebugMessage( ClassManager,"Обработка термина № "..index..": "..termin)							
+					local splitAttributeTable = string.split(termin, string.char(10))												
+					splitAttribute = getRidOfExtraSpaces(splitAttribute)	
+					local resArray = table.iunion (splitAttributeTable, {})		
+					logger.writeDebugMessage( ClassManager,"Таблица терминов строки после преобразования: "..render(resArray))		
+					resArray = getRidOfExtraSpaces(resArray)																
+					if (table.count(resArray) < table.count(splitAttributeTable)) then												
+						isNecessaryToSave = true;
+						logger.writeDebugMessage( ClassManager,"Добавление аттрибута в набор значений множественного поля")		
+						termin = table.concat(resArray, string.char(10))
+					end	
+					table.insert(multipleFieldTable, termin)						
+					--entity.setBeanFromLine({table.concat(resArray, string.char(10))}, savingCconfiguration) 									
+				end				
+				local entityRecord = entity.getEntityRecord()
+				--entity.clearEntity()
+				entity.setEntityRecord(entityRecord)
+				for index, termin in pairs(multipleFieldTable) do		
+					entity.setBeanFromLine({termin}, savingCconfiguration, ClassManager.getClass("Constanta").getCnstDataLoaderTestMode(), true) 		
+				end
+			else												
+				local splitAttributeTable = string.split(splitAttribute, string.char(10))									
+				local resArray = table.iunion (splitAttributeTable, {})														
+				resArray = getRidOfExtraSpaces(resArray)				
+				if (table.count(resArray) < table.count(splitAttributeTable)) then
+					entity.setBeanFromLine({table.concat(resArray, string.char(10))}, savingCconfiguration, ClassManager.getClass("Constanta").getCnstDataLoaderTestMode(), true) 				
+					isNecessaryToSave = true;
+				end	
+			end			
+			if (isNecessaryToSave) then
+				logger.writeDebugMessage( ClassManager,"Сохранение исправленных аттрибутов")		
+				processedRecordCounter = processedRecordCounter + 1;
+				entity.saveBeanToDb()
+			end
+		end
+	else		
+		MsgBox("Использование процедуры невозможно так как не выбрано поле базы данных "..getDpdDataBaseSelectedItem():split(" - ")[1], ErrorIcon)
+	end
+	if (processedRecordCounter > 0) then
+		setLblInfoText("Процедура завершена. Были исправлены записи в количестве: "..processedRecordCounter)
+	else
+		setLblInfoText("Процедура завершена. Ни одна из записей не содержала дублиаты в строках.")
+	end
+	logger.writeDebugMessage( ClassManager,"------------------------Метод btnEliminateDuplicates_Click() класса DataLoader завершил работу------------------------")	
+end
+
+function detectEliminateDuplicateReady()			
+	setBtnEliminateDuplicatesEnabled(string.len(getDpdDataBaseSelectedItem())>0 and string.len(getDpdFieldSelectedItem())>0);
+end
+
+function getRidOfExtraSpaces(terminTable)
+	initLogger(ClassManager);
+	logger.writeDebugMessage( ClassManager,"------------------------Метод getRidOfExtraSpaces() класса DataLoader------------------------")	
+	local processedTerminTable = terminTable;	
+	local processedTermin = table.serialize(processedTerminTable);		
+	logger.writeDebugMessage( ClassManager,"Таблица терминов в сериализованном виде: "..processedTermin)		
+	processedTermin = string.swap(processedTermin, "\\r\",\"\\r", "\\r");	
+	logger.writeDebugMessage( ClassManager,"Первое преобразование: "..processedTermin)		
+	processedTermin = string.swap(processedTermin, "\"\"", "");
+	logger.writeDebugMessage( ClassManager,"Второе преобразование: "..processedTermin)		
+	processedTermin = string.swap(processedTermin, ",,", ",");
+	logger.writeDebugMessage( ClassManager,"Третье преобразование: "..processedTermin)		
+	processedTermin = string.swap(processedTermin, "\\r\"", "\"");		
+	logger.writeDebugMessage( ClassManager,"Четвертое преобразование: "..processedTermin)		
+	local processedTerminTable = table.deserialize (processedTermin)
+	logger.writeDebugMessage( ClassManager,"------------------------Метод getRidOfExtraSpaces() класса DataLoader завершил работу------------------------")	
+	return processedTerminTable;
+end
+
+function btnVocsAdjustment_Click( control )
+	local filesPath = "c:\\Workspace\\Cronos\\Vocs\\"
+	local streetVoc = filesPath.."StreetsVOCExportText.txt"
+	local streetsDB = filesPath.."ExportStreetText.txt"
+	filesPath = filesPath.."Results\\"
+	IO.Folder.Create(filesPath)
+	local replacementFile = filesPath.."ReplacementFile.txt"
+	local multipleReplacementFile = filesPath.."MultipleReplacementFile.txt"
+	local nonReplacementFile = filesPath.."NonReplacementFile.txt"
+	---	
+	local vocTerms, errString = io.open(streetVoc, "r")
+	local dbTerms = io.open(streetsDB, "r")
+	local replacementFileTerms = io.open(replacementFile, "w")
+	local multipleReplacementFileTerms = io.open(multipleReplacementFile, "w")
+	local nonReplacementFileTerms = io.open(nonReplacementFile, "w")
+	local vocTermsTable = {}
+	local dbTermsTable = {}
+	local counterForReplace= 0
+	local counterForMultipleReplace= 0
+	local counterForNonReplace= 0
+	local comparisonTermszTable = {}
+	if (vocTerms ~= nil) then
+		io.close(vocTerms)
+		for line in io.lines(streetVoc) do			
+			table.insert(vocTermsTable, line)
+		end
+	else
+		MsgBox("Произошла ошибка при открытии файла "..streetVoc, IconError)
+	end
+	if (dbTerms ~= nil) then
+		io.close(dbTerms)
+		for line in io.lines(streetsDB) do
+			table.insert(dbTermsTable, line)
+		end
+	else
+		MsgBox("Произошла ошибка при открытии файла "..streetsDB.."\n"..errString, IconError)
+	end		
+	dbTermsTable = table.iunion(dbTermsTable, {})		
+	for index, term in pairs(dbTermsTable) do		
+		local isFound = {}
+		local splitTermsTable = string.split(term, " ")
+		if (table.count(splitTermsTable) == 0) then
+			table.insert(splitTermsTable, term)
+		end		
+		local possibleVocTerms = {}
+		local isTermMatched = false;
+		for splitindex, splitterm in pairs(splitTermsTable) do									
+			splitterm = string.swap(splitterm, "\"","")					
+			local isFoundInVoc = false
+			for vocindex, vocterm in pairs(vocTermsTable) do												
+				local splitVocTermTable = string.split(string.split(vocterm, " # ")[2], " ") 
+				if (table.count(splitVocTermTable) == 0) then
+					table.insert(splitVocTermTable, string.split(vocterm, " # ")[2])
+				end								
+				for splitVocIndex, splitVocTerm in pairs(splitVocTermTable) do								
+					if (string.len(splitVocTerm)> 0 and string.len(splitterm)> 0 and string.lower(splitVocTerm) == string.lower(splitterm)) then																								
+						table.insert(possibleVocTerms,vocterm)						
+						isFoundInVoc = true
+						--break;
+					end
+				end			
+			end							
+		end		
+		if (table.count(possibleVocTerms) > 0) then
+			local newPossibleVocTerms = {}			
+			if (table.count(possibleVocTerms) == 1) then				
+				local difference = table.count(possibleVocTerms) - table.count(splitTermsTable)				
+				if difference ~= 1 and difference ~= 0 then
+					possibleVocTerms = {}
+				end
+			else
+				
+				for _, tablePossibleVocTerm in pairs (possibleVocTerms) do			
+					local tableSplitPossibleVocTermTable = string.split(string.split(tablePossibleVocTerm, " # ")[2], " ")
+					local matchCount = 0
+					for _,tableSplitPossibleVocTerm in pairs(tableSplitPossibleVocTermTable) do				
+						for splitindex, splitterm in pairs(splitTermsTable) do									
+							if (string.len(tableSplitPossibleVocTerm) ~= string.len(string.swap(string.lower(tableSplitPossibleVocTerm), string.swap(string.lower(splitterm), "\"",""),""))) then
+								matchCount = matchCount +1
+							end
+						end
+					end			
+					if matchCount == table.count(splitTermsTable) and  table.count(splitTermsTable) == table.count(tableSplitPossibleVocTermTable)then
+						table.insert(newPossibleVocTerms, tablePossibleVocTerm)
+						possibleVocTerms = newPossibleVocTerms
+						break
+					end	
+				end							
+			end
+		end
+		if (table.count(possibleVocTerms) == 0)	then
+			nonReplacementFileTerms:write(term.."\n")			
+			counterForNonReplace = counterForNonReplace + 1
+		elseif (table.count(possibleVocTerms) == 1) then
+			replacementFileTerms:write(term.." - "..possibleVocTerms[1].."\n")
+			counterForReplace = counterForReplace + 1
+		else
+			multipleReplacementFileTerms:write(term.." - "..table.serialize(possibleVocTerms).."\n")
+			counterForMultipleReplace = counterForMultipleReplace+1
+		end			
+	end	
+	local message = "Статистика:\n"..counterForReplace.." понятий для прямой замены,\n"..
+																			counterForMultipleReplace.." понятий с несколькими вариациями замены,\n"..
+																			counterForNonReplace.." понятий не подлежащие замене\n"
+	nonReplacementFileTerms:write("\n\n\n"..string.swap(message,counterForReplace.." понятий для прямой замены,\n"..
+																			counterForMultipleReplace.." понятий с несколькими вариациями замены,\n" ,""))
+	replacementFileTerms:write("\n\n\n"..string.swap(message,counterForMultipleReplace.." понятий с несколькими вариациями замены,\n"..
+																			counterForNonReplace.." понятий не подлежащие замене\n", ""))
+	multipleReplacementFileTerms:write("\n\n\n"..string.swap(string.swap(message, counterForReplace.." понятий для прямой замены,\n",""),
+																	counterForNonReplace.." понятий не подлежащие замене\n",""))
+	io.close(nonReplacementFileTerms)
+	io.close(replacementFileTerms)
+	io.close(multipleReplacementFileTerms)
+	MsgBox("Построен файл автоматизации для массовой замены.\n"..message)
+end
+function btnGetMinUstName_Click(control)
+	table.insert(childForms, formsController.openNeccessaryForm(getClassManager(), control , nil));
+end

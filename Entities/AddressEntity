@@ -1,0 +1,533 @@
+local country = nil;
+local region = nil;
+local district = nil;
+local cityType = nil;
+local city = nil;
+local streetType = nil;
+local street = nil;
+local house = nil;
+local building = nil;
+local flat = nil;
+local textFormAddress = nil;
+local addressCharacteristic = nil;
+local entityRecord = nil;
+local entityBaseCode = nil;
+local addressTypeEntities = {}
+local estateEntities = {}
+local classManager = nil;
+local infoField = nil;
+local logger = nil;
+
+local regionExt = nil;
+local districtExt = nil;
+local cityExt = nil;
+local fullAddressExt = nil;
+
+
+function getClassManager()
+    return classManager;
+end
+function setClassManager(classManagerValue)
+    classManager = classManagerValue;
+end
+
+function getEntityRecord()
+    return entityRecord;
+end
+function setEntityRecord(entityRecordValue)
+    entityRecord = entityRecordValue;
+end
+
+function getEntityBaseCode()
+    return entityBaseCode;
+end
+function setEntityBaseCode(entityBaseCodeValue)
+    entityBaseCode = entityBaseCodeValue;
+end
+
+function getAddressTypeEntities()
+    return addressTypeEntities;
+end
+function addAddressTypeEntity(newAddressTypeEntity)
+    table.insert(addressTypeEntities,newAddressTypeEntity);
+end
+function setAddressTypeEntities(newAddressTypeEntities)
+    addressTypeEntities = newAddressTypeEntities;
+end
+
+function getEstateEntities()
+    return estateEntities;
+end
+function addEstateEntity(newEstateEntity)
+    table.insert(estateEntities,newEstateEntity);
+end
+function setEstateEntities(newEstateEntities)
+    estateEntities = newEstateEntities;
+end
+
+function initLogger()
+	if logger == nil then
+		logger = getClassManager().getClass("Logger");	
+	end
+end
+--------------------------------------------------
+function setBeanFromLine(dataTable, configTable, mode, isCurrentEntityOnly) -- передаем таблицу с данными для загрузки и  таблицу с конфигурацией для загрузки	
+	initLogger();
+	local messages = {};	
+	local configValues = "";
+	local tConfigValues = "";
+	local terminPosition = 0;
+	local fieldNumber = 0;
+	local extractedTermin = "";	
+	local isConnectedEntityNew = true;
+	local passedEntitiesCodes = {}		
+	for index, tConfigValues in ipairs(configTable) do		
+		local localVocKey = nil;				
+		logger.writeDebugMessage( getClassManager(),"Получена конфигурациz: "..render(tConfigValues));
+		logger.writeDebugMessage( getClassManager(),"Получение номера аттрибута базы данных");
+		fieldNumber = tonumber(tConfigValues[3]);	
+		logger.writeDebugMessage(getClassManager(),"Получение позиции в строке загрузки");		
+		if (string.sub(tConfigValues[1],1,1) ~= "@") then
+			terminPosition = tonumber(tConfigValues[1]);					
+			logger.writeDebugMessage( getClassManager(),"Получение термина строки по позиции № "..terminPosition);
+			extractedTermin = dataTable[terminPosition];
+		else
+			extractedTermin = string.sub(tConfigValues[1],2);
+			localVocKey = tonumber(extractedTermin)
+		end		
+		logger.writeDebugMessage( getClassManager(), "Был получен термин для загрузки в поле "..fieldNumber);
+		if (extractedTermin ~= nil and string.len(extractedTermin)>0) then			
+			if (tConfigValues[2] == getEntityBaseCode()) then						
+				if(fieldNumber == 5) then				
+					setHouse(extractedTermin);
+				elseif(fieldNumber == 6) then
+					setBuilding(extractedTermin);		
+				elseif(fieldNumber == 7) then				
+					setFlat(extractedTermin);		
+				elseif(fieldNumber == 90) then				
+					setRegionExt(extractedTermin);	
+				elseif(fieldNumber == 91) then				
+					setDistrictExt(extractedTermin);	
+				elseif(fieldNumber == 92) then				
+					setCityExt(extractedTermin);	
+				elseif(fieldNumber == 93) then				
+					setFullAddressExt(extractedTermin);	
+				else
+					local vocCode = getClassManager().getClass("FieldsWorker").getVocFieldBaseCode(getClassManager(),getEntityBaseCode(),fieldNumber)					
+					if (vocCode ~= nil) then			
+						if (localVocKey == nil) then
+							localVocKey, errorMessages = getClassManager().getClass("DBWorker").convertExternalVocTermin(getClassManager(), extractedTermin, vocCode);				
+							for _,message in pairs(errorMessages) do
+								table.insert(messages, message)
+							end
+						end	
+						if (fieldNumber == 1) then									
+							setCountry(localVocKey);	
+						elseif(fieldNumber == 2) then
+							setDistrict(localVocKey);
+						elseif(fieldNumber == 3) then
+							setCity(localVocKey);
+						elseif(fieldNumber == 86) then
+							setRegion(localVocKey);
+						elseif(fieldNumber == 87) then
+							setCityType(localVocKey);
+						elseif(fieldNumber == 88) then
+							setStreetType(localVocKey);
+						end
+					else
+						logger.writeDebugMessage( getClassManager(), "Поле № "..fieldNumber.. " не обрабатывает программным объектом");
+					end
+				end
+			else			
+				isConnectedEntityNew = table.count(getClassManager().getClass("Service").getIndexesFromTable(passedEntitiesCodes, tConfigValues[2]))==0
+				if (not isCurrentEntityOnly) then
+					logger.writeDebugMessage( getClassManager(),"Термин принадлежит базе данных с мнемокодом "..tConfigValues[2]);			
+					logger.writeDebugMessage( getClassManager(),"Создание нового программного объекта")
+					local connectedEntity = getClassManager().newEntity(getClassManager(), tConfigValues[2], true, isConnectedEntityNew)			
+					if (isConnectedEntityNew) then
+						logger.writeDebugMessage( getClassManager(),"Добавление созданного объекта для установления связи")				
+						addConnectedEntity (connectedEntity);			
+					end
+					isConnectedEntityNew = false;				
+					logger.writeDebugMessage( getClassManager(),"Заполнение программного объекта на основе данных из файла загрузки и запись полученных сообщений");																								
+					local errorMessages = connectedEntity.setBeanFromLine(dataTable, {tConfigValues}, mode); 						
+					for _,message in pairs(errorMessages) do
+						table.insert(messages, message)
+					end	
+					logger.writeDebugMessage(getClassManager(),"Проверка режима работы системы: "..mode);	
+					if (mode == getClassManager().getClass("Constanta").getCnstDataLoaderLoadMode()) then
+						logger.writeDebugMessage(getClassManager(),"Сохранение программного объекта в базу данных с мнемокодом "..tConfigValues[2]);																													
+						connectedEntity.saveBeanToDb();						
+					end
+				end
+			end
+			table.insert(passedEntitiesCodes,tConfigValues[2]);
+		end
+	end		
+	return messages;
+end
+
+function addConnectedEntity (connectedEntity)
+	local connectedEntityCode = connectedEntity.getEntityBaseCode();
+	if (connectedEntityCode == getClassManager().getClass("Constanta").getCnstAddressType()) then
+		addAddressTypeEntity(connectedEntity);	
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstEstate()) then
+		addEstateEntity(connectedEntity);		
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstOrganization() or 
+			connectedEntityCode == getClassManager().getClass("Constanta").getCnstPerson()) then
+		for index, addressTypeEntity in pairs (getAddressTypeEntities()) do
+			addressTypeEntity.addConnectedEntity(connectedEntity);			
+			connectedEntity.addAddressTypeEntity(addressTypeEntity)
+		end
+	end	
+end
+
+function getAttributeByFieldNumber(fieldNumber)
+	local attribute = nil;
+	local noAttributeLineDefined = false;
+	fieldNumber = tonumber(fieldNumber)	
+	if (fieldNumber == 1) then									
+		attribute = getCountry();		
+	elseif(fieldNumber == 2) then
+		attribute = getDistrict();
+	elseif(fieldNumber == 3) then
+		attribute = getCity();
+	elseif(fieldNumber == 4) then
+		attribute = getStreet();
+	elseif(fieldNumber == 5) then
+		attribute = getHouse()
+	elseif(fieldNumber == 6) then
+		attribute = getBuilding()
+	elseif(fieldNumber == 7) then
+		attribute = getFlat()	
+	elseif(fieldNumber == 86) then
+		attribute = getRegion();		
+	elseif(fieldNumber == 87) then
+		attribute = getCityType();					
+	elseif(fieldNumber == 88) then
+		attribute = getStreetType()
+	elseif(fieldNumber == 90) then
+		attribute = getRegionExt()
+	elseif(fieldNumber == 91) then
+		attribute = getDistrictExt()
+	elseif(fieldNumber == 92) then
+		attribute = getCityExt()
+	elseif(fieldNumber == 93) then
+		attribute = getFullAddressExt()
+	else
+		noAttributeLineDefined = true;
+	end		
+	--необходимо для логики выдачи сообщения про неопределенный номер поля в данном методе
+	if (noAttributeLineDefined == false and attribute == nil) then
+		attribute = "";		
+	end	
+	return attribute;
+end
+--------------------------------------------------
+function clearEntities()
+	setAddressTypeEntities({})
+	setEstateEntities({})	
+end
+
+function setLinks()		
+	local addressTypeBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstAddressType());													
+	local estateBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstEstate());
+	local addressBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstAddress());									
+	--addressType linking				
+	for key, addressTypeEntity in pairs(getAddressTypeEntities()) do								
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), getEntityRecord())) then
+			getEntityRecord():Unlock();
+		end
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), addressTypeEntity.getEntityRecord())) then
+			addressTypeEntity.getEntityRecord():Unlock();
+		end				
+		addressBase:AddLink(getEntityRecord().SN,80,addressTypeBase,addressTypeEntity.getEntityRecord().SN, Base.LockWait, Base.LockWait);																					
+	end		
+	for key, estateEntity in pairs(getEstateEntities()) do								
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), getEntityRecord())) then
+			getEntityRecord():Unlock();
+		end
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), estateEntity.getEntityRecord())) then
+			estateEntity.getEntityRecord():Unlock();
+		end				
+		addressBase:AddLink(getEntityRecord().SN,80,estateBase,estateEntity.getEntityRecord().SN, Base.LockWait, Base.LockWait);																					
+	end		
+	setEntityRecord(addressBase:GetRecord(getEntityRecord().SN));	
+end
+
+function setBeanFromRecord(addressRecord)	
+	local addressBaseCode = getEntityBaseCode();	
+	if addressRecord.Base.Code == addressBaseCode then				
+		setEntityRecord(addressRecord)				
+		setCountry(					getClassManager().getClass("FieldsWorker").getField(addressBaseCode, addressRecord , 1 , "" , "", ""));				
+		setRegion(					getClassManager().getClass("FieldsWorker").getField(addressBaseCode, addressRecord , 86, "" , "", ""));				
+		setDistrict(				getClassManager().getClass("FieldsWorker").getField(addressBaseCode, addressRecord , 2 , "" , "", ""));				
+		setCityType(				getClassManager().getClass("FieldsWorker").getField(addressBaseCode, addressRecord , 87, "" , "", ""));		
+		setCity(					getClassManager().getClass("FieldsWorker").getField(addressBaseCode, addressRecord , 3 , "" , "", ""));		
+		setStreetType(				getClassManager().getClass("FieldsWorker").getField(addressBaseCode, addressRecord , 88, "" , "", ""));		
+		setStreet(					getClassManager().getClass("FieldsWorker").getField(addressBaseCode, addressRecord , 4 , "" , "", ""));		
+		setHouse(					getClassManager().getClass("FieldsWorker").getField(addressBaseCode, addressRecord , 5 , "" , "", ""));						
+		setBuilding(				getClassManager().getClass("FieldsWorker").getField(addressBaseCode, addressRecord , 6 , "" , "", ""));				
+		setFlat(					getClassManager().getClass("FieldsWorker").getField(addressBaseCode, addressRecord , 7 , "" , "", ""));						
+		
+		setRegionExt(				getClassManager().getClass("FieldsWorker").getField(addressBaseCode, addressRecord , 90 , "" , "", ""));						
+		setDistrictExt(				getClassManager().getClass("FieldsWorker").getField(addressBaseCode, addressRecord , 91 , "" , "", ""));						
+		setCityExt(					getClassManager().getClass("FieldsWorker").getField(addressBaseCode, addressRecord , 92 , "" , "", ""));								
+		setFullAddressExt(			getClassManager().getClass("FieldsWorker").getField(addressBaseCode, addressRecord , 93 , "" , "", ""));				
+		setAddressCharacteristic(	getClassManager().getClass("FieldsWorker").getField(addressBaseCode, addressRecord , 95, "" , "", ""));		
+		setInfoField(				getClassManager().getClass("FieldsWorker").getField(addressBaseCode, addressRecord , 100 , "" , "", ""));			
+	end
+end
+
+function updateEntity()
+	setBeanFromRecord(getClassManager(), getEntityRecord())	
+end
+
+function setBeanFromView(view)
+	setCountry(view.getDpdCountrySelectedCode());			
+	setRegion(view.getDpdRegionSelectedCode())
+	setDistrict(view.getDpdDistrictSelectedCode());	
+	setCityType(view.getDpdCityTypeSelectedCode())
+	setCity(view.getDpdCitySelectedCode());			
+	setStreetType(view.getDpdStreetTypeSelectedCode())
+	setStreet(view.getDpdStreetSelectedCode());	
+	setHouse(view.getTxtHouseText());								    	
+	setBuilding(view.getTxtBuildingText());			
+	setFlat(view.getTxtFlatText());	
+	--setTextFormAddress(view.getTxtTextFormAddressText())
+	setAddressCharacteristic(view.getTxtAddressCharacteristicText())
+	--setInfoField(view.getTxtInfoFieldText())
+end
+
+
+function saveBeanToDb()
+	local saveResult = true;			
+	local addressBaseCode = getEntityBaseCode();		
+	if (getEntityRecord() == nil) then		
+		setEntityRecord(CroApp.GetBank():GetBase(addressBaseCode):AddRecord())					
+	end				
+	local addressRecord = getEntityRecord();					
+	if addressRecord.Base.Code == addressBaseCode then					
+		getClassManager().getClass("FieldsWorker").setField(addressBaseCode, addressRecord, 1 , "", getCountry(), nil, nil, true);				
+		getClassManager().getClass("FieldsWorker").setField(addressBaseCode, addressRecord, 86, "", getRegion(), nil, nil, true);
+		getClassManager().getClass("FieldsWorker").setField(addressBaseCode, addressRecord, 2 , "", getDistrict(), nil, nil, true);
+		getClassManager().getClass("FieldsWorker").setField(addressBaseCode, addressRecord, 87, "", getCityType(), nil, nil, true);
+		getClassManager().getClass("FieldsWorker").setField(addressBaseCode, addressRecord, 3 , "", getCity(), nil, nil, true);
+		getClassManager().getClass("FieldsWorker").setField(addressBaseCode, addressRecord, 88, "", getStreetType(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(addressBaseCode, addressRecord, 4 , "", getStreet(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(addressBaseCode, addressRecord, 5 , "", getHouse(), nil, nil, true);
+		getClassManager().getClass("FieldsWorker").setField(addressBaseCode, addressRecord, 6 , "", getBuilding(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(addressBaseCode, addressRecord, 7 , "", getFlat(), nil, nil, true);		
+		
+		getClassManager().getClass("FieldsWorker").setField(addressBaseCode, addressRecord, 90 , "", getRegionExt(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(addressBaseCode, addressRecord, 91 , "", getDistrictExt(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(addressBaseCode, addressRecord, 92 , "", getCityExt(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(addressBaseCode, addressRecord, 93 , "", getFullAddressExt(), nil, nil, true);				
+		--getClassManager().getClass("FieldsWorker").setField(addressBaseCode, addressRecord, 89, "", getTextFormAddress(), nil, nil, true);				
+		getClassManager().getClass("FieldsWorker").setField(addressBaseCode, addressRecord, 95, "", getAddressCharacteristic(), nil, nil, false);				
+		setLinks();		
+	else
+		saveResult = false;
+	end	
+	return saveResult;
+end
+
+
+function getCountry()
+    return country;
+end
+function getCountryDefinition()
+    local defIndexes = getClassManager().getClass("Service").getIndexesFromTable(
+						getClassManager().getClass("Constanta").getDpdCountryCodes(),getCountry());	
+	return getClassManager().getClass("Service").getItemFromTableByIndex(getClassManager().getClass("Constanta").getDpdCountryDefinitions(),
+																		getClassManager().getClass("Service").getItemFromTableByIndex(defIndexes,1));
+end
+function setCountry(countryValue)
+    country = countryValue;
+end
+
+function getRegion()
+    return region;
+end
+function getRegionDefinition()
+    local defIndexes = getClassManager().getClass("Service").getIndexesFromTable(
+						getClassManager().getClass("Constanta").getDpdRegionCodes(),getRegion());	
+	return getClassManager().getClass("Service").getItemFromTableByIndex(getClassManager().getClass("Constanta").getDpdRegionDefinitions(),
+																		getClassManager().getClass("Service").getItemFromTableByIndex(defIndexes,1));
+end
+function setRegion(regionValue)
+    region = regionValue;
+end
+
+function getDistrict()
+    return district;
+end
+function getDistrictDefinition()
+    local defIndexes = getClassManager().getClass("Service").getIndexesFromTable(
+						getClassManager().getClass("Constanta").getDpdDistictCodes(),getDistrict());	
+	return getClassManager().getClass("Service").getItemFromTableByIndex(getClassManager().getClass("Constanta").getDpdDistrictDefinitions(),
+																		getClassManager().getClass("Service").getItemFromTableByIndex(defIndexes,1));
+end
+function setDistrict(districtValue)
+    district = districtValue;
+end
+
+function getCityType()
+    return cityType;
+end
+function setCityType(cityTypeValue)
+    cityType = cityTypeValue;
+end
+
+function getCity()
+    return city;
+end
+function getCityDefinition()
+    local defIndexes = getClassManager().getClass("Service").getIndexesFromTable(
+						getClassManager().getClass("Constanta").getDpdCityCodes(),getCity());	
+	return getClassManager().getClass("Service").getItemFromTableByIndex(getClassManager().getClass("Constanta").getDpdCityDefinitions(),
+																		getClassManager().getClass("Service").getItemFromTableByIndex(defIndexes,1));
+end
+function setCity(cityValue)
+    city = cityValue;
+end
+
+function getStreetType()
+    return streetType;
+end
+function setStreetType(streetTypeValue)
+    streetType = streetTypeValue;
+end
+
+function getStreet()
+    return street;
+end
+function getStreetDefinition()
+    local defIndexes = getClassManager().getClass("Service").getIndexesFromTable(
+						getClassManager().getClass("Constanta").getDpdStreetCodes(),getStreet());	
+	return getClassManager().getClass("Service").getItemFromTableByIndex(getClassManager().getClass("Constanta").getDpdStreetDefinitions(),
+																		getClassManager().getClass("Service").getItemFromTableByIndex(defIndexes,1));
+end
+function setStreet(streetValue)
+    street = streetValue;
+end
+
+function getHouse()
+    return house;
+end
+function setHouse(houseValue)
+    house = houseValue;
+end
+
+function getBuilding()
+    return building;
+end
+function setBuilding(buildingValue)
+    building = buildingValue;
+end
+
+function getFlat()
+    return flat;
+end
+function setFlat(flatValue)
+    flat = flatValue;
+end
+
+function getTextFormAddress()
+    return textFormAddress;
+end
+function setTextFormAddress(textFormAddressValue)
+    textFormAddress = textFormAddressValue;
+end
+
+function getAddressCharacteristic()
+    return addressCharacteristic;
+end
+function setAddressCharacteristic(addressCharacteristicValue)
+    addressCharacteristic = addressCharacteristicValue;
+end
+
+function getEntityRecord()
+    return entityRecord;
+end
+function setEntityRecord(entityRecordValue)
+    entityRecord = entityRecordValue;
+end
+
+function getInfoField()
+    return infoField;
+end
+function setInfoField(infoFieldValue)
+    infoField = infoFieldValue;
+end
+
+function getRegionExt()
+    return regionExt;
+end
+function setRegionExt(regionExtValue)
+    regionExt = regionExtValue;
+end
+
+function getDistrictExt()
+    return districtExt;
+end
+function setDistrictExt(districtExtValue)
+    districtExt = districtExtValue;
+end
+
+function getCityExt()
+    return cityExt;
+end
+function setCityExt(cityExtValue)
+    cityExt = cityExtValue;
+end
+
+function getFullAddressExt()
+    return fullAddressExt;
+end
+function setFullAddressExt(fullAddressExtValue)
+    fullAddressExt = fullAddressExtValue;
+end
+
+function toShortString(isWithAddressType)
+	local result = {};		
+	if (isWithAddressType) then
+		for key, addressTypeEntity in pairs(getAddressTypeEntities()) do		
+			table.insert(result, addressTypeEntity.getAddressType())
+		end
+	end	
+	if (getInfoField() ~= nil and string.len(string.trim(getInfoField())) > 0) then
+		table.insert(result, getInfoField());
+	else	
+		table.insert(result, getCountryDefinition())		
+		table.insert(result, getRegionDefinition())		
+		table.insert(result, getDistrict())	
+		table.insert(result, getCityDefinition())	
+		table.insert(result, getStreetDefinition())		
+		table.insert(result, getHouse())	
+		table.insert(result, getBuilding())	
+		table.insert(result, getFlat())		
+	end	
+	return table.concat(result," | ")
+end
+
+function clearEntity()
+	clearEntities()
+	setEntityRecord(nil)				
+	setCountry(nil)
+	setRegion(nil)
+	setDistrict(nil)
+	setCityType(nil)
+	setCity(nil)
+	setStreetType(nil)
+	setStreet(nil)
+	setHouse(nil)
+	setBuilding(nil)
+	setFlat(nil)
+	setAddressCharacteristic(nil)
+	setInfoField(nil)	
+	setRegionExt(nil)
+	setDistrictExt(nil)
+	setCityExt(nil)
+	setFullAddressExt(nil)
+end

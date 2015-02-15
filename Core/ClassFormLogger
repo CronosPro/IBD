@@ -1,0 +1,59 @@
+local fileNumber = 0;
+local stringNumber = 0;
+local memoryStringNumber = 0;
+local memoryFileNumber = 0;
+local fileIndex = "";
+local maxStringsCountDegree = 5;
+
+--метод определени€, не достигнут ли предел количества записываемых в лог-файл строк
+--создает новый лог файл в случае достижени€ предела
+function checkLogFileLimit(countNumber, fileCounter)
+	countNumber = countNumber + 1;		
+	if maxStringsCountDegree-string.len(countNumber) < 0 then
+		fileCounter = fileCounter + 1;
+		countNumber = 1;
+		fileIndex = fileCounter;	
+	end
+	if(maxStringsCountDegree-string.len(countNumber) > 0) then
+		for i=0,maxStringsCountDegree-string.len(countNumber)-1 do				
+			countNumber = "0"..countNumber;			
+		end
+	end
+	return countNumber, fileCounter
+end
+
+--метод записи сообщени€ в лог файл
+function writeDebugMessage(ClassManager, debugMessage)		
+	if (ClassManager.getClass("Constanta").getIsDebug()) then							
+		stringNumber,fileNumber = checkLogFileLimit(stringNumber, fileNumber)
+		local logFile = io.open(ClassManager.getClass("Constanta").getLogDirectory()..string.swap(ClassManager.getClass("Constanta").getDebugLogFile(),".",fileIndex.."."),"a");		
+		fileIndex = ""
+		if (debugMessage ~= nil) then		
+			logFile:write(stringNumber.." "..(DateTime.Now):ToString("%H:%M:%S").." "..debugMessage.."\n")
+		end		
+		logFile:close();				
+	end
+end
+
+--save results of adding to log upload file ZelenkoRa ; 
+function writeDataLoadMessage(initialPath, message)
+	if (message~= nil and string.len(message)>0) then		
+		local logFilePath =  IO.Path.AddSlash(initialPath).."load.log";
+		local logFile = io.open(logFilePath, "a");	
+		logFile:write(message);	
+		logFile:close();		
+	end
+end
+
+--метод записи сообщени€ об используемой пам€ти
+function writeMemoryUsageMessage(ClassManager)		
+	if (ClassManager.getClass("Constanta").getIsDebug()) then							
+		memoryStringNumber,memoryFileNumber = checkLogFileLimit(memoryStringNumber, memoryFileNumber)
+		local logFile = io.open(ClassManager.getClass("Constanta").getLogDirectory()..string.swap(ClassManager.getClass("Constanta").getMemoryUsageLogFile(),".",fileIndex.."."),"a");		
+		fileIndex = ""
+		--if (debugMessage ~= nil) then					
+			logFile:write(memoryStringNumber.." "..(DateTime.Now):ToString("%H:%M:%S").." ќтчет по используемой пам€ти (KB): "..collectgarbage("count").."\n")
+		--end		
+		logFile:close();				
+	end
+end

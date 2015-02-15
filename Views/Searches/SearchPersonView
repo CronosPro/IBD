@@ -1,0 +1,189 @@
+local ClassManager = nil;
+local Entity = nil;
+local unloadController = nil;
+local formsController = nil;
+local validationController = nil;
+local requestController = nil;
+local service = nil;
+local constanta = nil;
+local childForms = {};
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function Форма_Open( form	)
+    setClassManager(Arg.ClassManager)
+    setControllersReferences()
+    return true;
+end
+
+
+function Форма_Load( form )
+    setControls(form);	
+	getClassManager().setClass(form, form);		
+	table.insert(childForms,form);		
+end
+
+
+function setControllersReferences()
+	unloadController = getClassManager().getClass("UnloadController");
+	formsController = getClassManager().getClass("FormsController");
+	validationController = getClassManager().getClass("ValidationController");
+	requestController = getClassManager().getClass("RequestController");
+	constanta = getClassManager().getClass("Constanta");
+	service =  getClassManager().getClass("Service");
+end
+
+function Форма_UnloadForm( form, mode )
+    unloadController.doUnload(getClassManager(), form, childForms);
+    getClassManager().setClass(form, nil)
+    return true;
+end
+
+local lblFullName = nil;
+local txtFullName = nil;
+local lblLastName = nil;
+local txtLastName = nil;
+local lblFirstName = nil;
+local txtFirstName = nil;
+local lblMiddleName = nil;
+local txtMiddleName = nil;
+local lblBirthday = nil;
+local txtBirthday = nil;
+local btnBirthday = nil;
+local btnSearch = nil;
+local btnClose = nil;
+
+
+function setControls(form)
+	lblFullName = form.lblFullName;
+	txtFullName = form.txtFullName;
+    lblLastName = form.lblLastName;
+    txtLastName = form.txtLastName;
+    lblFirstName = form.lblFirstName;
+    txtFirstName = form.txtFirstName;
+    lblMiddleName = form.lblMiddleName;
+    txtMiddleName = form.txtMiddleName;
+    lblBirthday = form.lblBirthday;
+    txtBirthday = form.txtBirthday;
+    btnBirthday = form.btnBirthday;
+    btnSearch = form.btnSearch;
+    btnClose = form.btnClose;
+    populateLists();
+end
+
+function populateLists()
+
+end
+
+function getLblFullName()
+    return lblFullName.Text;
+end
+function setLblFullName(lblFullNameValue)
+    lblFullName = lblFullNameValue;
+end
+
+function getTxtFullNameText()
+    return txtFullName.Text;
+end
+function setTxtFullNameText(txtFullNameValue)
+    txtFullName = txtFullNameValue;
+end
+function setLblLastNameText( lblLastNameValue )
+   lblLastName.Text = lblLastNameValue
+end
+
+function getLblLastNameText( )
+    return lblLastName.Text
+end
+
+function setTxtLastNameText( txtLastNameValue )
+    txtLastName.Text = txtLastNameValue
+end
+function getTxtLastNameText( )
+    return txtLastName.Text
+end
+
+function setLblFirstNameText( lblFirstNameValue )
+   lblFirstName.Text = lblFirstNameValue
+end
+function getLblFirstNameText( )
+    return lblFirstName.Text
+end
+
+function setTxtFirstNameText( txtFirstNameValue )
+    txtFirstName.Text = txtFirstNameValue
+end
+function getTxtFirstNameText( )
+    return txtFirstName.Text
+end
+
+function setLblMiddleNameText( lblMiddleNameValue )
+   lblMiddleName.Text = lblMiddleNameValue
+end
+function getLblMiddleNameText( )
+    return lblMiddleName.Text
+end
+
+function setTxtMiddleNameText( txtMiddleNameValue )
+    txtMiddleName.Text = txtMiddleNameValue
+end
+function getTxtMiddleNameText( )
+    return txtMiddleName.Text
+end
+
+function setLblBirthdayText( lblBirthdayValue )
+   lblBirthday.Text = lblBirthdayValue
+end
+function getLblBirthdayText( )
+    return lblBirthday.Text
+end
+
+function setTxtBirthdayText( txtBirthdayValue )
+    txtBirthday.Text = txtBirthdayValue
+end
+function getTxtBirthdayText( )
+    return txtBirthday.Text
+end
+
+function setBtnBirthdayText( btnBirthdayValue )
+   btnBirthday.Text = btnBirthdayValue
+end
+function getBtnBirthdayText( )
+    return btnBirthday.Text
+end
+
+function setBtnSearchText( btnSearchValue )
+   btnSearch.Text = btnSearchValue
+end
+function getBtnSearchText( )
+    return btnSearch.Text
+end
+
+function setBtnCloseText( btnCloseValue )
+   btnClose.Text = btnCloseValue
+end
+function getBtnCloseText( )
+    return btnClose.Text
+end
+
+function btnClose_Click( control )
+    Форма_UnloadForm( control.Form);
+end
+
+function btnSearch_Click( control )
+	local personInfoTable = {}	
+	table.insert(childForms,getClassManager().getClass("FormsController").openNeccessaryForm(getClassManager(), control,requestController.doRequest(getClassManager(), control)));			
+end
+
+function btnBirthday_Click( control )
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(),control,nil))
+end
+
+function txtLastName_FocusLeave( control )
+
+end

@@ -1,0 +1,237 @@
+local ClassManager = nil;
+local Entity = nil;
+local unloadController = nil;
+local formsController = nil;
+local constanta = nil;
+local objectList = nil;
+local isNewObject = false;
+local childForms = {};
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function getObjectList()
+    return objectList;
+end
+function setObjectList(objectListValue)
+    objectList = objectListValue;
+end
+
+function getIsNewObject()
+    return isNewObject;
+end
+function setIsNewObject(isNewObjectValue)
+    isNewObject = isNewObjectValue;
+end
+
+function getEntity()	
+    return Entity;
+end
+function setEntity(entityValue)
+    Entity = entityValue;
+end
+
+function Форма_Open( form	)
+    setClassManager(Arg.ClassManager)
+    setControllersReferences()
+    return true;
+end
+
+function Форма_Load( form )
+    getClassManager().setClass(form, form)
+	setObjectList(Arg.FormModule);
+    if (Arg.Data ~= nil) then
+        for key,entity in pairs(Arg.Data) do
+            if (entity.getEntityBaseCode() == constanta.getCnstBelgamsGroup()) then
+                Entity = entity;
+                form.RecordNumber = Entity.getEntityRecord().SN;
+            end
+        end
+    end
+    if (Entity == nil) then
+        Форма_UnloadForm( form);
+    else
+        setControls(form);
+        setFormFromEntity(getEntity());
+        table.insert(childForms,form);
+		setIsNewObject(Arg.isNewObject);
+    end
+end
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+    constanta = getClassManager().getClass("Constanta");
+end
+
+function Форма_UnloadForm( form, mode )
+    unloadController.doUnload(getClassManager(), form, childForms);
+    getClassManager().setClass(form, nil)
+    return true;
+end
+
+local lblId = nil;
+local txtId = nil;
+local lblName = nil;
+local txtName = nil;
+local lblListName = nil;
+local dpdListName = nil;
+local pnlButtons = nil;
+local btnSave = nil;
+local btnClose = nil;
+local txtInfoPanel = nil;
+
+function setControls(form)
+    lblId = form.lblId;
+    txtId = form.txtId;
+    lblName = form.lblName;
+    txtName = form.txtName;
+    lblListName = form.lblListName;
+    dpdListName = form.dpdListName;
+    pnlButtons = form.pnlButtons;
+    btnSave = form.btnSave;
+    btnClose = form.btnClose;
+    txtInfoPanel = form.txtInfoPanel;
+    populateLists();
+	setTxtInfoPanelBackColor(constanta.getSystemBackColor());
+end
+
+function populateLists()
+
+end
+
+function setFormFromEntity(entity)
+    setTxtIdText(entity.getGroupId());
+    setTxtNameText(entity.setGroupName());
+    setDpdListNameSelectedItem(entity.getGroupListName());
+end
+function setLblIdText( lblIdValue )
+   lblId.Value = lblIdValue
+end
+function getLblIdText( )
+    return lblId.Value
+end
+
+function getTxtIdText( )
+    return txtId.Value
+end
+function setTxtIdText( txtIdValue )
+    txtId.Value = txtIdValue
+end
+function setTxtIdEnabled( isTxtIdEnabled )
+   txtId.Enabled = isTxtIdEnabled
+end
+
+function setLblNameText( lblNameValue )
+   lblName.Value = lblNameValue
+end
+function getLblNameText( )
+    return lblName.Value
+end
+
+function getTxtNameText( )
+    return txtName.Value
+end
+function setTxtNameText( txtNameValue )
+    txtName.Value = txtNameValue
+end
+function setTxtNameEnabled( isTxtNameEnabled )
+   txtName.Enabled = isTxtNameEnabled
+end
+
+function setLblListNameText( lblListNameValue )
+   lblListName.Value = lblListNameValue
+end
+function getLblListNameText( )
+    return lblListName.Value
+end
+
+function addDpdListNameItem( dpdListNameValue )
+   dpdListName:Add(dpdListNameValue)
+end
+function addDpdListNameItems( dpdListNameValues )
+    if dpdListNameValues ~= nil then
+        for key, value in pairs (dpdListNameValues) do
+            addDpdListNameItem(value)
+        end
+    end
+end
+function clearDpdListNameItesm( )
+   dpdListName:Clear(index)
+end
+function getDpdListNameSelectedItem( )
+    return dpdListName.Text
+end
+function setDpdListNameSelectedItem( dpdListNameItemValue)
+    dpdListName.Value = dpdListNameItemValue
+end
+function getDpdListNameSelectedIndex( )
+    return dpdListName.SelectedIndex
+end
+function getDpdListNameSelectedCode( )
+    return dpdListName.Value
+end
+function setDpdListNameSelectedIndex( dpdListNameIndexValue )
+    dpdListName.SelectedIndex = dpdListNameIndexValue
+end
+function setDpdListNameEnabled( isDpdListNameEnabled )
+   dpdListName.Enabled = isDpdListNameEnabled
+end
+
+function setBtnSaveText( btnSaveValue )
+   btnSave.Text = btnSaveValue
+end
+function getBtnSaveText( )
+    return btnSave.Text
+end
+function setBtnSaveEnabled( isBtnSaveEnabled )
+   btnSave.Enabled = isBtnSaveEnabled
+end
+
+function btnSave_Click( control )	
+	setIsNewObject(false);	
+	Entity.setBeanFromView(btnSave.Form.Module);	
+    if (Entity.saveBeanToDb()  == true) then		
+		getObjectList().refreshForm(getEntity());		
+        setTxtInfoPanelText("Запись успешно сохранена в базу данных");
+		Форма_UnloadForm( btnSave.Form);
+    else
+        setTxtInfoPanelText("ВНИМАНИЕ!!! Запись не сохранена в базу данных");
+    end
+end
+
+function setBtnCloseText( btnCloseValue )
+   btnClose.Text = btnCloseValue
+end
+function getBtnCloseText( )
+    return btnClose.Text
+end
+function setBtnCloseEnabled( isBtnCloseEnabled )
+   btnClose.Enabled = isBtnCloseEnabled
+end
+
+function btnClose_Click( control )
+    setFormFromEntity(Entity);
+    Форма_UnloadForm( control.Form);
+end
+
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setTxtInfoPanelEnabled( isTxtInfoPanelEnabled )
+   txtInfoPanel.Enabled = isTxtInfoPanelEnabled
+end
+function setTxtInfoPanelBackColor( txtInfoPanelBackColor )
+   txtInfoPanel.BackColor = txtInfoPanelBackColor
+end
+
+function Форма_BeforeSaveForm( event )
+	event.PermitSave = false;
+end

@@ -1,0 +1,296 @@
+local ClassManager = nil;
+local Entity = nil;
+local unloadController = nil;
+local formsController = nil;
+local constanta = nil;
+local objectList = nil;
+local childForms = {};
+local isNewObject = false;
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function getObjectList()
+    return objectList;
+end
+function setObjectList(objectListValue)
+    objectList = objectListValue;
+end
+
+function getEntity()	
+    return Entity;
+end
+function setEntity(entityValue)
+    Entity = entityValue;
+end
+
+function getIsNewObject()
+    return isNewObject;
+end
+function setIsNewObject(isNewObjectValue)
+    isNewObject = isNewObjectValue;
+end
+
+function Форма_Open( form	)
+    setClassManager(Arg.ClassManager)
+    setControllersReferences()
+    return true;
+end
+
+function Форма_Load( form )
+    getClassManager().setClass(form, form)
+    setControls(form);
+	setObjectList(Arg.FormModule)	
+	--form.X = getObjectList().getCurrentForm().X+getObjectList().getCurrentForm().Width
+    if (Arg.Data ~= nil) then	
+        for key,entity in pairs(Arg.Data) do			
+            if (entity.getEntityBaseCode() == constanta.getCnstEducation()) then
+                Entity = entity;					
+                form.RecordNumber = Entity.getEntityRecord().SN;                
+            end
+        end
+    end
+    if (Entity == nil) then
+        Форма_UnloadForm( form);
+	else
+		setFormFromEntity(getEntity());
+		table.insert(childForms,form);
+		setIsNewObject(Arg.isNewObject);		
+    end
+end
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+    constanta = getClassManager().getClass("Constanta");
+end
+
+function Форма_UnloadForm( form, mode )
+    unloadController.doUnload(getClassManager(), form, childForms);
+    getClassManager().setClass(form, nil)
+    return true;
+end
+
+local lblDegree = nil;
+local dpdDegree = nil;
+local lblGraduationDate = nil;
+local txtGraduationDate = nil;
+local lblUniversityName = nil;
+local txtUniversityName = nil;
+local lblUniversityAddress = nil;
+local txtUniversityAddress = nil;
+local lblFacultyName = nil;
+local txtFacultyName = nil;
+local lblSpecialization = nil;
+local txtSpecialization = nil;
+local lblNote = nil;
+local txtNote = nil;
+local pnlButtons = nil;
+local btnSave = nil;
+local btnClose = nil;
+local txtInfoPanel = nil;
+
+function setControls(form)
+    lblDegree = form.lblDegree;
+    dpdDegree = form.dpdDegree;
+    lblGraduationDate = form.lblGraduationDate;
+    txtGraduationDate = form.txtGraduationDate;
+    lblUniversityName = form.lblUniversityName;
+    txtUniversityName = form.txtUniversityName;
+    lblUniversityAddress = form.lblUniversityAddress;
+    txtUniversityAddress = form.txtUniversityAddress;
+    lblFacultyName = form.lblFacultyName;
+    txtFacultyName = form.txtFacultyName;
+    lblSpecialization = form.lblSpecialization;
+    txtSpecialization = form.txtSpecialization;
+    lblNote = form.lblNote;
+    txtNote = form.txtNote;
+    pnlButtons = form.pnlButtons;
+    btnSave = form.btnSave;
+    btnClose = form.btnClose;
+    txtInfoPanel = form.txtInfoPanel;
+    populateLists();
+	setTxtInfoPanelBackColor(constanta.getSystemBackColor());
+end
+
+function populateLists()
+
+end
+
+function setFormFromEntity(entity)
+    setDpdDegreeSelectedItem(entity.getDegree());
+    setTxtGraduationDateText(entity.getGraduationDate());
+    setTxtUniversityNameText(entity.getUniversityName());
+    setTxtUniversityAddressText(entity.getUniversityAddress());
+    setTxtFacultyNameText(entity.getFacultyName());
+    setTxtSpecializationText(entity.getSpecialization());
+    setTxtNoteText(entity.getNote());
+end
+function setLblDegreeText( lblDegreeValue )
+   lblDegree.Value = lblDegreeValue
+end
+function getLblDegreeText( )
+    return lblDegree.Value
+end
+
+function addDpdDegreeItem( dpdDegreeValue )
+   dpdDegree:Add(dpdDegreeValue)
+end
+function addDpdDegreeItems( dpdDegreeValues )
+    if dpdDegreeValues ~= nil then
+        for key, value in pairs (dpdDegreeValues) do
+            addDpdDegreeItem(value)
+        end
+    end
+end
+function clearDpdDegreeItesm( )
+   dpdDegree:Clear(index)
+end
+function getDpdDegreeSelectedItem( )
+    return dpdDegree.Text
+end
+function setDpdDegreeSelectedItem( dpdDegreeItemValue)
+    dpdDegree.Value = dpdDegreeItemValue
+end
+function getDpdDegreeSelectedIndex( )
+    return dpdDegree.SelectedIndex
+end
+function getDpdDegreeSelectedCode( )
+    return dpdDegree.Value
+end
+function setDpdDegreeSelectedIndex( dpdDegreeIndexValue )
+    dpdDegree.SelectedIndex = dpdDegreeIndexValue
+end
+
+function setLblGraduationDateText( lblGraduationDateValue )
+   lblGraduationDate.Value = lblGraduationDateValue
+end
+function getLblGraduationDateText( )
+    return lblGraduationDate.Value
+end
+
+function getTxtGraduationDateText( )
+    return txtGraduationDate.Value
+end
+function setTxtGraduationDateText( txtGraduationDateValue )
+    txtGraduationDate.Value = txtGraduationDateValue
+end
+
+function setLblUniversityNameText( lblUniversityNameValue )
+   lblUniversityName.Value = lblUniversityNameValue
+end
+function getLblUniversityNameText( )
+    return lblUniversityName.Value
+end
+
+function getTxtUniversityNameText( )
+    return txtUniversityName.Value
+end
+function setTxtUniversityNameText( txtUniversityNameValue )
+    txtUniversityName.Value = txtUniversityNameValue
+end
+
+function setLblUniversityAddressText( lblUniversityAddressValue )
+   lblUniversityAddress.Value = lblUniversityAddressValue
+end
+function getLblUniversityAddressText( )
+    return lblUniversityAddress.Value
+end
+
+function getTxtUniversityAddressText( )
+    return txtUniversityAddress.Value
+end
+function setTxtUniversityAddressText( txtUniversityAddressValue )
+    txtUniversityAddress.Value = txtUniversityAddressValue
+end
+
+function setLblFacultyNameText( lblFacultyNameValue )
+   lblFacultyName.Value = lblFacultyNameValue
+end
+function getLblFacultyNameText( )
+    return lblFacultyName.Value
+end
+
+function getTxtFacultyNameText( )
+    return txtFacultyName.Value
+end
+function setTxtFacultyNameText( txtFacultyNameValue )
+    txtFacultyName.Value = txtFacultyNameValue
+end
+
+function setLblSpecializationText( lblSpecializationValue )
+   lblSpecialization.Value = lblSpecializationValue
+end
+function getLblSpecializationText( )
+    return lblSpecialization.Value
+end
+
+function getTxtSpecializationText( )
+    return txtSpecialization.Value
+end
+function setTxtSpecializationText( txtSpecializationValue )
+    txtSpecialization.Value = txtSpecializationValue
+end
+
+function setLblNoteText( lblNoteValue )
+   lblNote.Value = lblNoteValue
+end
+function getLblNoteText( )
+    return lblNote.Value
+end
+
+function getTxtNoteText( )
+    return txtNote.Value
+end
+function setTxtNoteText( txtNoteValue )
+    txtNote.Value = txtNoteValue
+end
+
+function setBtnSaveText( btnSaveValue )
+   btnSave.Text = btnSaveValue
+end
+function getBtnSaveText( )
+    return btnSave.Text
+end
+
+function btnSave_Click( control )
+	setIsNewObject(false);
+	Entity.setBeanFromView(btnSave.Form.Module);	
+    if (Entity.saveBeanToDb(getClassManager())  == true) then	
+		getObjectList().refreshForm(Entity);
+        setTxtInfoPanelText("Запись успешно сохранена в базу данных");
+		Форма_UnloadForm( btnSave.Form);
+    else
+        setTxtInfoPanelText("ВНИМАНИЕ!!! Запись не сохранена в базу данных");
+    end
+end
+
+function setBtnCloseText( btnCloseValue )
+   btnClose.Text = btnCloseValue
+end
+function getBtnCloseText( )
+    return btnClose.Text
+end
+
+function btnClose_Click( control )
+    setFormFromEntity(Entity);
+    Форма_UnloadForm( control.Form);
+end
+
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setTxtInfoPanelBackColor( txtInfoPanelBackColor )
+   txtInfoPanel.BackColor = txtInfoPanelBackColor
+end
+
+function Форма_BeforeSaveForm( event )
+	event.PermitSave = false;
+end

@@ -1,0 +1,673 @@
+local ClassManager = nil;
+local Entity = nil;
+local unloadController = nil;
+local formsController = nil;
+local requestController = nil;
+local validationController = nil;
+local constanta = nil;
+local logger = nil;
+local objectList = nil
+local childForms = {};
+local currentForm = nil
+local mainOrganization = nil;
+local isOrganizationNew = false;
+local isConnectionChanged = false;
+local controllingOrgRecordSn = nil;
+local controlledOrgRecordSn = nil;
+local isNewObject = false;
+
+local lblParticipationType = nil;
+local dpdParticipationType = nil;
+local lblParticipateFromDate = nil;
+local txtParticipateFromDate = nil;
+local lblParticipateToDate = nil;
+local txtParticipateToDate = nil;
+local pnlButtons = nil;
+local btnSave = nil;
+local btnClose = nil;
+local txtInfoPanel = nil;
+local lnkPerson = nil;
+local lnkControlledOrganization = nil;
+local lnkControllingOrganization = nil;
+local lblControllingOrganizationLink = nil;
+local lblControlledOrganizationLink = nil;
+local lblPersonLink = nil;
+local lblSharePercent = nil;
+local txtSharePercent = nil;
+local frmRelationType = nil;
+local rdbControlling = nil;
+local rdbControlled = nil;
+local pctLogo = nil;
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function getObjectList()
+    return objectList;
+end
+function setObjectList(objectListValue)
+    objectList = objectListValue;
+end
+
+function getEntity()	
+    return Entity;
+end
+function setEntity(entityValue)
+    Entity = entityValue;
+end
+
+function getIsNewObject()
+    return isNewObject;
+end
+function setIsNewObject(isNewObjectValue)
+	logger.writeDebugMessage(ClassManager,"------------------------Метод setIsNewObject() формы Учредители и Партнеры------------------------")		
+    isNewObject = isNewObjectValue;	
+	if (lnkPerson ~= nil) then		
+		logger.writeDebugMessage(ClassManager,"Установка парметров во вложенной форме Лица")
+		lnkPerson.setIsNewObject(isNewObjectValue)	
+	end	
+	if (lnkControlledOrganization ~= nil) then		
+		logger.writeDebugMessage(ClassManager,"Установка парметров во вложенной форме Организации (контролируемая)")
+		lnkControlledOrganization.setIsNewObject(isNewObjectValue)	
+	end	
+	if (lnkControllingOrganization ~= nil) then		
+		logger.writeDebugMessage(ClassManager,"Установка парметров во вложенной форме Организации (контролирующая)")
+		lnkControllingOrganization.setIsNewObject(isNewObjectValue)			
+	end	
+	logger.writeDebugMessage(ClassManager,"------------------------Метод setIsNewObject() формы Учредители и Партнеры закончил работу------------------------")			
+end
+
+
+function Форма_Open( form	)
+    setClassManager(Arg.ClassManager)
+    setControllersReferences()
+    return true;
+end
+
+function getIsOrganizationNew()
+    return isOrganizationNew;
+end
+function setIsOrganizationNew(isOrganizationNewValue)
+    isOrganizationNew = isOrganizationNewValue;
+end
+
+function getMainOrganization()
+    return mainOrganization;
+end
+function getMainObject()
+    return mainOrganization;
+end
+function setMainOrganization(mainOrganizationValue)
+    mainOrganization = mainOrganizationValue;
+end
+
+function getCurrentForm()
+    return currentForm;
+end
+function setCurrentForm(currentFormValue)
+    currentForm = currentFormValue;
+end
+
+function getEntity()
+    return Entity;
+end
+function setEntity(entityValue)
+    Entity = entityValue;
+end
+
+function Форма_Load( form )	    
+	logger.writeDebugMessage(ClassManager,"------------------------Метод Форма_Load() формы Учредители и Партнеры------------------------")		
+	getClassManager().setClass(form, form)		
+	logger.writeDebugMessage(ClassManager,"Получние ссылки на список объектов")
+	setObjectList(Arg.FormModule);		
+	logger.writeDebugMessage(ClassManager,"Получение ссылки на главную родительский объект Организации")
+	setMainOrganization(Arg.MainOrganizationBean);	
+	logger.writeDebugMessage(ClassManager,"Получние ссылки на текущую форму")
+	setCurrentForm(form);
+	--form.X = getObjectList().getCurrentForm().X+getObjectList().getCurrentForm().Width	
+	logger.writeDebugMessage(ClassManager,"Проверка, были ли переданы какие то данные в форму")	
+	if (Arg.Data ~= nil) then
+        local personEntities = {};
+		local organizationEntities = {};	
+		logger.writeDebugMessage(ClassManager,"Загрузка объектов в количестве "..table.count(Arg.Data))
+		for key,entity in pairs(Arg.Data) do												
+			logger.writeDebugMessage(ClassManager,"Проверка типа объекта № "..key)
+			if (entity.getEntityBaseCode() == constanta.getCnstFoundersAndPartners()) then				
+				logger.writeDebugMessage(ClassManager,"Тип объекта Учредители и Партнеры")
+                Entity = entity;					
+				form.RecordNumber = Entity.getEntityRecord().SN;						
+			elseif (entity.getEntityBaseCode() == constanta.getCnstPerson()) then
+				logger.writeDebugMessage(ClassManager,"Тип объекта Лицо")
+				table.insert(personEntities, entity);
+			elseif (entity.getEntityBaseCode() == constanta.getCnstOrganization() and 
+					entity.getEntityRecord().SN ~= getMainOrganization().getEntityRecord().SN) then				
+				logger.writeDebugMessage(ClassManager,"Тип объекта Организация и не совпадает с родительским объектов")
+				table.insert(organizationEntities, entity);
+			end
+        end				
+		logger.writeDebugMessage(ClassManager,"Добавление полученных объектов типа Лицо в программную модель текущего объекта Учредители и Партнеры")
+		Entity.setPersonEntities(personEntities)						
+		logger.writeDebugMessage(ClassManager,"Добавление полученных объектов типа Организация в программную модель текущего объекта Учредители и Партнеры")
+		Entity.setOrganizationEntities(organizationEntities)								
+    end
+	logger.writeDebugMessage(ClassManager,"Проверка, был ли получен целевой программный объект")
+    if (Entity == nil) then
+        logger.writeDebugMessage(ClassManager,"Программный объект не был получен, необходимо закрыть форму")
+		Форма_UnloadForm( form);
+		logger.writeDebugMessage(ClassManager,"Форма закрыта")
+    else				
+		logger.writeDebugMessage(ClassManager,"Добавление текущей формы в список открытых форм")	
+		table.insert(childForms,form);		
+		logger.writeDebugMessage(ClassManager,"Инициализация элементов управления")		
+		setControls(form);				
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), Entity.getEntityRecord()) and form.Locked) then
+			logger.writeDebugMessage(getClassManager(),"Объект Учредители и Партнеры заблокирован и изменение невозможно. Вывод сообщения пользователю")
+			setTxtInfoPanelText("Объект сейчас редактируется другим пользователем. Изменение невозможно");			
+			logger.writeDebugMessage(getClassManager(),"Сообщение выведено")
+		end                		
+		if (getMainOrganization().getEntityBaseCode() == constanta.getCnstOrganization()) then
+			logger.writeDebugMessage(ClassManager,"Формирования текстов для переключателя направления отношения организаций")
+			setRdbControllingText(getMainOrganization().getFullName())									
+			setRdbControlledText(getMainOrganization().getFullName())							
+		end
+		logger.writeDebugMessage(ClassManager,"Заполнение полей формы из аттрибутов программного объекта")
+		setFormFromEntity(Entity);		
+		logger.writeDebugMessage(ClassManager,"Определение, показывать ли форму как для нового объекта")
+		setViewAsNewObject(Arg.viewAsNewObject);	
+		logger.writeDebugMessage(ClassManager,"Определение, загружен ли в форму существующий объект")
+		setIsNewObject(Arg.isNewObject);		
+	end
+	logger.writeDebugMessage(ClassManager,"------------------------Метод Форма_Load() формы Учредители и Партнеры закончил работу------------------------")		
+end
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+	requestController = getClassManager().getClass("RequestController");
+	logger = getClassManager().getClass("Logger");	
+	validationController = getClassManager().getClass("ValidationController");
+    constanta = getClassManager().getClass("Constanta");
+end
+
+function Форма_UnloadForm( form, mode )
+    unloadController.doUnload(getClassManager(), form, childForms, true);
+    getClassManager().setClass(form, nil)
+    return true;
+end
+
+function setControls(form)		
+	logger.writeDebugMessage(ClassManager,"------------------------Метод setControls() формы Учредители и Партнеры------------------------")		
+	logger.writeDebugMessage(ClassManager,"Инициализация основных элементов управления")
+	currentForm = form;
+    lblParticipationType = form.lblParticipationType;
+    dpdParticipationType = form.dpdParticipationType;
+    lblParticipateFromDate = form.lblParticipateFromDate;
+    txtParticipateFromDate = form.txtParticipateFromDate;
+    lblParticipateToDate = form.lblParticipateToDate;
+    txtParticipateToDate = form.txtParticipateToDate;	
+	pctLogo = form.pctLogo;
+	frmRelationType = form.frmRelationType;	
+	rdbControlling = form.rdbControlling;
+    rdbControlled = form.rdbControlled;
+	pnlButtons = form.pnlButtons;
+	btnSave = form.btnSave;
+    btnClose = form.btnClose;
+    txtInfoPanel = form.txtInfoPanel;
+    lblSharePercent = form.lblSharePercent;
+    txtSharePercent = form.txtSharePercent;  
+	lnkPerson = form.lnkPerson;	
+	lnkControlledOrganization = form.lnkControlledOrganization;
+	lnkControllingOrganization = form.lnkControllingOrganization;
+	lblControllingOrganizationLink = form.lblControllingOrganizationLink;
+    lblControlledOrganizationLink = form.lblControlledOrganizationLink;
+    lblPersonLink = form.lblPersonLink;			
+	lblControllingOrganizationLink.Visible = false;	
+	lblControlledOrganizationLink.Visible = false;	
+	lblPersonLink.Visible = false;	
+	lnkControlledOrganization.Visible = false;
+	lnkControllingOrganization.Visible = false;	
+	lnkPerson.Visible = false;			
+	Arg.MainOrganizationBean = getMainObject();
+	Arg.MainForm = form;		
+	logger.writeDebugMessage(ClassManager,"Проверка типа объекта, для которого открывается форма Учредители и Партнеры")
+	if getMainOrganization().getEntityBaseCode() == constanta.getCnstOrganization() then
+		logger.writeDebugMessage(ClassManager,"Для объекта типа Организация")
+		if (table.count(Entity.getPersonEntities())>0 ) then 				
+			logger.writeDebugMessage(ClassManager,"Инициализация вложенной формы Лицо")
+			lnkPerson.Visible = true;		
+			lblPersonLink.Visible = true;		
+			logger.writeDebugMessage(ClassManager,"Получение скрипта вложенной формы Лица")
+			lnkPerson = lnkPerson.Controls["Область данных"].Form.Module;
+			logger.writeDebugMessage(ClassManager,"Установка внешних аргументов в объект вложенной формы Лица")
+			--Arg.Data = Entity.getPersonEntities();
+			lnkPerson.setArg(Arg);
+			logger.writeDebugMessage(ClassManager,"Техническая инициализация вложенной формы Лицо")
+			logger.writeDebugMessage(ClassManager,"Техническая инициализация вложенной формы Лицо: Форма_Open")
+			lnkPerson.Форма_Open(form.lnkPerson.Controls["Область данных"].Form)
+			logger.writeDebugMessage(ClassManager,"Техническая инициализация вложенной формы Лицо: Форма_Load")			
+			lnkPerson.Форма_Load(form.lnkPerson.Controls["Область данных"].Form)			
+			lnkPerson.setPnlButtonsVisibility(false);	
+			lnkPerson.setIsNewObject(isNewObjectValue)				
+			frmRelationType.Visible = false;			
+			lnkControlledOrganization = nil;
+			lnkControllingOrganization = nil;
+		elseif table.count(Entity.getOrganizationEntities())>0 then 										
+			logger.writeDebugMessage(ClassManager,"Инициализация вложенной формы Организация")
+			lnkPerson = nil;
+			--Arg.Data = Entity.getOrganizationEntities();
+			Arg.ParentEntity = getEntity();		
+			local fieldValue = nil;							
+			logger.writeDebugMessage(ClassManager,"Определения типа отношения организаций")				
+			local orgRecSet2 = ClassManager.getClass("FieldsWorker").getField(constanta.getCnstFoundersAndPartners(), Entity.getEntityRecord() , 2 , "" , "", "", constanta.getCnstOrganization());
+			local isRecordDetected = false;								
+			for orgRec in orgRecSet2.Records do									
+				if (controllingOrgRecordSn == nil) then
+					controllingOrgRecordSn = orgRec.SN;
+				end
+				if (orgRec.SN ~= getMainOrganization().getEntityRecord().SN) then												
+					logger.writeDebugMessage(ClassManager,"Организация контролируемая")	
+					local orgEntity = getClassManager().newEntity(ClassManager, ClassManager.getClass("Constanta").getCnstOrganization());							
+					orgEntity.setBeanFromRecord(orgRec);				
+					Arg.Data = {orgEntity};									
+					lnkControlledOrganization = nil;				
+					lnkControllingOrganization.Visible = true;											
+					lblControllingOrganizationLink.Visible = true;											
+					lnkControllingOrganization = lnkControllingOrganization.Controls["Область данных"].Form.Module;																
+					lnkControllingOrganization.setArg(Arg);												
+					lnkControllingOrganization.Форма_Open(form.lnkControllingOrganization.Controls["Область данных"].Form)												
+					lnkControllingOrganization.Форма_Load(form.lnkControllingOrganization.Controls["Область данных"].Form)												
+					lnkControllingOrganization.setPnlButtonsVisibility(false);		
+					lnkControllingOrganization.setIsNewObject(isNewObjectValue)				
+					isRecordDetected = true;					
+					setRdbControlling(true);					
+				end			
+			end									
+			local orgRecSet8 = ClassManager.getClass("FieldsWorker").getField(constanta.getCnstFoundersAndPartners(), Entity.getEntityRecord() , 8 , "" , "", "", constanta.getCnstOrganization());																										
+			for orgRec in orgRecSet8.Records do																														
+				if ( not isRecordDetected) then				
+					if (orgRec.SN ~= getMainOrganization().getEntityRecord().SN) then																	
+						logger.writeDebugMessage(ClassManager,"Организация контролирует")	
+						local orgEntity = getClassManager().newEntity(ClassManager, ClassManager.getClass("Constanta").getCnstOrganization());			
+						orgEntity.setBeanFromRecord(orgRec);				
+						Arg.Data = {orgEntity};			
+						lnkControllingOrganization = nil;
+						lnkControlledOrganization.Visible = true;				
+						lblControlledOrganizationLink.Visible = true;				
+						lnkControlledOrganization = lnkControlledOrganization.Controls["Область данных"].Form.Module;												
+						lnkControlledOrganization.setArg(Arg);					
+						lnkControlledOrganization.Форма_Open(form.lnkControlledOrganization.Controls["Область данных"].Form)					
+						lnkControlledOrganization.Форма_Load(form.lnkControlledOrganization.Controls["Область данных"].Form)					
+						lnkControlledOrganization.setPnlButtonsVisibility(false);		
+						lnkControlledOrganization.setIsNewObject(isNewObjectValue)
+						isRecordDetected = true;						
+						setRdbControlled(true);																		
+					end
+				else
+					if (controlledOrgRecordSn == nil) then
+						controlledOrgRecordSn = orgRec.SN;					
+					end
+				end
+			end
+		else		
+			logger.writeDebugMessage(ClassManager,"Техническая ощибка: не удалось инициировать вложенную форму Лица или Организации")	
+			lnkControlledOrganization = nil;
+			lnkControllingOrganization = nil;
+			lnkPerson = nil;
+		end
+	elseif getMainOrganization().getEntityBaseCode() == constanta.getCnstPerson() then
+		logger.writeDebugMessage(ClassManager,"Для объекта типа Лицо")
+		lnkPerson = nil;
+		lnkControllingOrganization = nil;
+		Arg.ParentEntity = getEntity();		
+		for key, orgEntity in pairs (Entity.getOrganizationEntities()) do						
+			Arg.Data = {orgEntity};						
+			lnkControlledOrganization.Visible = true;				
+			lblControlledOrganizationLink.Visible = true;				
+			lnkControlledOrganization = lnkControlledOrganization.Controls["Область данных"].Form.Module;												
+			lnkControlledOrganization.setArg(Arg);					
+			logger.writeDebugMessage(ClassManager,"Техническая инициализация вложенной формы Организации")			
+			lnkControlledOrganization.Форма_Open(form.lnkControlledOrganization.Controls["Область данных"].Form)								
+			lnkControlledOrganization.Форма_Load(form.lnkControlledOrganization.Controls["Область данных"].Form)					
+			logger.writeDebugMessage(ClassManager,"Сокрытие панели кнопок управления вложенным объектом")
+			lnkControlledOrganization.setPnlButtonsVisibility(false);		
+			lnkControlledOrganization.setIsNewObject(isNewObjectValue)
+			isRecordDetected = true;
+		end
+		frmRelationType.Visible = false;			
+	end
+	logger.writeDebugMessage(ClassManager,"Продолжение инициализации основных элементов управления")	
+	adjustFormSize(form);
+    populateLists();
+	setPctLogoBackColor(constanta.getSystemBackColor());
+	setTxtInfoPanelBackColor(constanta.getSystemBackColor());
+	logger.writeDebugMessage(ClassManager,"------------------------Метод setControls() формы Учредители и Партнеры закончил работу------------------------")		
+end
+
+function populateLists()
+	
+end
+
+function setFormFromEntity(entity)
+    setDpdParticipationTypeSelectedItem(entity.getParticipationType());
+    setTxtParticipateFromDateText(entity.getParticipateFromDate());
+    setTxtParticipateToDateText(entity.getParticipateToDate());
+	setTxtSharePercentText(entity.getSharePercent());
+end
+
+function setLblParticipationTypeText( lblParticipationTypeValue )
+   lblParticipationType.Value = lblParticipationTypeValue
+end
+function getLblParticipationTypeText( )
+    return lblParticipationType.Value
+end
+
+function addDpdParticipationTypeItem( dpdParticipationTypeValue )
+   dpdParticipationType:Add(dpdParticipationTypeValue)
+end
+function addDpdParticipationTypeItems( dpdParticipationTypeValues )
+    if dpdParticipationTypeValues ~= nil then
+        for key, value in pairs (dpdParticipationTypeValues) do
+            addDpdParticipationTypeItem(value)
+        end
+    end
+end
+function clearDpdParticipationTypeItesm( )
+   dpdParticipationType:Clear(index)
+end
+function getDpdParticipationTypeSelectedItem( )
+    return dpdParticipationType.Text
+end
+function setDpdParticipationTypeSelectedItem( dpdParticipationTypeItemValue)
+    dpdParticipationType.Value = dpdParticipationTypeItemValue
+end
+function getDpdParticipationTypeSelectedIndex( )
+    return dpdParticipationType.SelectedIndex
+end
+function getDpdParticipationTypeSelectedCode( )
+    return dpdParticipationType.Value
+end
+function setDpdParticipationTypeSelectedIndex( dpdParticipationTypeIndexValue )
+    dpdParticipationType.SelectedIndex = dpdParticipationTypeIndexValue
+end
+
+
+function getTxtParticipateFromDateText( )
+    return txtParticipateFromDate.Value
+end
+function setTxtParticipateFromDateText( txtParticipateFromDateValue )
+    if (txtParticipateFromDateValue ~= nil) then
+		txtParticipateFromDate.Value = txtParticipateFromDateValue
+	end
+end
+
+function getTxtParticipateToDateText( )
+    return txtParticipateToDate.Value
+end
+function setTxtParticipateToDateText( txtParticipateToDateValue )
+	if (txtParticipateToDateValue ~= nil) then
+		txtParticipateToDate.Value = txtParticipateToDateValue
+	end
+end
+
+function getTxtParticipateToText( )
+    return txtParticipateTo.Value
+end
+function setTxtParticipateToText( txtParticipateToValue )
+    txtParticipateTo.Value = txtParticipateToValue
+end
+
+function setBtnSaveText( btnSaveValue )
+   btnSave.Text = btnSaveValue
+end
+function getBtnSaveText( )
+    return btnSave.Text
+end
+
+function setLblSharePercentText( lblSharePercentValue )
+   lblSharePercent.Value = lblSharePercentValue
+end
+function getLblSharePercentText( )
+    return lblSharePercent.Value
+end
+
+function getTxtSharePercentText( )
+    return txtSharePercent.Value
+end
+function setTxtSharePercentText( txtSharePercentValue )
+    txtSharePercent.Value = txtSharePercentValue
+end
+
+function isRdbControlling()
+	return rdbControlling.Check;
+end
+function setRdbControlling(rdbControllingValue)
+	rdbControlling.Check = rdbControllingValue;
+end
+function getRdbControllingText()
+	return rdbControlling.Text;
+end 
+function setRdbControllingText(newText)
+	if (newText ~= nil) then		
+		rdbControlling.Text = getRdbControllingText().." '"..newText.."'";
+	end
+end
+
+function setPctLogo( pctLogoValue )
+   pctLogo.Value = pctLogoValue
+end
+function setPctLogoBackColor( pctLogoBackColor)
+    pctLogo.BackColor = pctLogoBackColor;
+end
+
+function isRdbControlled()
+	return rdbControlled.Check;
+end
+function setRdbControlled(rdbControlledValue)
+	rdbControlled.Check = rdbControlledValue;
+end
+function getRdbControlledText()
+	return rdbControlled.Text;
+end 
+function setRdbControlledText(newText)
+	if (newText ~= nil) then
+		rdbControlled.Text = getRdbControlledText().." '"..newText.."'";
+	end
+end
+
+function btnSave_Click( control, isInternal, isOpenInForm )	
+	logger.writeDebugMessage(getClassManager(),"Gonna validate;")		
+	if validationController.doValidate(getClassManager(), control) == true then				
+		logger.writeDebugMessage(getClassManager(),"Validation passed;")
+		setIsNewObject(false);	
+		Entity.clearEntities();		
+		Entity.setBeanFromView(btnSave.Form.Module);			
+		logger.writeDebugMessage(getClassManager(),"Bean set from View;")		
+		if (Entity.saveBeanToDb(false)  == true) then		
+			logger.writeDebugMessage(getClassManager(),"Bean saved to DB;")
+			Entity.setPersonEntities({});
+			logger.writeDebugMessage(getClassManager(),"Person bean set from View;")
+			if (lnkPerson ~= nil)  then
+				lnkPerson.btnSave_Click();
+				logger.writeDebugMessage(getClassManager(),"Person saved to DB;")
+				Entity.addPersonEntity(lnkPerson.getEntity());
+				logger.writeDebugMessage(getClassManager(),"Person added;")
+			else												
+				Entity.setOrganizationEntities({});
+				if (lnkControlledOrganization ~= nil) then										
+					lnkControlledOrganization.btnSave_Click();	
+					Entity.addOrganizationEntity(lnkControlledOrganization.getEntity());					
+				end				
+				if (lnkControllingOrganization ~= nil) then				
+					lnkControllingOrganization.btnSave_Click();				
+					Entity.addOrganizationEntity(lnkControllingOrganization.getEntity());
+				end				
+				reconnectOrganization(control);								
+			end					
+			logger.writeDebugMessage(getClassManager(),"Gonna update list;")
+			getObjectList().refreshForm(Entity, isOpenInForm);			
+			logger.writeDebugMessage(getClassManager(),"List updated;")
+			setTxtInfoPanelText("Запись успешно сохранена в базу данных;");		
+			if (not isInternal) then
+				logger.writeDebugMessage(getClassManager(),"Gonna close form;")
+				Форма_UnloadForm( btnSave.Form);				
+				logger.writeDebugMessage(getClassManager(),"Form Closed")
+			end
+		else
+			setTxtInfoPanelText("ВНИМАНИЕ!!! Запись не сохранена в базу данных");
+		end
+	end	
+end
+
+function setBtnCloseText( btnCloseValue )
+   btnClose.Text = btnCloseValue
+end
+function getBtnCloseText( )
+    return btnClose.Text
+end
+
+function btnClose_Click( control )
+    setFormFromEntity(Entity);
+	if (lnkControlledOrganization ~= nil) then						
+		lnkControlledOrganization.btnClose_Click()
+	end
+	if (lnkControllingOrganization ~= nil) then						
+		lnkControllingOrganization.btnClose_Click()
+	end
+	if (lnkPerson ~= nil) then						
+		lnkPerson.btnClose_Click()
+	end	
+    Форма_UnloadForm( control.Form);	
+end
+
+function getTxtInfoPanelText( txtInfoPanelText )
+    return txtInfoPanel.Text
+end
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setTxtInfoPanelBackColor( txtInfoPanelBackColor )
+   txtInfoPanel.BackColor = txtInfoPanelBackColor
+end
+
+function adjustFormSize(form)	
+	if (lblPersonLink.Visible) then
+		local deltaX = form.lnkControlledOrganization.Width - form.lnkPerson.Width		
+		form.Width = form.Width - deltaX;		
+		txtInfoPanel.Width = txtInfoPanel.Width - deltaX;
+		pnlButtons.Width = pnlButtons.Width - deltaX;
+		btnSave.X = btnSave.X-deltaX/2
+		btnClose.X = btnClose.X-deltaX/2		
+		deltaX = form.lnkControlledOrganization.Height - form.lnkPerson.Height 				
+		--form.Height = form.Height - deltaX;				
+		pnlButtons.Y = pnlButtons.Y - deltaX;						
+	end
+	if (not frmRelationType.Visible) then
+		local deltaY = form.frmRelationType.Height;		
+		if (lnkPerson ~= nil) then
+			form.lnkPerson.Y = form.lnkPerson.Y - deltaY;
+		end
+		pnlButtons.Y = pnlButtons.Y - deltaY;
+		form.Height = form.Height - deltaY;		
+		local deltaY = form.frmRelationType.Height;		
+		if (lnkControlledOrganization ~= nil) then
+			form.lnkControlledOrganization.Y = form.lnkControlledOrganization.Y - deltaY;
+		end
+		--pnlButtons.Y = pnlButtons.Y - deltaY;
+		--form.Height = form.Height - deltaY;
+	end
+end
+
+function detectConnectedEntitiesNumber()
+	if (lnkPerson ~= nil) then 				
+		lnkPerson.detectConnectedEntitiesNumber();
+	elseif (lnkControllingOrganization ~= nil) then
+		lnkControllingOrganization.detectConnectedEntitiesNumber();	
+	elseif (lnkControlledOrganization ~= nil) then
+		lnkControlledOrganization.detectConnectedEntitiesNumber();			
+	end
+end
+
+function rdbControlled_Click( control )
+	getMainOrganization().setFounderConnectionField(32);		
+	isConnectionChanged = true
+	Entity.setOrgConnectionField(8);			
+	getEntity().setControllingOrgToConnect(getMainOrganization());
+	getEntity().setControlledOrgToConnect(nil);
+	reconnectOrganization(control);			
+	setViewAsNewObject(getIsOrganizationNew());
+end
+
+function rdbControlling_Click( control )
+	Entity.setOrgConnectionField(2);	
+	getMainOrganization().setFounderConnectionField(33);
+	isConnectionChanged = true
+	getEntity().setControllingOrgToConnect(nil);
+	getEntity().setControlledOrgToConnect(getMainOrganization());
+	reconnectOrganization(control);	
+	setViewAsNewObject(getIsOrganizationNew());
+end
+
+function reconnectOrganization(control)	
+	if (isConnectionChanged) then
+		isConnectionChanged = false;		
+		Entity.setBeanFromView(btnSave.Form.Module);		
+		local currentOrg = nil;	
+		local formModule = nil;	
+		if (lnkControlledOrganization ~= nil) then				
+			currentOrg = lnkControlledOrganization.getEntity();					
+			formModule = lnkControlledOrganization;
+		end	
+		if (lnkControllingOrganization ~= nil) then
+			currentOrg = lnkControllingOrganization.getEntity()	
+			currentOrg.setFounderConnectionField(32);
+			formModule = lnkControllingOrganization;		
+		end			
+		currentOrg.setBeanFromView(formModule);				
+		Entity.deleteLinkOrganization(currentOrg)		
+		Entity.deleteLinkOrganization(getMainOrganization());							
+		Entity.setOrganizationEntities({});		
+		Entity.addOrganizationEntity(currentOrg);				
+		Entity.setLinks();				
+		getMainOrganization().setFoundersAndPartnersEntities({});	
+		getMainOrganization().addFoundersAndPartnersEntity(Entity);			
+		getMainOrganization().setLinks();									
+		getCurrentForm():ReloadRecord();		
+		setControls(getCurrentForm());				
+		if (lnkControlledOrganization ~= nil) then
+			lnkControlledOrganization.setFormFromEntity(currentOrg);
+		end		
+		if (lnkControllingOrganization ~= nil) then
+			lnkControllingOrganization.setFormFromEntity(currentOrg);
+		end		
+		setFormFromEntity(Entity);					
+	end
+end
+
+function setViewAsNewObject(isNew)	
+	logger.writeDebugMessage(ClassManager,"------------------------Метод setViewAsNewObject() формы Учредители и Партнеры------------------------")		
+	logger.writeDebugMessage(ClassManager,"Установка, является ли Организация новым объектов")		
+	setIsOrganizationNew(isNew);	
+	logger.writeDebugMessage(ClassManager,"Установка, является ли загруженный объект новым")		
+	setIsNewObject(isNew);	
+	logger.writeDebugMessage(ClassManager,"Установка параметра доступности переключателя направления отношения организаций")		
+	frmRelationType.Enabled = isNew;	
+	if (lnkControllingOrganization ~= nil) then		
+		logger.writeDebugMessage(ClassManager,"Установка параметров на вложенной форме Орагнизации (контролирующеей)")				
+		lnkControllingOrganization.setViewAsNewObject(isNew)			
+	elseif (lnkControlledOrganization ~= nil) then		
+		logger.writeDebugMessage(ClassManager,"Установка параметров на вложенной форме Орагнизации (контролируемой)")		
+		lnkControlledOrganization.setViewAsNewObject(isNew)
+	elseif (lnkPerson ~=nil) then		
+		logger.writeDebugMessage(ClassManager,"Установка параметров на вложенной форме Лица")		
+		lnkPerson.setViewAsNewObject(isNew)		
+	end	
+	logger.writeDebugMessage(ClassManager,"------------------------Метод setViewAsNewObject() формы Учредители и Партнеры закончил работу------------------------")		
+end
+
+function Форма_BeforeSaveForm( event )
+	event.PermitSave = false;
+end

@@ -1,0 +1,93 @@
+local externalTermin = nil;
+local localVocCode = nil;
+local localVocKey = nil;
+local classManager = nil;
+local entityBaseCode = nil;
+local entityRecord = nil;
+local logger = nil;
+
+function getClassManager()
+    return classManager;
+end
+function setClassManager(classManagerValue)
+    classManager = classManagerValue;
+end
+
+function initLogger()
+	if logger == nil then
+		logger = getClassManager().getClass("Logger");	
+	end
+end
+
+function getEntityBaseCode()
+    return entityBaseCode;
+end
+function getEntityBaseCode()
+    return entityBaseCode;
+end
+function setEntityBaseCode(entityBaseCodeValue)
+    entityBaseCode = entityBaseCodeValue;
+end
+
+function getEntityRecord()
+    return entityRecord;
+end
+function setEntityRecord(entityRecordValue)
+    entityRecord = entityRecordValue;
+end
+
+function setBeanFromRecord(extVocRecord)	
+	local extVocsBaseCode = getEntityBaseCode();
+	if extVocRecord.Base.Code == extVocsBaseCode then		
+		setEntityRecord(orgRecord)
+		setExternalTermin(	getClassManager().getClass("FieldsWorker").getField(extVocsBaseCode, extVocRecord , 1 , "" , "", ""));
+		setLocalVocCode(	getClassManager().getClass("FieldsWorker").getField(extVocsBaseCode, extVocRecord , 2 , "" , "", ""));
+		setLocalVocKey(		getClassManager().getClass("FieldsWorker").getField(extVocsBaseCode, extVocRecord , 3 , "" , "", ""));		
+	end
+end
+
+function saveBeanToDb()
+	local saveResult = true;		
+	local externalVocsBaseCode = getEntityBaseCode();			
+	if (getEntityRecord() == nil) then				
+		setEntityRecord(CroApp.GetBank():GetBase(externalVocsBaseCode):AddRecord())							
+	end	
+	local externalVocsRecord = getEntityRecord();	
+	if externalVocsRecord.Base.Code == externalVocsBaseCode then								
+		getClassManager().getClass("FieldsWorker").setField(externalVocsBaseCode, externalVocsRecord, 1 , "", getExternalTermin(), nil, nil, true);										
+		getClassManager().getClass("FieldsWorker").setField(externalVocsBaseCode, externalVocsRecord, 2 , "", getLocalVocCode(), nil, nil, true);										
+		getClassManager().getClass("FieldsWorker").setField(externalVocsBaseCode, externalVocsRecord, 3 , "", getLocalVocKey(), nil, nil, false);													
+	else
+		saveResult = false;
+	end	
+	return saveResult;
+end
+
+function clearEntity()
+	setEntityRecord(nil)
+	setExternalTermin(nil)
+	setLocalVocCode(nil)
+	setLocalVocKey(nil)
+end
+------------------------------------------
+function getExternalTermin()
+    return externalTermin;
+end
+function setExternalTermin(externalTerminValue)
+    externalTermin = externalTerminValue;
+end
+
+function getLocalVocCode()
+    return localVocCode;
+end
+function setLocalVocCode(localVocCodeValue)
+    localVocCode = localVocCodeValue;
+end
+
+function getLocalVocKey()
+    return localVocKey;
+end
+function setLocalVocKey(localVocKeyValue)
+    localVocKey = localVocKeyValue;
+end
+--------------------------------------------------

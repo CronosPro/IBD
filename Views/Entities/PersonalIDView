@@ -1,0 +1,285 @@
+local ClassManager = nil;
+local Entity = nil;
+local unloadController = nil;
+local formsController = nil;
+local constanta = nil;
+local objectList = nil;
+local childForms = {};
+local isNewObject = false;
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function getObjectList()
+    return objectList;
+end
+function setObjectList(objectListValue)
+    objectList = objectListValue;
+end
+
+function getEntity()	
+    return Entity;
+end
+function setEntity(entityValue)
+    Entity = entityValue;
+end
+
+function getIsNewObject()
+    return isNewObject;
+end
+function setIsNewObject(isNewObjectValue)
+    isNewObject = isNewObjectValue;
+end
+
+function Форма_Open( form	)
+    setClassManager(Arg.ClassManager)
+    setControllersReferences()
+    return true;
+end
+
+function Форма_Load( form )
+    getClassManager().setClass(form, form)
+    setControls(form);
+	setObjectList(Arg.FormModule)	
+	--form.X = getObjectList().getCurrentForm().X+getObjectList().getCurrentForm().Width
+    if (Arg.Data ~= nil) then
+        for key,entity in pairs(Arg.Data) do
+            if (entity.getEntityBaseCode() == constanta.getCnstPersonalID()) then
+                Entity = entity;
+                form.RecordNumber = Entity.getEntityRecord().SN;                
+            end
+        end
+    end
+    if (Entity == nil) then
+        Форма_UnloadForm( form);
+	else
+		setFormFromEntity(getEntity());
+		table.insert(childForms,form);
+		setIsNewObject(Arg.isNewObject);
+    end    
+end
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+    constanta = getClassManager().getClass("Constanta");
+end
+
+function Форма_UnloadForm( form, mode )
+    unloadController.doUnload(getClassManager(), form, childForms);
+    getClassManager().setClass(form, nil)
+    return true;
+end
+
+local lblDocumentType = nil;
+local dpdDocumentType = nil;
+local lblPersonalNumber = nil;
+local txtPersonalNumber = nil;
+local lblSerialNumber = nil;
+local txtSerialNumber = nil;
+local lblIssueOffice = nil;
+local txtIssueOffice = nil;
+local lblIssueDate = nil;
+local txtIssueDate = nil;
+local lblNote = nil;
+local txtNote = nil;
+local pnlButtons = nil;
+local btnSave = nil;
+local btnClose = nil;
+local txtInfoPanel = nil;
+
+function setControls(form)
+    lblDocumentType = form.lblDocumentType;
+    dpdDocumentType = form.dpdDocumentType;
+    lblPersonalNumber = form.lblPersonalNumber;
+    txtPersonalNumber = form.txtPersonalNumber;
+    lblSerialNumber = form.lblSerialNumber;
+    txtSerialNumber = form.txtSerialNumber;    
+	lblIssueOffice = form.lblIssueOffice;
+    txtIssueOffice = form.txtIssueOffice;
+    lblIssueDate = form.lblIssueDate;
+    txtIssueDate = form.txtIssueDate;
+    lblNote = form.lblNote;
+    txtNote = form.txtNote;
+    pnlButtons = form.pnlButtons;
+    btnSave = form.btnSave;
+    btnClose = form.btnClose;
+    txtInfoPanel = form.txtInfoPanel;
+    populateLists();
+	setTxtInfoPanelBackColor(constanta.getSystemBackColor());
+end
+
+function populateLists()
+
+end
+
+function setFormFromEntity(entity)
+    setDpdDocumentTypeSelectedItem(entity.getDocumentType());
+    setTxtPersonalNumberText(entity.getPersonalNumber());
+    setTxtSerialNumberText(entity.getSerialNumber());    
+	setTxtIssueOfficeText(entity.getIssueOffice());
+    setTxtIssueDateText(entity.getIssueDate());
+    setTxtNoteText(entity.getNote());
+end
+function setLblDocumentTypeText( lblDocumentTypeValue )
+   lblDocumentType.Value = lblDocumentTypeValue
+end
+function getLblDocumentTypeText( )
+    return lblDocumentType.Value
+end
+
+function addDpdDocumentTypeItem( dpdDocumentTypeValue )
+   dpdDocumentType:Add(dpdDocumentTypeValue)
+end
+function addDpdDocumentTypeItems( dpdDocumentTypeValues )
+    if dpdDocumentTypeValues ~= nil then
+        for key, value in pairs (dpdDocumentTypeValues) do
+            addDpdDocumentTypeItem(value)
+        end
+    end
+end
+function clearDpdDocumentTypeItesm( )
+   dpdDocumentType:Clear(index)
+end
+function getDpdDocumentTypeSelectedItem( )
+    return dpdDocumentType.Text
+end
+function setDpdDocumentTypeSelectedItem( dpdDocumentTypeItemValue)
+    dpdDocumentType.Value = dpdDocumentTypeItemValue
+end
+function getDpdDocumentTypeSelectedIndex( )
+    return dpdDocumentType.SelectedIndex
+end
+function getDpdDocumentTypeSelectedCode( )
+    return dpdDocumentType.Value
+end
+function setDpdDocumentTypeSelectedIndex( dpdDocumentTypeIndexValue )
+    dpdDocumentType.SelectedIndex = dpdDocumentTypeIndexValue
+end
+
+function setLblPersonalNumberText( lblPersonalNumberValue )
+   lblPersonalNumber.Value = lblPersonalNumberValue
+end
+function getLblPersonalNumberText( )
+    return lblPersonalNumber.Value
+end
+
+function getTxtPersonalNumberText( )
+    return txtPersonalNumber.Value
+end
+function setTxtPersonalNumberText( txtPersonalNumberValue )
+    txtPersonalNumber.Value = txtPersonalNumberValue
+end
+
+function setLblSerialNumberText( lblSerialNumberValue )
+   lblSerialNumber.Value = lblSerialNumberValue
+end
+function getLblSerialNumberText( )
+    return lblSerialNumber.Value
+end
+
+function getTxtSerialNumberText( )
+    return txtSerialNumber.Value
+end
+function setTxtSerialNumberText( txtSerialNumberValue )
+    txtSerialNumber.Value = txtSerialNumberValue
+end
+
+function setLblIssueOfficeText( lblIssueOfficeValue )
+   lblIssueOffice.Value = lblIssueOfficeValue
+end
+function getLblIssueOfficeText( )
+    return lblIssueOffice.Value
+end
+
+function getTxtIssueOfficeText( )
+    return txtIssueOffice.Value
+end
+function setTxtIssueOfficeText( txtIssueOfficeValue )
+    txtIssueOffice.Value = txtIssueOfficeValue
+end
+
+function setLblIssueDateText( lblIssueDateValue )
+   lblIssueDate.Value = lblIssueDateValue
+end
+function getLblIssueDateText( )
+    return lblIssueDate.Value
+end
+
+function getTxtIssueDateText( )
+    return txtIssueDate.Value
+end
+function setTxtIssueDateText( txtIssueDateValue )
+    txtIssueDate.Value = txtIssueDateValue
+end
+
+function setLblNoteText( lblNoteValue )
+   lblNote.Value = lblNoteValue
+end
+function getLblNoteText( )
+    return lblNote.Value
+end
+
+function getTxtNoteText( )
+    return txtNote.Value
+end
+function setTxtNoteText( txtNoteValue )
+    txtNote.Value = txtNoteValue
+end
+
+function setBtnSaveText( btnSaveValue )
+   btnSave.Text = btnSaveValue
+end
+function getBtnSaveText( )
+    return btnSave.Text
+end
+
+function btnSave_Click( control )
+	setIsNewObject(false);	
+	Entity.setBeanFromView(btnSave.Form.Module);
+    if (Entity.saveBeanToDb()  == true) then
+		getObjectList().refreshForm(Entity);
+        setTxtInfoPanelText("Запись успешно сохранена в базу данных");
+		Форма_UnloadForm( btnSave.Form);
+    else
+        setTxtInfoPanelText("ВНИМАНИЕ!!! Запись не сохранена в базу данных");
+    end
+end
+
+function setBtnCloseText( btnCloseValue )
+   btnClose.Text = btnCloseValue
+end
+function getBtnCloseText( )
+    return btnClose.Text
+end
+
+function btnClose_Click( control )
+    setFormFromEntity(Entity);
+    Форма_UnloadForm( control.Form);
+end
+
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setTxtInfoPanelBackColor( txtInfoPanelBackColor )
+   txtInfoPanel.BackColor = txtInfoPanelBackColor
+end
+
+function txtSerialNumber_FocusLeave( control )
+	txtSerialNumber.Value = string.upper(txtSerialNumber.Text)	
+end
+
+function txtPersonalNumber_FocusLeave( control )
+	txtPersonalNumber.Value = string.upper(txtPersonalNumber.Text)	
+end
+
+function Форма_BeforeSaveForm( event )
+	event.PermitSave = false;
+end

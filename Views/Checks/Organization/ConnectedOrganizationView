@@ -1,0 +1,569 @@
+local ClassManager = nil;
+local Entity = nil;
+local unloadController = nil;
+local formsController = nil;
+local validationController = nil;
+local requestController = nil;
+local  logger = nil;
+local service = nil;
+local constanta = nil;
+local childForms = {};
+local invokedClass = nll;
+local listPosition = nil;
+local formEntity = nil;
+local dpdOfficialStatusCodes = nil
+local dpdOrgParticipationTypeCodes = nil;
+local dpdTypeOfCheckCodes = nil;
+local frmRelationType = nil;
+local rdbControlling = nil;
+local rdbControlled = nil;
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function getInvokedClass()
+    return invokedClass;
+end
+function setInvokedClass(invokedClassValue)
+    invokedClass = invokedClassValue;
+end
+
+function Форма_Open( form	)
+    setClassManager(Arg.ClassManager)
+    setControllersReferences()
+    return true;
+end
+
+function getListPosition()
+    return listPosition;
+end
+function setListPosition(listPositionValue)
+    listPosition = listPositionValue;
+end
+
+function getDpdOfficialStatusCodes()
+    return dpdOfficialStatusCodes;
+end
+function setDpdOfficialStatusCodes(dpdOfficialStatusCodesValue)
+    dpdOfficialStatusCodes = dpdOfficialStatusCodesValue;
+end
+
+function getDpdOrgParticipationTypeCodes()
+    return dpdOrgParticipationTypeCodes;
+end
+function setDpdOrgParticipationTypeCodes(dpdOrgParticipationTypeCodesValue)
+    dpdOrgParticipationTypeCodes = dpdOrgParticipationTypeCodesValue;
+end
+
+function getDpdTypeOfCheckCodes()
+    return dpdTypeOfCheckCodes;
+end
+function setDpdTypeOfCheckCodes(dpdTypeOfCheckCodesValue)
+    dpdTypeOfCheckCodes = dpdTypeOfCheckCodesValue;
+end
+
+function Форма_Load( form )
+    getClassManager().setClass(form, form)    
+	setControls(form);
+	setRdbControllingText(Arg.FormModule.getTxtCompanyNameText())	
+	setRdbControlledText(Arg.FormModule.getTxtCompanyNameText())	
+	setInvokedClass(Arg.FormModule);	
+    table.insert(childForms,form);	
+    if (Arg.Data ~= nil) then
+        for key,entity in pairs(Arg.Data) do			
+            Entity = entity;			
+            setFormFromEntity(entity);						
+        end
+    end	
+end
+
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+    constanta = getClassManager().getClass("Constanta");
+	requestController = getClassManager().getClass("RequestController");
+	validationController = getClassManager().getClass("ValidationController");
+	logger = getClassManager().getClass("Logger");
+	service = getClassManager().getClass("Service");
+end
+
+function Форма_UnloadForm( form, mode )
+    unloadController.doUnload(getClassManager(), form, childForms);
+    getClassManager().setClass(form, nil)
+    return true;
+end
+
+local lblCompanyName = nil;
+local txtCompanyName = nil;
+local lblCompanyUnn = nil;
+local txtCompanyUnn = nil;
+local lblOfficialStatus = nil;
+local dpdOfficialStatus = nil;
+local lblOrgParticipationType = nil;
+local dpdOrgParticipationType = nil;
+local lblTypeOfCheck = nil;
+local dpdTypeOfCheck = nil;
+local listPosition = nil;
+local btnAddOrganization = nil;
+local btnClose = nil;
+local pnlConnectedOrganization = nil;
+local lblSharePercent = nil;
+local txtSharePercent = nil;
+
+function setControls(form)    
+	lblCompanyName = form.lblCompanyName;
+    txtCompanyName = form.txtCompanyName;
+    lblCompanyUnn = form.lblCompanyUnn;
+    txtCompanyUnn = form.txtCompanyUnn;	
+    lblOfficialStatus = form.lblOfficialStatus;
+    dpdOfficialStatus = form.dpdOfficialStatus;	
+    lblOrgParticipationType = form.lblOrgParticipationType;
+    dpdOrgParticipationType = form.dpdOrgParticipationType;	
+    lblTypeOfCheck = form.lblTypeOfCheck;
+    dpdTypeOfCheck = form.dpdTypeOfCheck;	
+	frmRelationType = form.frmRelationType;	
+	rdbControlling = form.rdbControlling;
+    rdbControlled = form.rdbControlled;
+    btnAddOrganization = form.btnAddOrganization;	
+    btnClose = form.btnClose;
+	pnlConnectedOrganization = form.pnlConnectedOrganization;
+	setRdbControlling(true);
+	lblSharePercent = form.lblSharePercent;
+    txtSharePercent = form.txtSharePercent;
+    populateLists();	
+end
+
+function populateLists()
+	--заполнение списка типов проверок
+	addDpdTypeOfCheckItems(constanta.getDpdTypeOfCheckDefinitions());
+	addDpdOfficialStatusItems(constanta.getDpdOfficialStatusDefinitions());
+	addDpdOrgParticipationTypeItems(constanta.getDpdOrgParticipationTypeDefinitions());		
+end
+
+function setFormFromEntity(entity)
+	formEntity = entity;
+	setListPosition(entity.getListPosition());
+	if (string.len(string.swap(entity.getOrganizationEntity().getFullName(), " ", "")) > 0) then
+		setTxtCompanyNameText(entity.getOrganizationEntity().getFullName());
+	end
+	if (string.len(string.swap(entity.getOrganizationEntity().getUnn(), " ", "")) > 0) then
+		setTxtCompanyUnnText(entity.getOrganizationEntity().getUnn());	
+	end
+    setDpdOfficialStatusSelectedItem(entity.getOrganizationEntity().getOfficialStatusDefinition(ClassManager));	
+    if (entity.getFoundersAndPartnersEntity() ~= nil) then
+		setDpdOrgParticipationTypeSelectedItem(entity.getFoundersAndPartnersEntity().getParticipationTypeDefinition(ClassManager));	
+		setTxtSharePercentText(entity.getFoundersAndPartnersEntity().getSharePercent())
+	end
+    if (entity.getRequestJournalEntity() ~= nil) then
+		setDpdTypeOfCheckSelectedItem(entity.getRequestJournalEntity().getTypeOfCheckDefinition(ClassManager));		
+	end
+	setRdbControlling(entity.getIsControlling())
+	setRdbControlled(entity.getIsControlled());	
+	if (entity.getIsExisted()) then
+		setPnlConnectedOrganizationEnable(false)
+	end	
+	dpdOfficialStatus_SelectedIndexChanged( control, index )
+	dpdOrgParticipationType_SelectedIndexChanged( control, index )
+	dpdTypeOfCheck_SelectedIndexChanged( control, index )
+end
+
+function setLblCompanyNameText( lblCompanyNameValue )
+   lblCompanyName.Text = lblCompanyNameValue
+end
+function getLblCompanyNameText( )
+    return lblCompanyName.Text
+end
+
+function setTxtCompanyNameText( txtCompanyNameValue )
+    txtCompanyName.Text = txtCompanyNameValue
+end
+function getTxtCompanyNameText( )
+    return txtCompanyName.Text
+end
+
+function setLblCompanyUnnText( lblCompanyUnnValue )
+   lblCompanyUnn.Text = lblCompanyUnnValue
+end
+function getLblCompanyUnnText( )
+    return lblCompanyUnn.Text
+end
+
+function setTxtCompanyUnnText( txtCompanyUnnValue )
+    txtCompanyUnn.Text = txtCompanyUnnValue
+end
+function getTxtCompanyUnnText( )
+    return string.trim(txtCompanyUnn.Text)
+end
+
+function setLblOfficialStatusText( lblOfficialStatusValue )
+   lblOfficialStatus.Text = lblOfficialStatusValue
+end
+function getLblOfficialStatusText( )
+    return lblOfficialStatus.Text
+end
+
+function addDpdOfficialStatusItem( dpdOfficialStatusValue )
+   dpdOfficialStatus:Add(dpdOfficialStatusValue)
+end
+function addDpdOfficialStatusItems( dpdOfficialStatusValues )
+    if dpdOfficialStatusValues ~= nil then
+        for key, value in pairs (dpdOfficialStatusValues) do
+            addDpdOfficialStatusItem(value)
+        end
+    end
+end
+function clearDpdOfficialStatusItesm( )
+   dpdOfficialStatus:Clear(index)
+end
+function getDpdOfficialStatusSelectedItem( )
+    return dpdOfficialStatus.SelectedItem
+end
+function setDpdOfficialStatusSelectedItem( dpdOfficialStatusItemValue)
+	clearDpdOfficialStatusItesm( )
+	addDpdOfficialStatusItems(constanta.getDpdOfficialStatusDefinitions());
+    dpdOfficialStatus.SelectedItem = dpdOfficialStatusItemValue
+end
+function getDpdOfficialStatusSelectedIndex( )
+    return dpdOfficialStatus.SelectedIndex
+end
+function getDpdOfficialStatusSelectedCode( )    
+	return service.getItemFromTableByIndex(constanta.getDpdOfficialStatusCodes(),getDpdOfficialStatusSelectedIndex())
+end
+function setDpdOfficialStatusSelectedIndex( dpdOfficialStatusIndexValue )
+    dpdOfficialStatus.SelectedIndex = dpdOfficialStatusIndexValue
+end
+
+function setLblOrgParticipationTypeText( lblOrgParticipationTypeValue )
+   lblOrgParticipationType.Text = lblOrgParticipationTypeValue
+end
+function getLblOrgParticipationTypeText( )
+    return lblOrgParticipationType.Text
+end
+
+function addDpdOrgParticipationTypeItem( dpdOrgParticipationTypeValue )
+   dpdOrgParticipationType:Add(dpdOrgParticipationTypeValue)
+end
+function addDpdOrgParticipationTypeItems( dpdOrgParticipationTypeValues )
+    if dpdOrgParticipationTypeValues ~= nil then
+        for key, value in pairs (dpdOrgParticipationTypeValues) do
+            addDpdOrgParticipationTypeItem(value)
+        end
+    end
+end
+function clearDpdOrgParticipationTypeItesm( )
+   dpdOrgParticipationType:Clear(index)
+end
+function getDpdOrgParticipationTypeSelectedItem( )
+    return dpdOrgParticipationType.SelectedItem
+end
+function setDpdOrgParticipationTypeSelectedItem( dpdOrgParticipationTypeItemValue)
+    clearDpdOrgParticipationTypeItesm( );
+	addDpdOrgParticipationTypeItems(constanta.getDpdOrgParticipationTypeDefinitions());	
+	dpdOrgParticipationType.SelectedItem = dpdOrgParticipationTypeItemValue
+end
+function getDpdOrgParticipationTypeSelectedIndex( )
+    return dpdOrgParticipationType.SelectedIndex
+end
+function getDpdOrgParticipationTypeSelectedCode( )    
+	return service.getItemFromTableByIndex(constanta.getDpdOrgParticipationTypeCodes(),getDpdOrgParticipationTypeSelectedIndex())
+end
+function setDpdOrgParticipationTypeSelectedIndex( dpdOrgParticipationTypeIndexValue )
+    dpdOrgParticipationType.SelectedIndex = dpdOrgParticipationTypeIndexValue
+end
+
+function setLblTypeOfCheckText( lblTypeOfCheckValue )
+   lblTypeOfCheck.Text = lblTypeOfCheckValue
+end
+function getLblTypeOfCheckText( )
+    return lblTypeOfCheck.Text
+end
+
+function getDpdTypeOfCheck()
+	return dpdTypeOfCheck;
+end
+function addDpdTypeOfCheckItem( dpdTypeOfCheckValue )
+   dpdTypeOfCheck:Add(dpdTypeOfCheckValue)
+end
+function addDpdTypeOfCheckItems( dpdTypeOfCheckValues )
+    if dpdTypeOfCheckValues ~= nil then
+        for key, value in pairs (dpdTypeOfCheckValues) do
+            addDpdTypeOfCheckItem(value)
+        end
+    end
+end
+function clearDpdTypeOfCheckItesm( )
+   dpdTypeOfCheck:Clear(index)
+end
+function getDpdTypeOfCheckSelectedItem( )
+    return dpdTypeOfCheck.SelectedItem
+end
+function setDpdTypeOfCheckSelectedItem( dpdTypeOfCheckItemValue)
+	clearDpdTypeOfCheckItesm( )
+	addDpdTypeOfCheckItems(constanta.getDpdTypeOfCheckDefinitions());
+    dpdTypeOfCheck.SelectedItem = dpdTypeOfCheckItemValue
+end
+function getDpdTypeOfCheckSelectedIndex( )
+    return dpdTypeOfCheck.SelectedIndex
+end
+function getDpdTypeOfCheckSelectedCode( )    
+	return service.getItemFromTableByIndex(constanta.getDpdTypeOfCheckCodes(),getDpdTypeOfCheckSelectedIndex())
+end
+function setDpdTypeOfCheckSelectedIndex( dpdTypeOfCheckIndexValue )
+    dpdTypeOfCheck.SelectedIndex = dpdTypeOfCheckIndexValue
+end
+
+function setBtnAddOrganizationText( btnAddOrganizationValue )
+   btnAddOrganization.Text = btnAddOrganizationValue
+end
+function getBtnAddOrganizationText( )
+    return btnAddOrganization.Text
+end
+
+function setBtnCloseText( btnCloseValue )
+   btnClose.Text = btnCloseValue
+end
+function getBtnCloseText( )
+    return btnClose.Text
+end
+
+function isRdbControlling()	
+	return rdbControlling.Check;
+end
+function setRdbControlling(rdbControllingValue)
+	rdbControlling.Check = rdbControllingValue;
+end
+function getRdbControllingText()
+	return rdbControlling.Text;
+end 
+function setRdbControllingText(newText)
+	if (newText ~= nil) then
+		rdbControlling.Text = getRdbControllingText().." '"..newText.."'";
+	end
+end
+
+function isRdbControlled()	
+	return rdbControlled.Check;
+end
+function setRdbControlled(rdbControlledValue)
+	rdbControlled.Check = rdbControlledValue;
+end
+function getRdbControlledText()
+	return rdbControlled.Text;
+end 
+function setRdbControlledText(newText)
+	if (newText ~= nil) then
+		rdbControlled.Text = getRdbControlledText().." '"..newText.."'";
+	end
+end
+
+function setPnlConnectedOrganizationEnable (isEnabledValue)	
+	pnlConnectedOrganization.Enabled = isEnabledValue;
+end
+
+function setLblSharePercentText( lblSharePercentValue )
+   lblSharePercent.Text = lblSharePercentValue
+end
+function getLblSharePercentText( )
+    return lblSharePercent.Text
+end
+
+function getTxtSharePercentText( )
+    return txtSharePercent.Text
+end
+function setTxtSharePercentText( txtSharePercentValue )
+    txtSharePercent.Text = txtSharePercentValue
+end
+function setTxtSharePercentEnabled( isTxtSharePercentEnabled )
+   txtSharePercent.Enabled = isTxtSharePercentEnabled
+end
+
+function btnClose_Click( control )
+    Форма_UnloadForm( control.Form);
+end
+
+function btnAddOrganization_Click( control )
+	--проверка корректности заполнения формы
+	logger.writeDebugMessage(ClassManager,"Метод добавления связанной организации")			
+	if validationController.doValidate(getClassManager(), control) == true then			
+		logger.writeDebugMessage(ClassManager,"Валидация данный пройдена")			
+		--передача объектов в форму проверки юридического лица
+		--создание экземпляра виртуального класса
+		local connectedOrganizationEntity = nil;
+		if (formEntity == nil) then 
+			logger.writeDebugMessage(ClassManager,"Создание нового объекта связанной организации")			
+			connectedOrganizationEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstConnectedOrganization());
+		else
+			logger.writeDebugMessage(ClassManager,"Объект связанной организации не создается так как уже существовал")
+			connectedOrganizationEntity = formEntity;
+		end								
+		--добавление объекта Organization	
+		logger.writeDebugMessage(ClassManager,"Получение объекта организации из объекта связанной организации")			
+		local organizationEntity = connectedOrganizationEntity.getOrganizationEntity();		
+		if (organizationEntity == nil) then
+			--построение экземпляра Organization
+			logger.writeDebugMessage(ClassManager,"Был получен пустой объект организации. Создание нового объекта организации")			
+			organizationEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstOrganization());		
+		else
+			logger.writeDebugMessage(ClassManager,"Объект организации не создается так как уже существовал и был получен из объекта связанной организации")
+		end
+		logger.writeDebugMessage(ClassManager,"Заполнение объекта организации: полное наименование")
+		organizationEntity.setFullName(getTxtCompanyNameText());		
+		--organizationEntity.setShortName(getTxtCompanyNameText());		
+		logger.writeDebugMessage(ClassManager,"Заполнение объекта организации: УНН")
+		organizationEntity.setUnn(getTxtCompanyUnnText());						
+		logger.writeDebugMessage(ClassManager,"Заполнение объекта организации: организационно-правоввая форма")
+		organizationEntity.setOfficialStatus(getDpdOfficialStatusSelectedCode());		
+		logger.writeDebugMessage(ClassManager,"Поместить объект организации в объект связанной организации")
+		connectedOrganizationEntity.setOrganizationEntity(organizationEntity);			
+		logger.writeDebugMessage(ClassManager,"Получение объекта учредителей и партнеров из объекта связанной организации")		
+		--построение объекта FounderAndPartners
+		local founderEntity = connectedOrganizationEntity.getFoundersAndPartnersEntity();
+		if (founderEntity == nil) then 
+			logger.writeDebugMessage(ClassManager,"Был получен пустой объект учредителей и пртнеров. Создание нового объекта чредителей и  партнеров")			
+			founderEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstFoundersAndPartners());
+		end
+		logger.writeDebugMessage(ClassManager,"Был получен пустой объект организации. Создание нового объекта организации")			
+		founderEntity.setParticipationType(getDpdOrgParticipationTypeSelectedCode());	
+		logger.writeDebugMessage(ClassManager,"Заполнение объекта учредителей и партнеров: доля собственности")		
+		founderEntity.setSharePercent(getTxtSharePercentText());
+		logger.writeDebugMessage(ClassManager,"Заполнение объекта связанной организации: флаг определения учредительства или партнерства")	
+		connectedOrganizationEntity.setFoundersAndPartnersEntity(founderEntity);								
+		logger.writeDebugMessage(ClassManager,"Заполнение объекта связанной организации: флаг определения отношения \"контролирует\"")
+		connectedOrganizationEntity.setIsControlling(isRdbControlling())
+		logger.writeDebugMessage(ClassManager,"Заполнение объекта связанной организации: флаг определения отношения \"контролируется\"")
+		connectedOrganizationEntity.setIsControlled(isRdbControlled())
+		--заполнение журнала запросов
+		logger.writeDebugMessage(ClassManager,"Создание нового объекта журнала запросов")
+		local requestJournalEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstRequestJournal());
+		logger.writeDebugMessage(ClassManager,"Заполнение объекта журнала запросов: вид проверки")		
+		requestJournalEntity.setTypeOfCheck(getDpdTypeOfCheckSelectedCode());			
+		logger.writeDebugMessage(ClassManager,"Поместить объект журнала запросов в объект связанной организации")
+		connectedOrganizationEntity.setRequestJournalEntity(requestJournalEntity);	
+		--поместить объект в форму для проверки		
+		logger.writeDebugMessage(ClassManager,"Поместить объект связанной организации в необходимое место списк")
+		if (getListPosition() ~= nil) then			
+			logger.writeDebugMessage(ClassManager,"Поместить скорректированный объект связанной организации в позицию № "..getListPosition().." списка связанных организаций формы проверки юридического лица")
+			invokedClass.swapConnectedOrganizationsEntity(connectedOrganizationEntity,getListPosition());		
+		else			
+			logger.writeDebugMessage(ClassManager,"Поместить новый объект связанной организации в конец списка связанных организаций формы проверки юридического лица")
+			invokedClass.insertConnectedOrganizationsEntity(connectedOrganizationEntity,0);					
+		end			
+		logger.writeDebugMessage(ClassManager,"Закрыть форму сздания и коррекции свзанных организаций")
+		Форма_UnloadForm( control.Form);
+	end
+	logger.writeDebugMessage(ClassManager,"Работа метода завершена")
+end
+
+function dpdOfficialStatus_SelectedIndexChanged( control, index )
+	dpdOfficialStatus.ToolTip = getDpdOfficialStatusSelectedItem();
+end
+
+function dpdOrgParticipationType_SelectedIndexChanged( control, index )
+	dpdOrgParticipationType.ToolTip = getDpdOrgParticipationTypeSelectedItem();
+end
+
+function dpdTypeOfCheck_SelectedIndexChanged( control, index )
+	dpdTypeOfCheck.ToolTip = getDpdTypeOfCheckSelectedItem();
+end
+
+function txtCompanyUnn_FocusEnter( control )
+	control:SetSelection()
+end
+
+function txtCompanyUnn_Click( control )
+	control:SetSelection()
+end
+
+function btnTypeOfCheckVocEditor_Click( control )
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(),control,nil))
+end
+
+function btnSortOfOrganizationVocEditor_Click( control )
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(),control,nil))
+end
+
+function btnOfficialStatusVocEditor_Click( control )
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(),control,nil))
+end
+
+function txtCompanyName_FocusLeave( control )
+	txtCompanyName.Text = string.ulower(txtCompanyName.Text)
+end
+
+function txtCompanyUnn_FocusLeave( control )	
+	service.doTextBoxPatternCheck( txtCompanyUnn, "%a" )	
+end
+
+function txtCompanyUnn_KeyUp( event )
+	service.doTextBoxLengthCheck( txtCompanyUnn, constanta.getUnpFieldLength())
+end
+
+function setControlFocused (control)
+	control.Focused = true;
+end
+
+
+function dpdOfficialStatus_FocusLeave( control )
+	setDpdOfficialStatusSelectedItem(dpdOfficialStatus.Text);
+end
+
+function dpdOrgParticipationType_FocusLeave( control )
+	setDpdOrgParticipationTypeSelectedItem(dpdOrgParticipationType.Text);
+end
+
+function dpdTypeOfCheck_FocusLeave( control )
+	setDpdTypeOfCheckSelectedItem(dpdTypeOfCheck.Text);
+end
+
+function dpdOfficialStatus_KeyUp( event )
+	if (event.Key ~= 38 and event.Key ~= 40 and event.Key ~= 9 and event.Key ~= 13) then
+		local termin = dpdOfficialStatus.Text			
+		requestController.doDropDownQuickSearch(dpdOfficialStatus, constanta.getDpdOfficialStatusDefinitions(), termin)
+	end
+end
+
+function dpdOrgParticipationType_KeyUp( event )
+	if (event.Key ~= 38 and event.Key ~= 40 and event.Key ~= 9 and event.Key ~= 13) then
+		local termin = dpdOrgParticipationType.Text																						   
+		requestController.doDropDownQuickSearch(dpdOrgParticipationType, constanta.getDpdOrgParticipationTypeDefinitions(), termin)
+	end
+end
+
+function dpdTypeOfCheck_KeyTyped( event )
+
+end
+
+function dpdTypeOfCheck_KeyUp( event )
+	if (event.Key ~= 38 and event.Key ~= 40 and event.Key ~= 9 and event.Key ~= 13) then
+		local termin = dpdTypeOfCheck.Text																						   
+		requestController.doDropDownQuickSearch(dpdTypeOfCheck, constanta.getDpdTypeOfCheckDefinitions(), termin)
+	end
+end
+
+function setChosenRecord(form, organizationRec)
+	local organizationEntity = getClassManager().newEntity(getClassManager(), constanta.getCnstOrganization())
+	organizationEntity.setBeanFromRecord(organizationRec);
+	local connectedOrganizationEntity = getClassManager().newEntity(getClassManager(), constanta.getCnstConnectedOrganization())
+	connectedOrganizationEntity.setOrganizationEntity(organizationEntity)
+	setFormFromEntity(connectedOrganizationEntity);
+	setControlFocused(getDpdTypeOfCheck())
+end
+
+function btnPopulateSearch_Click( control )
+	if validationController.doValidate(getClassManager(), control) then
+		local organizationRecordSet = requestController.populateSearch(getClassManager(), control);
+		if (organizationRecordSet.Count > 0) then
+			MsgBox("Найдены существующие объекты в количестве "..organizationRecordSet.Count .." штук.",BtnOk + IconInformation)	
+			table.insert(childForms,formsController.openNeccessaryForm(getClassManager(), control, organizationRecordSet));		
+		end
+	end
+end
+
+function txtSharePercent_Click( control )
+	control:SetSelection()
+end

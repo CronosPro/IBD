@@ -1,0 +1,702 @@
+local ClassManager = nil;
+local Entity = nil;
+local unloadController = nil;
+local formsController = nil;
+local requestController = nil;
+local validationController = nil;
+local service = nil;
+local constanta = nil;
+local objectList = nil;
+local invokedClass = nll;
+local listPosition = nil;
+local childForms = {};
+local connectedPeopleEntities = {};
+
+local lblRelationType = nil;
+local dpdRelationType = nil;
+local lblRelationInfo = nil;
+local txtRelationInfo = nil;
+local txtNotes = nil;
+local lblNotes = nil;
+local pnlButtons = nil;
+local btnRelationTypeVocEditor = nil;
+local btnClose = nil;
+local btnAddRelation = nil;
+local frmConnectedPeople = nil;
+local btnAddRelatedPerson = nil;
+local btnDeleteRelatedPerson = nil;
+local pnlPersonRelation = nil;
+local pnlReltedPerson = nil;
+local lblLastName = nil;
+local txtLastName = nil;
+local lblFirstName = nil;
+local txtFirstName = nil;
+local lblMiddleName = nil;
+local txtMiddleName = nil;
+local lblBirthday = nil;
+local txtBirthday = nil;
+local btnBirthday = nil;
+local lblTypeOfCheck = nil;
+local dpdTypeOfCheck = nil;
+local btnTypeOfCheckVocEditor = nil;
+local lstConnectedPeople = nil;
+local txtFullName = nil;
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function getObjectList()
+    return objectList;
+end
+function setObjectList(objectListValue)
+    objectList = objectListValue;
+end
+
+function getInvokedClass()
+    return invokedClass;
+end
+function setInvokedClass(invokedClassValue)
+    invokedClass = invokedClassValue;
+end
+
+function getListPosition()
+    return listPosition;
+end
+function setListPosition(listPositionValue)
+    listPosition = listPositionValue;
+end
+
+function insertConnectedPeopleEntity( connectedPersonEntity, index )				
+	table.insert(getConnectedPeopleEntities(),getLstConnectedPeopleItemsCount(),connectedPersonEntity) ;  					
+	insertLstConnectedPeopleItem(connectedPersonEntity.toShortString(getClassManager(), index)) ;		
+end	
+function swapConnectedPeopleEntity (connectedPersonEntity, index)
+	for key, entity in pairs(getConnectedPeopleEntities()) do				
+		if (key == index) then			
+			removeLstConnectedPeopleItem(index+1);						
+			insertLstConnectedPeopleItem(entity.toShortString(getClassManager()), index+1) ;										
+		end				
+	end
+end
+function clearConnectedPeopleEntities()	
+	connectedPeopleEntities = {}
+	clearLstConnectedPeopleItems();
+end
+function removeConnectedPeopleEntity(index)	
+	setConnectedPeopleEntities(getClassManager().getClass("Service").removeFromTable(getConnectedPeopleEntities(),index));
+	removeLstConnectedPeopleItem(index);			
+end
+function getConnectedPeopleEntities()
+	return connectedPeopleEntities;
+end
+function setConnectedPeopleEntities(connectedPeopleEntitiesValue)
+	connectedPeopleEntities = connectedPeopleEntitiesValue;
+end
+
+function Форма_Open( form	)
+    setClassManager(Arg.ClassManager)
+    setControllersReferences()
+    return true;
+end
+
+function Форма_Load( form )
+    getClassManager().setClass(form, form)
+	setControls(form);	
+	setInvokedClass(Arg.FormModule);
+	table.insert(childForms,form);  	
+	local deltaY = frmConnectedPeople.Height;
+	pnlButtons.Y = pnlButtons.Y - deltaY;
+	form.Height = form.Height - deltaY;		
+end
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+	validationController = getClassManager().getClass("ValidationController");
+	requestController = getClassManager().getClass("RequestController");
+	service = getClassManager().getClass("Service");
+    constanta = getClassManager().getClass("Constanta");
+end
+
+function Форма_UnloadForm( form, mode )
+    unloadController.doUnload(getClassManager(), form, childForms);
+    getClassManager().setClass(form, nil)
+    return true;
+end
+
+function setControls(form)
+    lblRelationType = form.lblRelationType;
+    dpdRelationType = form.dpdRelationType;
+	dpdRelationType.Focused = true;
+    lblRelationInfo = form.lblRelationInfo;
+    txtRelationInfo = form.txtRelationInfo;
+    txtNotes = form.txtNotes;
+    lblNotes = form.lblNotes;
+    pnlButtons = form.pnlButtons;
+    btnRelationTypeVocEditor = form.btnRelationTypeVocEditor;
+    btnClose = form.btnClose;
+    btnAddRelation = form.btnAddRelation;
+    frmConnectedPeople = form.frmConnectedPeople;
+    btnAddRelatedPerson = form.btnAddRelatedPerson;
+    btnDeleteRelatedPerson = form.btnDeleteRelatedPerson;
+    pnlPersonRelation = form.pnlPersonRelation;
+    pnlReltedPerson = form.pnlReltedPerson;
+    lblLastName = form.lblLastName;
+    txtLastName = form.txtLastName;
+    lblFirstName = form.lblFirstName;
+    txtFirstName = form.txtFirstName;
+    lblMiddleName = form.lblMiddleName;
+    txtMiddleName = form.txtMiddleName;
+    lblBirthday = form.lblBirthday;
+    txtBirthday = form.txtBirthday;
+    btnBirthday = form.btnBirthday;
+    lblTypeOfCheck = form.lblTypeOfCheck;
+    dpdTypeOfCheck = form.dpdTypeOfCheck;
+    btnTypeOfCheckVocEditor = form.btnTypeOfCheckVocEditor;	
+	lstConnectedPeople = form.lstConnectedPeople;
+	txtFullName = form.txtFullName;
+    populateLists();
+end
+
+function populateLists()
+	addDpdRelationTypeItems(constanta.getDpdPersonRelationTypeDefinitions());		
+	addDpdTypeOfCheckItems(constanta.getDpdTypeOfCheckDefinitions());	
+end
+
+function setFormFromEntity(entity)	
+	Entity = entity;
+	setListPosition(Entity.getListPosition())		
+    setDpdRelationTypeSelectedItem(Entity.getRelationTypeDefinition());
+    setTxtRelationInfoText(Entity.getRelationInfo());
+    setTxtNotesText(Entity.getNotes());	
+	if (table.count(Entity.getConnectedPersonEntities()) >  1) then
+		setControlVisible(pnlReltedPerson, false);
+		frmConnectedPeople.TabStop = true;		
+		--setControlVisible(frmConnectedPeople, true);		
+		local deltaY = frmConnectedPeople.Height;
+		pnlButtons.Y = pnlButtons.Y + deltaY;
+		pnlButtons.Form.Height = pnlButtons.Form.Height + deltaY;		
+		deltaY = pnlReltedPerson.Height ;
+		frmConnectedPeople.Y = frmConnectedPeople.Y - deltaY;
+		pnlButtons.Y = pnlButtons.Y - deltaY;				
+		pnlButtons.Form.Height = pnlButtons.Form.Height - deltaY;
+		for key, connetedPerson in pairs(Entity.getConnectedPersonEntities()) do
+			insertConnectedPeopleEntity( connetedPerson, 0 )	
+		end	
+	elseif (table.count(Entity.getConnectedPersonEntities())== 1) then		
+		pnlReltedPerson.TabStop = true;
+		for entKey, entity in pairs(Entity.getConnectedPersonEntities()) do		
+			setTxtLastNameText(entity.getPersonEntity().getLastName());
+			setTxtFirstNameText(entity.getPersonEntity().getFirstName());
+			setTxtMiddleNameText(entity.getPersonEntity().getMiddleName());
+			setTxtBirthdayText(entity.getPersonEntity().getBirthday());
+			if (entity.getRequestJournalEntity() ~= nil) then
+				setDpdTypeOfCheckSelectedItem(entity.getRequestJournalEntity().getTypeOfCheckDefinition())
+				dpdTypeOfCheck_SelectedIndexChanged( control, index )		
+			end	
+		end
+	end
+	if (not Entity.getIsNew()) then
+		setControlEnabled(pnlPersonRelation, false)			
+		setControlEnabled(pnlReltedPerson, false)
+		--[[setControlEnabled(txtFirstName, false)
+		setControlEnabled(txtLastName, false)
+		setControlEnabled(txtMiddleName, false)
+		setControlEnabled(txtBirthday, false)
+		setControlEnabled(btnBirthday, false)
+		--]]
+		setControlFocused (frmConnectedPeople)
+	end	
+end
+
+function setLblRelationTypeText( lblRelationTypeValue )
+   lblRelationType.Text = lblRelationTypeValue
+end
+function getLblRelationTypeText( )
+    return lblRelationType.Text
+end
+
+function addDpdRelationTypeItem( dpdRelationTypeValue )
+   dpdRelationType:Add(dpdRelationTypeValue)
+end
+function addDpdRelationTypeItems( dpdRelationTypeValues )
+    if dpdRelationTypeValues ~= nil then
+        for key, value in pairs (dpdRelationTypeValues) do
+            addDpdRelationTypeItem(value)
+        end
+    end
+end
+function clearDpdRelationTypeItesm( )
+   dpdRelationType:Clear(index)
+end
+function getDpdRelationTypeSelectedItem( )	
+    return dpdRelationType.SelectedItem
+end
+function setDpdRelationTypeSelectedItem( dpdRelationTypeItemValue)
+	clearDpdRelationTypeItesm()
+	addDpdRelationTypeItems(constanta.getDpdPersonRelationTypeDefinitions());		
+	dpdRelationType.SelectedItem = dpdRelationTypeItemValue
+end
+function getDpdRelationTypeSelectedIndex( )
+    return dpdRelationType.SelectedIndex
+end
+function getDpdRelationTypeSelectedCode( )
+	return service.getItemFromTableByIndex(constanta.getDpdPersonRelationTypeCodes(),getDpdRelationTypeSelectedIndex())
+end
+function setDpdRelationTypeSelectedIndex( dpdRelationTypeIndexValue )
+    dpdRelationType.SelectedIndex = dpdRelationTypeIndexValue
+end
+function setDpdRelationTypeEnabled( isDpdRelationTypeEnabled )
+   dpdRelationType.Enabled = isDpdRelationTypeEnabled
+end
+
+function setLblRelationInfoText( lblRelationInfoValue )
+   lblRelationInfo.Text = lblRelationInfoValue
+end
+function getLblRelationInfoText( )
+    return lblRelationInfo.Text
+end
+
+function getTxtRelationInfoText( )
+    return txtRelationInfo.Text
+end
+function setTxtRelationInfoText( txtRelationInfoValue )
+    txtRelationInfo.Text = txtRelationInfoValue
+end
+function setTxtRelationInfoEnabled( isTxtRelationInfoEnabled )
+   txtRelationInfo.Enabled = isTxtRelationInfoEnabled
+end
+
+function getTxtNotesText( )
+    return txtNotes.Text
+end
+function setTxtNotesText( txtNotesValue )
+    txtNotes.Text = txtNotesValue
+end
+function setTxtNotesEnabled( isTxtNotesEnabled )
+   txtNotes.Enabled = isTxtNotesEnabled
+end
+
+function setLblNotesText( lblNotesValue )
+   lblNotes.Text = lblNotesValue
+end
+function getLblNotesText( )
+    return lblNotes.Text
+end
+
+function setBtnRelationTypeVocEditorText( btnRelationTypeVocEditorValue )
+   btnRelationTypeVocEditor.Text = btnRelationTypeVocEditorValue
+end
+function getBtnRelationTypeVocEditorText( )
+    return btnRelationTypeVocEditor.Text
+end
+function setBtnRelationTypeVocEditorEnabled( isBtnRelationTypeVocEditorEnabled )
+   btnRelationTypeVocEditor.Enabled = isBtnRelationTypeVocEditorEnabled
+end
+
+function setBtnCloseText( btnCloseValue )
+   btnClose.Text = btnCloseValue
+end
+function getBtnCloseText( )
+    return btnClose.Text
+end
+function setBtnCloseEnabled( isBtnCloseEnabled )
+   btnClose.Enabled = isBtnCloseEnabled
+end
+
+function btnClose_Click( control )    
+    Форма_UnloadForm( control.Form);
+end
+
+function setBtnAddRelationText( btnAddRelationValue )
+   btnAddRelation.Text = btnAddRelationValue
+end
+function getBtnAddRelationText( )
+    return btnAddRelation.Text
+end
+function setBtnAddRelationEnabled( isBtnAddRelationEnabled )
+   btnAddRelation.Enabled = isBtnAddRelationEnabled
+end
+
+function setBtnAddRelatedPersonText( btnAddRelatedPersonValue )
+   btnAddRelatedPerson.Text = btnAddRelatedPersonValue
+end
+function getBtnAddRelatedPersonText( )
+    return btnAddRelatedPerson.Text
+end
+function setBtnAddRelatedPersonEnabled( isBtnAddRelatedPersonEnabled )
+   btnAddRelatedPerson.Enabled = isBtnAddRelatedPersonEnabled
+end
+
+function setBtnDeleteRelatedPersonText( btnDeleteRelatedPersonValue )
+   btnDeleteRelatedPerson.Text = btnDeleteRelatedPersonValue
+end
+function getBtnDeleteRelatedPersonText( )
+    return btnDeleteRelatedPerson.Text
+end
+function setBtnDeleteRelatedPersonEnabled( isBtnDeleteRelatedPersonEnabled )
+   btnDeleteRelatedPerson.Enabled = isBtnDeleteRelatedPersonEnabled
+end
+
+function addLstConnectedPeopleItem( lstConnectedPeopleValue )
+   lstConnectedPeople:Add(lstConnectedPeopleValue)
+end
+function insertLstConnectedPeopleItem( lstConnectedPeopleValue, index )
+   lstConnectedPeople:Insert(lstConnectedPeopleValue, index);
+end
+function addLstConnectedPeopleItems( lstConnectedPeopleValues )
+    if lstConnectedPeopleValues ~= nil then
+        for key, value in pairs (lstConnectedPeopleValues) do
+            addLstConnectedPeopleItem(value);
+        end
+    end
+end
+function clearLstConnectedPeopleItems( )
+   lstConnectedPeople:Clear();
+end
+function removeLstConnectedPeopleItem( index )
+   lstConnectedPeople:Remove(index);
+end
+function getLstConnectedPeopleItem( index )
+    return lstConnectedPeople:GetItem(index);
+end
+function setLstConnectedPeopleItemChecked( index, isChecked)
+    lstConnectedPeople:SetItemChecked(index, isChecked);
+end
+function isLstConnectedPeopleItemChecked( lstConnectedPeopleIndexValue )
+    lstConnectedPeople:IsIndexChecked (lstConnectedPeopleIndexValue);
+end
+function getLstConnectedPeopleSelectedIndex( )
+    return lstConnectedPeople.SelectedIndex;
+end
+function getLstConnectedPeopleCheckedItems( )
+    return lstConnectedPeople.CheckedItems;
+end
+function getLstConnectedPeopleCheckedIndices( )
+    return lstConnectedPeople.CheckedIndices;
+end
+function getLstConnectedPeopleItemsCount( )
+    return lstConnectedPeople.ItemsCount;
+end
+
+function btnRelationTypeVocEditor_Click( control )
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(),control,nil))
+end
+
+function btnAddConnectedPerson_Click( control )
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(),control,nil))
+end
+
+function getFrmConnectedPeopleText()
+	return frmConnectedPeople.Text
+end
+
+function setLblLastNameText( lblLastNameValue )
+   lblLastName.Text = lblLastNameValue
+end
+function getLblLastNameText( )
+    return lblLastName.Text
+end
+
+function getTxtLastNameText( )
+    return txtLastName.Text
+end
+function setTxtLastNameText( txtLastNameValue )
+    txtLastName.Text = txtLastNameValue
+end
+function setTxtLastNameEnabled( isTxtLastNameEnabled )
+   txtLastName.Enabled = isTxtLastNameEnabled
+end
+
+function setLblFirstNameText( lblFirstNameValue )
+   lblFirstName.Text = lblFirstNameValue
+end
+function getLblFirstNameText( )
+    return lblFirstName.Text
+end
+
+function getTxtFirstNameText( )
+    return txtFirstName.Text
+end
+function setTxtFirstNameText( txtFirstNameValue )
+    txtFirstName.Text = txtFirstNameValue
+end
+function setTxtFirstNameEnabled( isTxtFirstNameEnabled )
+   txtFirstName.Enabled = isTxtFirstNameEnabled
+end
+
+function setLblMiddleNameText( lblMiddleNameValue )
+   lblMiddleName.Text = lblMiddleNameValue
+end
+function getLblMiddleNameText( )
+    return lblMiddleName.Text
+end
+
+function getTxtMiddleNameText( )
+    return txtMiddleName.Text
+end
+function setTxtMiddleNameText( txtMiddleNameValue )
+    txtMiddleName.Text = txtMiddleNameValue
+end
+function setTxtMiddleNameEnabled( isTxtMiddleNameEnabled )
+   txtMiddleName.Enabled = isTxtMiddleNameEnabled
+end
+
+function setLblBirthdayText( lblBirthdayValue )
+   lblBirthday.Text = lblBirthdayValue
+end
+function getLblBirthdayText( )
+    return lblBirthday.Text
+end
+
+function getTxtBirthdayText( )
+    return txtBirthday.Text
+end
+function setTxtBirthdayText( txtBirthdayValue )
+    txtBirthday.Text = txtBirthdayValue
+end
+function setTxtBirthdayEnabled( isTxtBirthdayEnabled )
+   txtBirthday.Enabled = isTxtBirthdayEnabled
+end
+
+function setBtnBirthdayText( btnBirthdayValue )
+   btnBirthday.Text = btnBirthdayValue
+end
+function getBtnBirthdayText( )
+    return btnBirthday.Text
+end
+function setBtnBirthdayEnabled( isBtnBirthdayEnabled )
+   btnBirthday.Enabled = isBtnBirthdayEnabled
+end
+
+function setLblTypeOfCheckText( lblTypeOfCheckValue )
+   lblTypeOfCheck.Text = lblTypeOfCheckValue
+end
+function getLblTypeOfCheckText( )
+    return lblTypeOfCheck.Text
+end
+
+function getDpdTypeOfCheck()
+	return dpdTypeOfCheck;	
+end
+function addDpdTypeOfCheckItem( dpdTypeOfCheckValue )
+   dpdTypeOfCheck:Add(dpdTypeOfCheckValue)
+end
+function addDpdTypeOfCheckItems( dpdTypeOfCheckValues )
+    if dpdTypeOfCheckValues ~= nil then
+        for key, value in pairs (dpdTypeOfCheckValues) do
+            addDpdTypeOfCheckItem(value)
+        end
+    end
+end
+function clearDpdTypeOfCheckItesm( )
+   dpdTypeOfCheck:Clear(index)
+end
+function getDpdTypeOfCheckSelectedItem( )		
+    return dpdTypeOfCheck.SelectedItem
+end
+function setDpdTypeOfCheckSelectedItem( dpdTypeOfCheckItemValue)
+	clearDpdTypeOfCheckItesm( )
+	addDpdTypeOfCheckItems(constanta.getDpdTypeOfCheckDefinitions());
+    dpdTypeOfCheck.SelectedItem = dpdTypeOfCheckItemValue
+end
+function getDpdTypeOfCheckSelectedCode( )    
+	return service.getItemFromTable(constanta.getDpdTypeOfCheckCodes(),getDpdTypeOfCheckSelectedIndex())
+end
+function getDpdTypeOfCheckSelectedIndex( )
+    return dpdTypeOfCheck.SelectedIndex
+end
+function setDpdTypeOfCheckSelectedIndex( dpdTypeOfCheckIndexValue )
+    dpdTypeOfCheck.SelectedIndex = dpdTypeOfCheckIndexValue
+end
+
+function setBtnTypeOfCheckVocEditorText( btnTypeOfCheckVocEditorValue )
+   btnTypeOfCheckVocEditor.Text = btnTypeOfCheckVocEditorValue
+end
+function getBtnTypeOfCheckVocEditorText( )
+    return btnTypeOfCheckVocEditor.Text
+end
+function setBtnTypeOfCheckVocEditorEnabled( isBtnTypeOfCheckVocEditorEnabled )
+   btnTypeOfCheckVocEditor.Enabled = isBtnTypeOfCheckVocEditorEnabled
+end
+
+function getTxtFullNameText( )
+    return txtFullName.Text
+end
+function setTxtFullNameText( txtFullNameValue )
+    txtFullName.Text = txtFullNameValue
+end
+function setTxtFullNameEnabled( isTxtFullNameEnabled )
+   txtFullName.Enabled = isTxtFullNameEnabled
+end
+----------------end of generated part---------------------
+function btnAddRelation_Click( control )	
+	local isSkipValidate = false;	
+	if (not frmConnectedPeople.Visible) then
+		if (Entity ~= nil) then
+			if Entity.getIsExisted() then
+				isSkipValidate = true;
+			end
+		end
+	end
+	if (isSkipValidate or validationController.doValidate(getClassManager(), control) == true) then							
+		if (Entity == nil) then 				
+			Entity = getClassManager().newEntity(getClassManager(), constanta.getCnstPersonRelations());			
+			Entity.setListPosition(0);					
+		else
+			Entity.setListPosition(getListPosition());		
+		end		
+		Entity.setRelationType(getDpdRelationTypeSelectedCode());		
+		Entity.setRelationInfo(getTxtRelationInfoText());		
+		Entity.setNotes(getTxtNotesText());				
+		if isPnlReltedPersonVisible() then				
+			local connectedPersonEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstConnectedPerson());						
+			local personEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstPerson());
+			personEntity.setLastName(getTxtLastNameText());
+			personEntity.setFirstName(getTxtFirstNameText());
+			personEntity.setMiddleName(getTxtMiddleNameText());
+			personEntity.setBirthday(getTxtBirthdayText());									
+			--добавление объекта Person
+			connectedPersonEntity.setPersonEntity(personEntity);		
+			Entity.addPersonEntity(personEntity);
+			--заполнение журнала запросов		
+			local requestJournalEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstRequestJournal());		
+			requestJournalEntity.setTypeOfCheck(getDpdTypeOfCheckSelectedCode());	
+			connectedPersonEntity.setRequestJournalEntity(requestJournalEntity);
+			Entity.addConnectedPersonEntity(connectedPersonEntity);		
+			--table.insert(getConnectedPeopleEntities(),connectedPersonEntity);  				
+		end		
+		--Entity.setConnectedPersonEntities(getConnectedPeopleEntities());		
+		--поместить объект в форму для проверки					
+		if (getListPosition() ~= nil) then						
+			invokedClass.swapPersonRelationsEntity(Entity,getListPosition());		
+		else						
+			invokedClass.insertPersonRelationsEntity(Entity,0);					
+		end				
+		Форма_UnloadForm( control.Form);
+	end
+end
+
+function lstConnectedPeople_DoubleClick( control )
+	local chosenObj = {}
+	local selectedIndex = getLstConnectedPeopleSelectedIndex()-1;		
+	--определение какой объект запрошен									 	
+	local selectedObject = service.getItemFromTable(getConnectedPeopleEntities(), selectedIndex)		
+	selectedObject.setListPosition(selectedIndex);
+	if selectedObject ~= nil then			
+		local openedForm = getClassManager().getClass("FormsController").openNeccessaryForm(getClassManager(),control,nil);
+		table.insert(childForms, openedForm);		
+		openedForm.Module.setFrmParticipationTypeVisible(false);
+		openedForm.Module.adjustFormViiew(openedForm);
+		openedForm.Module.setFormFromEntity(getClassManager(), selectedObject);				
+		openedForm.Module.setBtnAddPersonText("Сохранить")
+	else
+		MsgBox("Не выделен ни один из объектов списка. Повторите операцию.", IconWarning)
+	end	
+end
+
+
+function setControlFocused (control)
+	control.Focused = true;
+end
+
+function setControlEnabled(control, isEnabled)
+	control.Enabled = isEnabled;
+end
+
+function setControlVisible(control, isVisible)
+	control.Visible = isVisible;
+end
+function isControlVisible(control)
+	return control.Visible;
+end
+function isPnlReltedPersonVisible()
+	return pnlReltedPerson.Visible;
+end
+
+function btnBirthday_Click( control )
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(),control,nil))
+end
+
+function btnTypeOfCheckVocEditor_Click( control )
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(),control,nil))
+end
+
+function txtMiddleName_FocusLeave( control )	
+	txtMiddleName.Text = string.ulower(txtMiddleName.Text)
+end
+
+function txtLastName_FocusLeave( control )
+	txtLastName.Text = string.ulower(txtLastName.Text)
+end
+
+function txtFirstName_FocusLeave( control )
+	txtFirstName.Text = string.ulower(txtFirstName.Text)
+end
+
+function dpdTypeOfCheck_SelectedIndexChanged( control, index )
+	dpdTypeOfCheck.ToolTip = getDpdTypeOfCheckSelectedItem();
+end
+
+function setControlFocused (control)
+	control.Focused = true;
+end
+function isControlEnabled (control)
+	control.Enable = true;
+end
+
+function dpdTypeOfCheck_FocusLeave( control )
+	setDpdTypeOfCheckSelectedItem(dpdTypeOfCheck.Text);
+end
+
+function dpdRelationType_FocusLeave( control )
+	setDpdRelationTypeSelectedItem(dpdRelationType.Text);
+end
+
+function dpdRelationType_KeyUp( event )
+	if (event.Key ~= 38 and event.Key ~= 40 and event.Key ~= 9 and event.Key ~= 13) then
+		local termin = dpdRelationType.Text			
+		requestController.doDropDownQuickSearch(dpdRelationType, constanta.getDpdPersonRelationTypeDefinitions(), termin)
+	end
+end
+
+function dpdTypeOfCheck_KeyUp( event )
+	if (event.Key ~= 38 and event.Key ~= 40 and event.Key ~= 9 and event.Key ~= 13) then
+		local termin = dpdTypeOfCheck.Text			
+		requestController.doDropDownQuickSearch(dpdTypeOfCheck, constanta.getDpdTypeOfCheckDefinitions(), termin)
+	end
+end
+
+function btnPopulateSearch_Click( control )	
+	if(string.len(getTxtFullNameText()) > 0)then		
+		separatedFullNameTable = service.separatePersonInformation(getTxtFullNameText())												
+		setTxtLastNameText(separatedFullNameTable[1])		
+		setTxtFirstNameText(separatedFullNameTable[2])		
+		setTxtMiddleNameText(separatedFullNameTable[3])						
+	end	
+	if validationController.doValidate(getClassManager(), control) then
+		local personsRecordSet = requestController.populateSearch(getClassManager(), control);
+		if (personsRecordSet ~= nil) then			
+			if (personsRecordSet.Count > 0) then
+				MsgBox("В базе данных присутствует информация по лицу.",BtnOk + IconInformation)
+				table.insert(childForms,getClassManager().getClass("FormsController").openNeccessaryForm(getClassManager(), control, personsRecordSet));
+			else			
+				MsgBox("Информация по данному лицу в базе данных не присутствует.",BtnOk + IconWarning)					
+			end
+		end
+	end
+end
+
+function setChosenRecord(form, entityRecord)
+	local personRec = entityRecord;
+	local personEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstPerson());				
+	personEntity.setBeanFromRecord(personRec);			
+	setTxtLastNameText(personEntity.getLastName());
+	setTxtFirstNameText(personEntity.getFirstName());
+	setTxtMiddleNameText(personEntity.getMiddleName());
+	setTxtBirthdayText(personEntity.getBirthday());
+end

@@ -1,0 +1,417 @@
+local ClassManager = nil;
+local Entity = nil;
+local unloadController = nil;
+local formsController = nil;
+local constanta = nil;
+local objectList = nil;
+local childForms = {};
+local isNewObject = false;
+
+local lblAccountName = nil;
+local txtAccountName = nil;
+local lblAccountNumber = nil;
+local txtAccountNumber = nil;
+local lblCurrency = nil;
+local dpdCurrency = nil;
+local lblAccountType = nil;
+local dpdAccountType = nil;
+local lblNote = nil;
+local txtNote = nil;
+local pnlButtons = nil;
+local btnClose = nil;
+local btnSave = nil;
+local txtInfoPanel = nil;
+local lblBankName = nil;
+local dpdBankName = nil;
+local lblAccountOpenDate = nil;
+local txtAccountOpenDate = nil;
+local lblAccountCloseDate = nil;
+local txtAccountCloseDate = nil;
+local lblAccountArrested = nil;
+local dpdAccountArrested = nil;
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function getObjectList()
+    return objectList;
+end
+function setObjectList(objectListValue)
+    objectList = objectListValue;
+end
+
+function getEntity()	
+    return Entity;
+end
+function setEntity(entityValue)
+    Entity = entityValue;
+end
+
+function getIsNewObject()
+    return isNewObject;
+end
+function setIsNewObject(isNewObjectValue)
+    isNewObject = isNewObjectValue;
+end
+
+function Форма_Open( form	)    
+	setClassManager(Arg.ClassManager)	
+    setControllersReferences()	
+    return true;
+end
+
+function Форма_Load( form )
+    getClassManager().setClass(form, form)    
+	setControls(form);	
+	setObjectList(Arg.FormModule)
+	--form.X = getObjectList().getCurrentForm().X+getObjectList().getCurrentForm().Width
+    if (Arg.Data ~= nil) then				
+        for key,entity in pairs(Arg.Data) do			
+            if (entity.getEntityBaseCode() == constanta.getCnstBankAccount()) then				
+                Entity = entity;						
+				form.RecordNumber = Entity.getEntityRecord().SN;				                
+            end
+        end
+    end
+    if (Entity == nil) then
+        Форма_UnloadForm( form);
+	else
+		setFormFromEntity(getEntity());				
+		table.insert(childForms,form);
+		setIsNewObject(Arg.isNewObject);
+    end    
+end
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+    constanta = getClassManager().getClass("Constanta");
+end
+
+function Форма_UnloadForm( form, mode )
+    unloadController.doUnload(getClassManager(), form, childForms);
+    getClassManager().setClass(form, nil)
+    return true;
+end
+
+function setControls(form)
+    lblAccountName = form.lblAccountName;
+    txtAccountName = form.txtAccountName;
+    lblAccountNumber = form.lblAccountNumber;
+    txtAccountNumber = form.txtAccountNumber;
+    lblCurrency = form.lblCurrency;
+    dpdCurrency = form.dpdCurrency;
+    lblAccountType = form.lblAccountType;
+    dpdAccountType = form.dpdAccountType;
+    lblNote = form.lblNote;	
+    txtNote = form.txtNote;
+    pnlButtons = form.pnlButtons;
+    btnClose = form.btnClose;
+    btnSave = form.btnSave;
+    txtInfoPanel = form.txtInfoPanel;
+    lblBankName = form.lblBankName;
+    dpdBankName = form.dpdBankName;
+	lblAccountOpenDate = form.lblAccountOpenDate;
+    txtAccountOpenDate = form.txtAccountOpenDate;
+    lblAccountCloseDate = form.lblAccountCloseDate;
+    txtAccountCloseDate = form.txtAccountCloseDate;
+    lblAccountArrested = form.lblAccountArrested;
+    dpdAccountArrested = form.dpdAccountArrested;
+    populateLists();
+	setTxtInfoPanelBackColor(constanta.getSystemBackColor());
+end
+
+function populateLists()
+
+end
+
+function setFormFromEntity(entity)  
+	setTxtAccountNameText(entity.getAccountName());	
+    setTxtAccountNumberText(entity.getAccountNumber());	
+    setDpdCurrencySelectedItem(entity.getCurrency());	
+    setDpdAccountTypeSelectedItem(entity.getAccountType());	
+    setTxtNoteText(entity.getNote());	
+    setDpdBankNameSelectedItem(entity.getBankName());
+	setTxtAccountOpenDateText(entity.getAccountOpenDate());
+    setTxtAccountCloseDateText(entity.getAccountCloseDate());
+    setDpdAccountArrestedSelectedItem(entity.getAccountArrested());
+end
+function setLblAccountNameText( lblAccountNameValue )
+   lblAccountName.Value = lblAccountNameValue
+end
+function getLblAccountNameText( )
+    return lblAccountName.Value
+end
+
+function getTxtAccountNameText( )
+    return txtAccountName.Value
+end
+function setTxtAccountNameText( txtAccountNameValue )
+    txtAccountName.Value = txtAccountNameValue
+end
+
+function setLblAccountNumberText( lblAccountNumberValue )
+   lblAccountNumber.Value = lblAccountNumberValue
+end
+function getLblAccountNumberText( )
+    return lblAccountNumber.Value
+end
+
+function getTxtAccountNumberText( )
+    return txtAccountNumber.Value
+end
+function setTxtAccountNumberText( txtAccountNumberValue )
+    txtAccountNumber.Value = txtAccountNumberValue
+end
+
+function setLblCurrencyText( lblCurrencyValue )
+   lblCurrency.Value = lblCurrencyValue
+end
+function getLblCurrencyText( )
+    return lblCurrency.Value
+end
+
+function addDpdCurrencyItem( dpdCurrencyValue )
+   dpdCurrency:Add(dpdCurrencyValue)
+end
+function addDpdCurrencyItems( dpdCurrencyValues )
+    if dpdCurrencyValues ~= nil then
+        for key, value in pairs (dpdCurrencyValues) do
+            addDpdCurrencyItem(value)
+        end
+    end
+end
+function clearDpdCurrencyItesm( )
+   dpdCurrency:Clear(index)
+end
+function getDpdCurrencySelectedItem( )
+    return dpdCurrency.Text
+end
+function setDpdCurrencySelectedItem( dpdCurrencyItemValue)
+    dpdCurrency.Value = dpdCurrencyItemValue
+end
+function getDpdCurrencySelectedIndex( )
+    return dpdCurrency.SelectedIndex
+end
+function getDpdCurrencySelectedCode( )
+    return dpdCurrency.Value
+end
+function setDpdCurrencySelectedIndex( dpdCurrencyIndexValue )
+    dpdCurrency.SelectedIndex = dpdCurrencyIndexValue
+end
+
+function setLblAccountTypeText( lblAccountTypeValue )
+   lblAccountType.Value = lblAccountTypeValue
+end
+function getLblAccountTypeText( )
+    return lblAccountType.Value
+end
+
+function addDpdAccountTypeItem( dpdAccountTypeValue )
+   dpdAccountType:Add(dpdAccountTypeValue)
+end
+function addDpdAccountTypeItems( dpdAccountTypeValues )
+    if dpdAccountTypeValues ~= nil then
+        for key, value in pairs (dpdAccountTypeValues) do
+            addDpdAccountTypeItem(value)
+        end
+    end
+end
+function clearDpdAccountTypeItesm( )
+   dpdAccountType:Clear(index)
+end
+function getDpdAccountTypeSelectedItem( )
+    return dpdAccountType.Text
+end
+function setDpdAccountTypeSelectedItem( dpdAccountTypeItemValue)
+    dpdAccountType.Value = dpdAccountTypeItemValue
+end
+function getDpdAccountTypeSelectedIndex( )
+    return dpdAccountType.SelectedIndex
+end
+function getDpdAccountTypeSelectedCode( )
+    return dpdAccountType.Value
+end
+function setDpdAccountTypeSelectedIndex( dpdAccountTypeIndexValue )
+    dpdAccountType.SelectedIndex = dpdAccountTypeIndexValue
+end
+
+function setLblNoteText( lblNoteValue )
+   lblNote.Value = lblNoteValue
+end
+function getLblNoteText( )
+    return lblNote.Value
+end
+
+function getTxtNoteText( )
+    return txtNote.Value
+end
+function setTxtNoteText( txtNoteValue )
+    txtNote.Value = txtNoteValue
+end
+
+function setBtnCloseText( btnCloseValue )
+   btnClose.Text = btnCloseValue
+end
+function getBtnCloseText( )
+    return btnClose.Text
+end
+
+function btnClose_Click( control )
+    setFormFromEntity(getEntity());
+    Форма_UnloadForm( control.Form);
+end
+
+function setBtnSaveText( btnSaveValue )
+   btnSave.Text = btnSaveValue
+end
+function getBtnSaveText( )
+    return btnSave.Text
+end
+
+function setLblAccountOpenDateText( lblAccountOpenDateValue )
+   lblAccountOpenDate.Value = lblAccountOpenDateValue
+end
+function getLblAccountOpenDateText( )
+    return lblAccountOpenDate.Value
+end
+
+function getTxtAccountOpenDateText( )
+    return txtAccountOpenDate.Value
+end
+function setTxtAccountOpenDateText( txtAccountOpenDateValue )
+    txtAccountOpenDate.Value = txtAccountOpenDateValue
+end
+function setTxtAccountOpenDateEnabled( isTxtAccountOpenDateEnabled )
+   txtAccountOpenDate.Enabled = isTxtAccountOpenDateEnabled
+end
+
+function setLblAccountCloseDateText( lblAccountCloseDateValue )
+   lblAccountCloseDate.Value = lblAccountCloseDateValue
+end
+function getLblAccountCloseDateText( )
+    return lblAccountCloseDate.Value
+end
+
+function getTxtAccountCloseDateText( )
+    return txtAccountCloseDate.Value
+end
+function setTxtAccountCloseDateText( txtAccountCloseDateValue )
+    txtAccountCloseDate.Value = txtAccountCloseDateValue
+end
+function setTxtAccountCloseDateEnabled( isTxtAccountCloseDateEnabled )
+   txtAccountCloseDate.Enabled = isTxtAccountCloseDateEnabled
+end
+
+function setLblAccountArrestedText( lblAccountArrestedValue )
+   lblAccountArrested.Value = lblAccountArrestedValue
+end
+function getLblAccountArrestedText( )
+    return lblAccountArrested.Value
+end
+
+function addDpdAccountArrestedItem( dpdAccountArrestedValue )
+   dpdAccountArrested:Add(dpdAccountArrestedValue)
+end
+function addDpdAccountArrestedItems( dpdAccountArrestedValues )
+    if dpdAccountArrestedValues ~= nil then
+        for key, value in pairs (dpdAccountArrestedValues) do
+            addDpdAccountArrestedItem(value)
+        end
+    end
+end
+function clearDpdAccountArrestedItems( )
+   dpdAccountArrested:Clear(index)
+end
+function getDpdAccountArrestedSelectedItem( )
+    return dpdAccountArrested.Text
+end
+function setDpdAccountArrestedSelectedItem( dpdAccountArrestedItemValue)
+    dpdAccountArrested.Value = dpdAccountArrestedItemValue
+end
+function getDpdAccountArrestedSelectedIndex( )
+    return dpdAccountArrested.SelectedIndex
+end
+function getDpdAccountArrestedSelectedCode( )
+    return dpdAccountArrested.Value
+end
+function setDpdAccountArrestedSelectedIndex( dpdAccountArrestedIndexValue )
+    dpdAccountArrested.SelectedIndex = dpdAccountArrestedIndexValue
+end
+function setDpdAccountArrestedEnabled( isDpdAccountArrestedEnabled )
+   dpdAccountArrested.Enabled = isDpdAccountArrestedEnabled
+end
+
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setTxtInfoPanelBackColor( txtInfoPanelBackColor )
+   txtInfoPanel.BackColor = txtInfoPanelBackColor
+end
+
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+
+function setLblBankNameText( lblBankNameValue )
+   lblBankName.Value = lblBankNameValue
+end
+function getLblBankNameText( )
+    return lblBankName.Value
+end
+
+function addDpdBankNameItem( dpdBankNameValue )
+   dpdBankName:Add(dpdBankNameValue)
+end
+function addDpdBankNameItems( dpdBankNameValues )
+    if dpdBankNameValues ~= nil then
+        for key, value in pairs (dpdBankNameValues) do
+            addDpdBankNameItem(value)
+        end
+    end
+end
+function clearDpdBankNameItesm( )
+   dpdBankName:Clear(index)
+end
+function getDpdBankNameSelectedItem( )
+    return dpdBankName.Text
+end
+function setDpdBankNameSelectedItem( dpdBankNameItemValue)
+    dpdBankName.Value = dpdBankNameItemValue
+end
+function getDpdBankNameSelectedIndex( )
+    return dpdBankName.SelectedIndex
+end
+function getDpdBankNameSelectedCode( )
+    return dpdBankName.Value
+end
+function setDpdBankNameSelectedIndex( dpdBankNameIndexValue )
+    dpdBankName.SelectedIndex = dpdBankNameIndexValue
+end
+-----------------------------------
+function btnSave_Click( control )
+    setIsNewObject(false);
+	Entity.setBeanFromView(btnSave.Form.Module);
+    if (Entity.saveBeanToDb(getClassManager())  == true) then
+		getObjectList().refreshForm(Entity);
+		setTxtInfoPanelText("Запись успешно сохранена в базу данных");
+		Форма_UnloadForm( btnSave.Form);
+    else
+        setTxtInfoPanelText("ВНИМАНИЕ!!! Запись не сохранена в базу данных");
+    end
+end
+
+
+function Форма_BeforeSaveForm( event )
+	event.PermitSave = false;
+end

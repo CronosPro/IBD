@@ -1,0 +1,516 @@
+local entityRecord = nil;
+local entityBaseCode = nil;
+local documentType = nil;
+local documentName = nil;
+local pictures = {};
+local files = {};
+local content = nil;
+local source = nil;
+local executor = nil;
+local createDate = nil;
+local realizationType = nil;
+local classManager = nil;
+local personEntities = {};
+local organizationEntities = {};
+local realizationDate = nil;
+local realizationCharacter = nil;
+local logger = nil;
+local wasEntityRecordLocked = false
+local wasConnectingEntityRecordLocked = false;
+
+
+function initLogger()
+	if logger == nil then
+		logger = getClassManager().getClass("Logger");	
+	end
+end
+
+function getEntityRecord()
+    return entityRecord;
+end
+function setEntityRecord(entityRecordValue)
+    entityRecord = entityRecordValue;
+end
+
+function getEntityBaseCode()
+    return entityBaseCode;
+end
+function getEntityBaseCode()
+    return entityBaseCode;
+end
+function setEntityBaseCode(entityBaseCodeValue)
+    entityBaseCode = entityBaseCodeValue;
+end
+
+function getPersonEntities()
+    return personEntities;
+end
+function addPersonEntity(newPersonEntity)
+    table.insert(personEntities,newPersonEntity);
+end
+function setPersonEntities(newPersonEntities)
+    personEntities = newPersonEntities;
+end
+
+function getOrganizationEntities()
+    return organizationEntities;
+end
+function addOrganizationEntity(newOrganizationEntity)
+    table.insert(organizationEntities,newOrganizationEntity);
+end
+function setOrganizationEntities(newOrganizationEntities)
+    organizationEntities = newOrganizationEntities;
+end
+
+function clearEntities()
+	setOrganizationEntities({});
+	setPersonEntities({});	
+end
+
+function checkIsObjectLocked(entityRecord)
+	if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), entityRecord)) then			
+		entityRecord:Unlock();	
+		wasEntityRecordLocked = true;
+	else
+		wasEntityRecordLocked = false;
+	end			
+end
+function checkIsConnectingObjectLocked(entityRecord)
+	if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), entityRecord)) then			
+		entityRecord:Unlock();	
+		wasConnectingEntityRecordLocked = true;
+	else
+		wasConnectingEntityRecordLocked = false;
+	end			
+end
+function checkWasObjectLocked(entityRecord)
+	if (wasEntityRecordLocked) then			
+		entityRecord:Lock();	
+	end			
+end
+function checkWasConnectingObjectLocked(entityRecord)
+	if (wasConnectingEntityRecordLocked) then			
+		entityRecord:Lock();	
+	end			
+end
+--------------------------------------------------
+function setBeanFromLine(dataTable, configTable, mode, isCurrentEntityOnly) -- передаем таблицу с данными для загрузки и  таблицу с конфигурацией для загрузки
+	initLogger();
+	local messages = {};	
+	local configValues = "";
+	local tConfigValues = "";
+	local terminPosition = 0;
+	local fieldNumber = 0;
+	local extractedTermin = "";	
+	local isConnectedEntityNew = true;
+	local passedEntitiesCodes = {}
+	for index, tConfigValues in ipairs(configTable) do		
+		local localVocKey = nil;				
+		logger.writeDebugMessage( getClassManager(),"Получена конфигурация: "..render(tConfigValues));
+		logger.writeDebugMessage( getClassManager(),"Получение номера аттрибута базы данных");
+		fieldNumber = tonumber(tConfigValues[3]);	
+		logger.writeDebugMessage(getClassManager(),"Получение позиции в строке загрузки");		
+		if (string.sub(tConfigValues[1],1,1) ~= "@") then
+			terminPosition = tonumber(tConfigValues[1]);					
+			logger.writeDebugMessage( getClassManager(),"Получение термина строки по позиции № "..terminPosition);
+			extractedTermin = dataTable[terminPosition];
+		else
+			extractedTermin = string.sub(tConfigValues[1],2);
+			localVocKey = tonumber(extractedTermin)
+		end		
+		logger.writeDebugMessage( getClassManager(), "Был получен термин для загрузки в поле "..fieldNumber);
+		if (extractedTermin ~= nil and string.len(extractedTermin)>0) then			
+			if (tConfigValues[2] == getEntityBaseCode()) then
+				if(fieldNumber == 2) then
+					setDocumentName(extractedTermin);
+				elseif(fieldNumber == 3) then
+					setContent(extractedTermin);
+				elseif(fieldNumber == 8) then
+					setSource(extractedTermin);
+				elseif(fieldNumber == 4) then
+					setExecutor(extractedTermin);		
+				elseif(fieldNumber == 14) then				
+					setCreateDate(extractedTermin);					
+				elseif(fieldNumber == 15) then				
+					setRealizationDate(extractedTermin);		
+				else
+					local vocCode = getClassManager().getClass("FieldsWorker").getVocFieldBaseCode(getClassManager(),getEntityBaseCode(),fieldNumber)
+					if (vocCode ~= nil) then						
+						if (localVocKey == nil) then
+							localVocKey, errorMessages = getClassManager().getClass("DBWorker").convertExternalVocTermin(getClassManager(), extractedTermin, vocCode);				
+							for _,message in pairs(errorMessages) do
+								table.insert(messages, message)
+							end
+						end	
+						if(fieldNumber == 1) then						
+							setDocumentType(localVocKey);					
+						elseif(fieldNumber == 13) then						
+							setRealizationType(localVocKey);
+						elseif(fieldNumber == 16) then						
+							setRealizationCharacter(localVocKey);										
+						end	
+					else
+					logger.writeDebugMessage( getClassManager(), "Поле № "..fieldNumber.. " не обрабатывает программным объектом");
+					end
+				end
+			else			
+				isConnectedEntityNew = table.count(getClassManager().getClass("Service").getIndexesFromTable(passedEntitiesCodes, tConfigValues[2]))==0
+				if (not isCurrentEntityOnly) then
+					logger.writeDebugMessage( getClassManager(),"Термин принадлежит базе данных с мнемокодом "..tConfigValues[2]);			
+					logger.writeDebugMessage( getClassManager(),"Создание нового программного объекта")
+					local connectedEntity = getClassManager().newEntity(getClassManager(), tConfigValues[2], true, isConnectedEntityNew)			
+					if (isConnectedEntityNew) then
+						logger.writeDebugMessage( getClassManager(),"Добавление созданного объекта для установления связи")				
+						addConnectedEntity (connectedEntity);			
+					end
+					isConnectedEntityNew = false;				
+					logger.writeDebugMessage( getClassManager(),"Заполнение программного объекта на основе данных из файла загрузки и запись полученных сообщений");																								
+					local errorMessages = connectedEntity.setBeanFromLine(dataTable, {tConfigValues}, mode); 						
+					for _,message in pairs(errorMessages) do
+						table.insert(messages, message)
+					end	
+					logger.writeDebugMessage(getClassManager(),"Проверка режима работы системы: "..mode);	
+					if (mode == getClassManager().getClass("Constanta").getCnstDataLoaderLoadMode()) then
+						logger.writeDebugMessage(getClassManager(),"Сохранение программного объекта в базу данных с мнемокодом "..tConfigValues[2]);																													
+						connectedEntity.saveBeanToDb();						
+					end
+				end
+			end
+			table.insert(passedEntitiesCodes,tConfigValues[2]);	
+		end
+	end	
+	return messages;
+end
+
+function addConnectedEntity (connectedEntity)
+	local connectedEntityCode = connectedEntity.getEntityBaseCode();
+	if (connectedEntityCode == getClassManager().getClass("Constanta").getCnstOrganization()) then
+		addOrganizationEntity(connectedEntity);	
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstPerson()) then
+		addPersonEntity(connectedEntity);		
+	end		
+end
+
+function getAttributeByFieldNumber(fieldNumber)
+	local attribute = nil;
+	local noAttributeLineDefined = false;
+	fieldNumber = tonumber(fieldNumber)	
+	if (fieldNumber == 1) then									
+		attribute = getDocumentType();		
+	elseif(fieldNumber == 2) then
+		attribute = getDocumentName();
+	elseif(fieldNumber == 3) then
+		attribute = getContent();
+	elseif(fieldNumber == 8) then
+		attribute = getSource();
+	elseif(fieldNumber == 14) then
+		attribute = getCreateDate()
+	elseif(fieldNumber == 13) then
+		attribute = getRealizationType()
+	elseif(fieldNumber == 15) then
+		attribute = getRealizationDate()	
+	elseif(fieldNumber == 16) then
+		attribute = getRealizationCharacter();		
+	elseif(fieldNumber == 4) then
+		attribute = getExecutor();						
+	else
+		noAttributeLineDefined = true;
+	end		
+	--необходимо для логики выдачи сообщения про неопределенный номер поля в данном методе
+	if (noAttributeLineDefined == false and attribute == nil) then
+		attribute = "";		
+	end	
+	return attribute;
+end
+--------------------------------------------------
+function setLinks()		
+	local documentBase 		= CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstDocument());								
+	local personBase 		= CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstPerson());								
+	local organizationBase 	= CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstOrganization());	
+	--persons linking	
+	for key, personEntity in pairs(getPersonEntities()) do												
+		checkIsObjectLocked(getEntityRecord())		
+		checkIsConnectingObjectLocked(personEntity.getEntityRecord())					
+		documentBase:AddLink(getEntityRecord().SN,5,personBase,personEntity.getEntityRecord().SN, Base.LockWait, Base.LockWait);																	
+		setEntityRecord(documentBase:GetRecord(getEntityRecord().SN));		
+		checkWasObjectLocked(getEntityRecord())		
+		checkWasConnectingObjectLocked(personEntity.getEntityRecord())		
+		--[[if (wasEntityRecordLocked) then
+			getEntityRecord():Lock(true);	
+		end
+		if (wasConnectingEntityRecordLocked) then				
+			entity.getEntityRecord():Lock(true);				
+		end--]]
+	end	
+	--organizations linking	
+	for key, organizationEntity in pairs(getOrganizationEntities()) do								
+		checkIsObjectLocked(getEntityRecord())
+		checkIsConnectingObjectLocked(organizationEntity.getEntityRecord())
+
+		documentBase:AddLink(getEntityRecord().SN,5,organizationBase,organizationEntity.getEntityRecord().SN, Base.LockWait, Base.LockWait);																	
+		setEntityRecord(documentBase:GetRecord(getEntityRecord().SN));
+
+		checkWasObjectLocked(getEntityRecord())
+		checkWasConnectingObjectLocked(organizationEntity.getEntityRecord())
+	end	
+end
+
+function deleteLinkOrganization(organizationEntity)
+	local orgBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstOrganization());								
+	local documentBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstDocument());
+	
+	checkIsObjectLocked(getEntityRecord())
+	checkIsConnectingObjectLocked(organizationEntity.getEntityRecord())
+
+	documentBase:DeleteLink(getEntityRecord().SN, 5, orgBase, organizationEntity.getEntityRecord().SN, Base.LockWait, Base.LockWait);	
+	setEntityRecord(documentBase:GetRecord(getEntityRecord().SN));	
+	
+	checkWasObjectLocked(getEntityRecord())
+	checkWasConnectingObjectLocked(organizationEntity.getEntityRecord())	
+end
+
+function deleteLinkPerson(personEntity)
+	local personBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstPerson());								
+	local documentBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstDocument());
+	checkIsObjectLocked(getEntityRecord())
+	checkIsConnectingObjectLocked(personEntity.getEntityRecord())
+
+	documentBase:DeleteLink(getEntityRecord().SN, 5, personBase, personEntity.getEntityRecord().SN, Base.LockWait, Base.LockWait);	
+	setEntityRecord(documentBase:GetRecord(getEntityRecord().SN));		
+	checkWasObjectLocked(getEntityRecord())
+	checkWasConnectingObjectLocked(personEntity.getEntityRecord())
+end
+
+function setBeanFromRecord(documentRecord)	
+	local documentBaseCode = getEntityBaseCode();
+	if documentRecord.Base.Code == documentBaseCode then				
+		setEntityRecord(documentRecord)
+		setDocumentType(		getClassManager().getClass("FieldsWorker").getField(documentBaseCode, documentRecord , 1 , "" , "", ""));
+		setDocumentName(		getClassManager().getClass("FieldsWorker").getField(documentBaseCode, documentRecord , 2 , "" , "", ""));
+		setContent(				getClassManager().getClass("FieldsWorker").getField(documentBaseCode, documentRecord , 3 , "" , "", ""));
+		setSource(				getClassManager().getClass("FieldsWorker").getField(documentBaseCode, documentRecord , 8 , "" , "", ""));
+		setExecutor(			getClassManager().getClass("FieldsWorker").getField(documentBaseCode, documentRecord , 4 , "" , "", ""));				
+		setCreateDate(			getClassManager().getClass("FieldsWorker").getField(documentBaseCode, documentRecord , 14, "" , "", ""));		
+		setRealizationType(		getClassManager().getClass("FieldsWorker").getField(documentBaseCode, documentRecord , 13, "" , "", ""));		
+		setRealizationDate(		getClassManager().getClass("FieldsWorker").getField(documentBaseCode, documentRecord , 15, "" , "", ""));		
+		setRealizationCharacter(getClassManager().getClass("FieldsWorker").getField(documentBaseCode, documentRecord , 16, "" , "", ""));		
+	end
+end
+
+function setBeanFromView(view)	
+	setDocumentType(view.getDpdDocumentTypeSelectedCode());				
+	setDocumentName(view.getTxtDocumentNameText());		
+	setContent(view.getTxtContentText());	
+	setSource(view.getTxtSourceText());		
+	setExecutor(view.getTxtExecutorText());	
+	setCreateDate(view.getTxtCreateDateText());	
+	setRealizationType(view.getDpdRealizationTypeSelectedItem());	
+	setRealizationDate(view.getTxtRealizationDateText());	
+	setRealizationCharacter(view.getDpdRealizationCharacterSelectedCode());
+	local fileNames = {};
+	for key, picture in pairs(getPictures()) do
+		if (picture ~= nil)then							
+			view.getPctPictures():SaveToFile(picture, key, false)		
+			table.insert(fileNames,"@"..picture);			
+		end	
+	end
+	setPictures(fileNames);
+	fileNames = {};
+	for key, file in pairs(getFiles()) do
+		if (file ~= nil)then				
+			view.getPctDocuments():SaveToFile(file, key, false)					
+			table.insert(fileNames,"@"..file);	
+		end	
+	end	
+	setFiles(fileNames);
+end
+
+function saveBeanToDb()		
+	local saveResult = true;			
+	local documentBaseCode = getEntityBaseCode();	
+	local documentBase = CroApp.GetBank():GetBase(documentBaseCode);
+	if (getEntityRecord() == nil) then		
+		setEntityRecord(CroApp.GetBank():GetBase(documentBaseCode):AddRecord())					
+	else
+		setEntityRecord(documentBase:GetRecord(getEntityRecord().SN));
+	end				
+	local documentRecord = getEntityRecord();					
+	if documentRecord.Base.Code == documentBaseCode then						
+		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 1, "", getDocumentType(), nil, nil, true);						
+		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 2, "", getDocumentName(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 3, "", getContent(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 8, "", getSource(), nil, nil, true);											
+		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 7, 0, nil, getPictures(), nil, true);								
+		for key, picture in pairs(getPictures()) do
+			if (picture ~= nil) then											
+				if (string.len(picture) > 1 ) then															
+					os.remove(string.swap(picture,"@",""));													
+				else					
+					documentRecord:DeleteFieldValue(7, key)
+				end
+			end
+		end
+		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 9, 0, nil, getFiles(), nil, true);								
+		for key, file in pairs(getFiles()) do
+			if (file ~= nil) then			
+				if (string.len(file) > 1 ) then												
+					os.remove(string.swap(file,"@",""));
+				else
+					documentRecord:DeleteFieldValue(9, key)
+				end
+			end
+		end
+		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 14, "", getCreateDate(), nil, nil, true);								
+		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 13, "", getRealizationType(), nil, nil, true);						
+		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 15, "", getRealizationDate(), nil, nil, true);								
+		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 16, "", getRealizationCharacter(), nil, nil, true);								
+		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 4 , "", getExecutor(), nil, nil, false);				
+		setLinks();
+	else
+		saveResult = false;
+	end		
+	return saveResult;
+end
+-----------------------------------------------------
+function getDocumentType()
+    return documentType;
+end
+function  getDocumentTypeDefinition()
+    local defIndexes = getClassManager().getClass("Service").getIndexesFromTable(
+						getClassManager().getClass("Constanta").getDpdDocumentTypeCodes(),getDocumentType());	
+	return getClassManager().getClass("Service").getItemFromTableByIndex(getClassManager().getClass("Constanta").getDpdDocumentTypeDefinitions(),
+																		getClassManager().getClass("Service").getItemFromTableByIndex(defIndexes,1));
+end
+function setDocumentType(documentTypeValue)
+    documentType = documentTypeValue;
+end
+
+function getDocumentName()
+    return documentName;
+end
+function setDocumentName(documentNameValue)
+    documentName = documentNameValue;
+end
+
+function getPictures()
+    return pictures;
+end
+function addPictures(newPictures)
+    table.insert(pictures,newPictures);
+end
+function setPictures(newPictures)
+    pictures = newPictures;
+end
+
+function getFiles()
+    return files;
+end
+function addFiles(newFiles)
+    table.insert(files,newFiles);
+end
+function setFiles(newFiles)
+    files = newFiles;
+end
+
+
+function getContent()
+    return content;
+end
+function setContent(contentValue)
+    content = contentValue;
+end
+
+function getSource()
+    return source;
+end
+function setSource(sourceValue)
+    source = sourceValue;
+end
+
+function getExecutor()
+    return executor;
+end
+function setExecutor(executorValue)
+    executor = executorValue;
+end
+
+function getClassManager()
+    return classManager;
+end
+function setClassManager(classManagerValue)
+    classManager = classManagerValue;
+end
+
+function getOrganizationEntities()
+    return organizationEntities;
+end
+function setOrganizationEntities(organizationEntitiesValue)
+    organizationEntities = organizationEntitiesValue;
+end
+
+function getCreateDate()
+    return createDate;
+end
+function setCreateDate(createDateValue)
+    createDate = createDateValue;
+end
+
+function getRealizationType()
+    return realizationType;
+end
+function setRealizationType(realizationTypeValue)
+    realizationType = realizationTypeValue;
+end
+
+function getRealizationDate()
+    return realizationDate;
+end
+function setRealizationDate(realizationDateValue)
+    realizationDate = realizationDateValue;
+end
+
+
+function getRealizationCharacter()
+    return realizationCharacter;
+end
+function setRealizationCharacter(realizationCharacterValue)
+    realizationCharacter = realizationCharacterValue;
+end
+---------------------------------------------------------
+function toShortString(isWithConnectedItems)
+	local result = {};				
+	table.insert(result, getDocumentTypeDefinition())		
+	table.insert(result, getDocumentName())			
+	table.insert(result, getSource())			
+	table.insert(result, getExecutor())			
+	if (isWithConnectedItems) then
+		for key, personEntity in pairs(getPersonEntities()) do		
+			table.insert(result, personEntity.toShortString(false))
+		end		
+		for key, organizationEntity in pairs(getOrganizationEntities()) do		
+			table.insert(result, organizationEntity.toShortString(false))
+		end		
+	end		
+	return table.concat(result," | ")
+end
+
+function toShortStringForObjectList()
+	local result = {};				
+	--table.insert(result, getDocumentTypeDefinition())	// Зеленко Р.А. - убрать из title тип документа	
+	table.insert(result, getDocumentName())				
+	return table.concat(result,", ")	
+end
+
+function clearEntity()
+	clearEntities()
+	setEntityRecord(nil)
+	setDocumentType(nil)
+	setDocumentName(nil)
+	setContent(nil)
+	setSource(nil)
+	setExecutor(nil)
+	setCreateDate(nil)
+	setRealizationType(nil)
+	setRealizationDate(nil)
+	setRealizationCharacter(nil)
+end

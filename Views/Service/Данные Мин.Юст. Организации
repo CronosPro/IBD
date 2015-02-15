@@ -1,0 +1,150 @@
+local unloadController =nil;
+local formsController =nil;
+local validationController =nil;
+local requestController =nil;
+local service =nil;
+local constanta =nil;
+
+local currentForm = nil;
+local ClassManager = nil;
+local childForms = {}
+
+local txtFilePath = nil;
+local btnIdentifyOrgNames = nil;
+local btnChooseFile = nil;
+
+local organizationUnn = nil;
+local organizationName = nil;
+local organizationFormName = nil;		
+
+-----------------------------------------------------
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function setTxtFilePath(txtFilePathValue)
+	txtFilePath.Text = txtFilePathValue;
+end
+function getTxtFilePath()
+	return txtFilePath.Text;
+end
+
+function setOrgUnn(organizationUnnValue)
+	organizationUnn = organizationUnnValue;
+end
+function getOrgUnn()
+	return organizationUnn;
+end
+
+function setOrgName(organizationNameValue)
+	organizationName = organizationNameValue;
+end
+function getOrgName()
+	return organizationName;
+end
+
+function setOrgFormName(organizationFormNameValue)
+	organizationFormName = organizationFormNameValue;
+end
+function getOrgFormName()
+	return organizationFormName;
+end
+
+function setbtnIdentifyOrgNamesEnabled( ibtnIdentifyOrgNamesEnabled )
+   btnIdentifyOrgNames.Enabled = ibtnIdentifyOrgNamesEnabled
+end
+-----------------------------------------------------
+function setCurrentForm(currentFormNew)
+    currentForm = currentFormNew;
+end
+function getCurrentForm()
+    return currentForm;
+end
+
+function Форма_Open( form )
+	setCurrentForm(form);
+    setClassManager(Arg.ClassManager);
+    setControllersReferences();
+    return true;
+end
+
+function Форма_Load( form )
+	getClassManager().setClass(form, form);
+	setControls(form);	
+	setFormBackColor(constanta.getSystemBackColor());	
+	table.insert(childForms,form); 
+end
+
+function setFormBackColor( formBackColor )
+   getCurrentForm().BackColor = formBackColor
+end
+
+function setControls(form)   
+	btnIdentifyOrgNames = form.btnIdentifyOrgNames;
+	txtFilePath = form.txtFilePath;
+	btnChooseFile = form.btnChooseFile;
+end
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+	validationController = getClassManager().getClass("ValidationController");
+	requestController = getClassManager().getClass("RequestController");
+	service = getClassManager().getClass("Service");
+    constanta = getClassManager().getClass("Constanta");
+end
+
+function btnChooseFile_Click( control )
+local folderPath = FileOpenDialog("Укажите папку файлов данных Министерства юстиции");
+	if (folderPath ~= nil) then
+		setTxtFilePath(folderPath[1]);		
+		constanta.setLogFilePath(folderPath);
+		setbtnIdentifyOrgNamesEnabled(true)
+	end
+end
+
+
+
+function btnIdentifyOrgNames_Click( control )
+	local orgBase = CroApp.GetBank():GetBase(constanta.getCnstOrganization()) -- получаем базу "РГ".
+	local recordSet = orgBase:GetRecordSet()  -- получаем набор записей базы "РГ"
+	localSeparator = constanta.getCnstConfigSeparator();
+	local MinUstDataTable ={}
+	local orgTextNametable = {}
+	
+	for line in io.lines(getTxtFilePath()) do
+		local tStrings = string.split (line, localSeparator , 0, true, processing);
+		MinUstDataTable[tStrings[1]] = tStrings[2];	
+	end		
+	for rec in recordSet.Records do	
+		
+		setOrgUnn(tostring(rec:GetValue(1)));			
+		if (MinUstDataTable[getOrgUnn()] ~= nil) then
+			orgTextNametable = convertOgName(MinUstDataTable[getOrgUnn()])			
+			
+			if(table.count(orgTextNametable)>3)then
+				setOrgName(orgTextNametable[2].."\""..orgTextNametable[3].."\"");
+			else
+				setOrgName(orgTextNametable[2]);
+			end	
+			if(table.count(orgTextNametable)==1)then			
+				setOrgName(orgTextNametable[1]); 					
+			end			
+			rec:SetValue(2, getOrgName());			
+			if(table.count(orgTextNametable)>1)then
+				setOrgFormName(string.swap(orgTextNametable[1], "\"", "" ));
+				rec:SetValue(51, getOrgFormName());
+			end
+			rec:Update();			
+		end
+		
+	end	
+end
+
+function convertOgName(orgNameValue)
+	local str = string.split (orgNameValue, "\"\"", 0, true, processing)
+	return str;		
+end

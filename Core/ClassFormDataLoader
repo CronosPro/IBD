@@ -1,0 +1,1198 @@
+local logger = nil;
+local confBase = "";
+local confLoadConfig = {};
+local resultStringTable = {};
+local confConnectionsConfig = "";
+local confKeySet = "";
+local configSeparator = "=";
+local configTermsSeparator = ","
+--local baseRule = "[A-ZА-Я]*";
+local baseRule = "%u%u";
+--local valueRule = "{%d+,%u%u,%d+}" --- {1,22};{22,4}
+local valueRule = "({%d+"..configTermsSeparator.."%u%u["..configTermsSeparator.."{%d+#%p+#%d+}]+})" --- {1,22};{22,4}
+local dataFormatRule = "{%d%d.%d%d.%d%d%d%d}"
+local keySetRule = "%d+" --- {1,22};{22,4}
+local skipLines = ""
+local connectionRule = "{%d+"..configTermsSeparator.."%u%u"..configTermsSeparator.."%d+}" --{1,ЛЦ,2}
+local fileDataSeparator = ";";
+local lineTerminsSeparator = ";"
+local resulFileWorkMode = "w+"
+local tabDelimiterForMessage = "       ";
+local dataBaseProperties = {};
+local forbiddenSymbols = {"'"}
+local linesForCheck = {}
+local messagesIdentication = {};
+local deltaLines = {}	
+--local configBaseRule = "base = \"[А-Яа-яA-Za-z]*\" loadConfiguration = {(%A+)[;]}";
+--local valueRule = "[%d;]*" -- нужно исправить регулярку ( от  1 до 999, тчк с запятой,)
+
+local lessLeinghtFileName = "\\([^\\]+)$";
+
+function getConfBase()
+    return confBase;
+end
+function setConfBase(confBaseValue)
+    confBase = confBaseValue;
+end
+function clearConfBase()
+	confBase = "";
+end
+
+function getConfLoadConfig()
+    return confLoadConfig;
+end
+function addConfLoadConfig(confLoadConfigValue)
+    table.insert(confLoadConfig, confLoadConfigValue);
+end
+function setConfLoadConfig(confLoadConfigValue)
+    confLoadConfig = confLoadConfigValue;
+end
+function clearConfLoadConfig()
+	confLoadConfig = {}; 
+end
+
+function getConfConnectionsConfig()
+    return confConnectionsConfig;
+end
+function clearConfConnectionsConfig()
+    confConnectionsConfig = "";
+end
+function setConfConnectionsConfig(confConnectionsConfigValue)
+    confConnectionsConfig = confConnectionsConfigValue;
+end
+
+function getConfKeySet()
+    return confKeySet;
+end
+function clearConfKeySet()
+	confKeySet = ""
+end
+function setConfKeySet(confKeySetValue)
+    confKeySet = confKeySetValue;
+end
+
+function initLogger(ClassManager)
+	if logger == nil then
+		logger = ClassManager.getClass("Logger");	
+	end
+end
+
+function getResulFileWorkMode()
+    return resulFileWorkMode;
+end
+function initResulFileWorkMode()
+	setResulFileWorkMode("w+");
+end
+function setResulFileWorkMode(resulFileWorkModeValue)
+    resulFileWorkMode = resulFileWorkModeValue;
+end
+
+function getBaseRule()
+    return baseRule;
+end
+function setBaseRule(baseRuleValue)
+    baseRule = baseRuleValue;
+end
+
+function getValueRule()
+    return valueRule;
+end
+function setValueRule(valueRuleValue)
+    valueRule = valueRuleValue;
+end
+
+function getKeySetRule()
+    return keySetRule;
+end
+function setKeySetRule(keySetRuleValue)
+    keySetRule = keySetRuleValue;
+end
+
+function getSkipLines()
+    return skipLines;
+end
+function setSkipLines(skipLinesValue)
+    skipLines = skipLinesValue;
+end
+
+function getConnectionRule()
+    return connectionRule;
+end
+function setConnectionRule(connectionRuleValue)
+    connectionRule = connectionRuleValue;
+end
+
+function getFileDataSeparator()
+    return fileDataSeparator;
+end
+function setFileDataSeparator(fileDataSeparatorValue)
+    fileDataSeparator = fileDataSeparatorValue;
+end
+
+function getLineTerminsSeparator()
+    return lineTerminsSeparator;
+end
+function initLineTerminsSeparator()
+    setLineTerminsSeparator(";")
+end
+function setLineTerminsSeparator(lineTerminsSeparatorValue)
+    lineTerminsSeparator = lineTerminsSeparatorValue;
+end
+
+function getForbiddenSymobls()
+    return forbiddenSymbols;
+end
+function setForbiddenSymobls(forbiddenSymoblsValue)
+    forbiddenSymbols = forbiddenSymoblsValue;
+end
+
+function getLinesForCheck()
+    return linesForCheck;
+end
+function addLineForCheck(newLineForCheck)
+    table.insert(linesForCheck,newLineForCheck);
+end
+function setLinesForCheck(newLinesForCheck)
+    linesForCheck = newLinesForCheck;
+end
+
+function getTabDelimiterForMessage()
+    return tabDelimiterForMessage;
+end
+function setTabDelimiterForMessage(tabDelimiterForMessageValue)
+    tabDelimiterForMessage = tabDelimiterForMessageValue;
+end
+
+function getResultStringTable()
+    return resultStringTable;
+end
+function addResultStringTable(newResultStringTable)
+    table.insert(resultStringTable,newResultStringTable);
+end
+function setResultStringTable(newResultStringTable)
+    resultStringTable = newResultStringTable;
+end
+
+
+function initializeDataLaderParameters(ClassManager, isNewLoad)
+	if (isNewLoad) then
+		setLinesForCheck({});	
+		deltaLines = {}			
+	end
+	setResultStringTable({})
+	--resultStringTable = {};
+	messagesIdentication = {};
+	confBase = "";
+	confLoadConfig = {};	
+	confConnectionsConfig = "";
+	confKeySet = "";	
+end
+
+function trasformateLoadConfiguration(ClassManager, loadConfiguration)
+	initLogger(ClassManager);
+	logger.writeDebugMessage(ClassManager,"Трансформация конфигурации загрузки: "..render(loadConfiguration));
+	local stringConfigTable = table.serialize(loadConfiguration);						
+	stringConfigTable = string.swap(stringConfigTable, ";{", ";");				
+	stringConfigTable = string.swap(stringConfigTable, "\"{", "\"");				
+	stringConfigTable = string.swap(stringConfigTable, "};", ";");				
+	stringConfigTable = string.swap(stringConfigTable, "}\"", "\"");				
+	loadConfiguration = table.deserialize(stringConfigTable);				
+	local tempConfLoadConfig = {}
+	for index, value in pairs(loadConfiguration) do	
+		logger.writeDebugMessage(ClassManager,"Трансформация части конфигурации загрузки: "..value);					
+		local tempPartConfLoadTable = string.split(value, ClassManager.getClass("Constanta").getCnstConfigSeparator());					
+		logger.writeDebugMessage(ClassManager,"Трансформация подчасти конфигурации загрузки: "..render(tempPartConfLoadTable));					
+		value = {}
+		for index, partValue in ipairs(tempPartConfLoadTable) do
+			table.insert(value,string.split(partValue,configTermsSeparator))								
+		end
+		table.insert(tempConfLoadConfig,value)
+		logger.writeDebugMessage(ClassManager,"Трансформированная подчасть конфигурации загрузки: "..render(tempConfLoadConfig));									
+	end
+	return tempConfLoadConfig;
+end
+
+function getDeltaFilesInDir(ClassManager, initialPath, dataLoadFormScript)
+	initLogger(ClassManager);	
+	local loadingFilesDateKeysTable = {}
+	local loadingFiles = {}		
+	local subdirs, files =  IO.Folder.DirsAndFiles (initialPath);
+	local filePath = ""
+	for fileNumber, fileName in pairs (files) do		
+		filePath = IO.Path.AddSlash(initialPath)..fileName;			
+		logger.writeDebugMessage( ClassManager,"Проверка, допустим ли формат текущего файла "..filePath.." для загрузки");	
+		if(validateLoadFileFormat(ClassManager, fileName))then				
+			logger.writeDebugMessage( ClassManager,"Файл разрешен к загрузке");			
+			local date = IO.File.GetCreationTime (filePath)					
+			logger.writeDebugMessage( ClassManager,"Заполнение таблицы соответствия даты создания и файла, а так же таблицы для сортировки по дате создания");
+			if (date ~= nil) then
+				loadingFilesDateKeysTable[date:ToOLEDate()] = filePath				
+				table.insert(loadingFiles,date:ToOLEDate())				
+			else
+				logger.writeDebugMessage( ClassManager,"Произошла ошибка при попытке получения времени создания файла");			
+			end
+		end
+	end
+	logger.writeDebugMessage( ClassManager,"Построена таблица загрузочных файлов с количеством элементов "..table.count(loadingFiles));
+	table.sort(loadingFiles);		
+	lastFile = loadingFilesDateKeysTable[ClassManager.getClass("Service").getItemFromTableByIndex(loadingFiles, table.count(loadingFiles)-1, -1)] 
+	dataLoadFormScript.insertLstDeltaFilesItem(IO.File.GetCreationTime (lastFile):ToString("%c").." - "..string.match(lastFile, lessLeinghtFileName ))		
+	fileBeforeLast = loadingFilesDateKeysTable[ClassManager.getClass("Service").getItemFromTableByIndex(loadingFiles, table.count(loadingFiles)-2, -1)]						
+	dataLoadFormScript.insertLstDeltaFilesItem(IO.File.GetCreationTime (fileBeforeLast):ToString("%c").." - "..string.match(fileBeforeLast, lessLeinghtFileName))
+end
+
+--метод детектирования дельты загрузки между загрузочными файлами. Сравниваются только последний и предыдущий загрузочные файлы. Определение производится на основании даты коррекции.
+function detectDelta(ClassManager, mainDirPath, files, dataLoadFormScript)
+	initLogger(ClassManager);	
+	local message = "";
+	local result = false
+	local absentDeltaResult = false
+	logger.writeDebugMessage( ClassManager,"------------------------Метод detectDelta() класса DataLoader------------------------")	
+	local filePath = "";	
+	local loadingFiles = {}	
+	local loadingFilesDateKeysTable = {}
+	local fileBeforeLast = ""
+	local lastFile = ""	
+	local detectedDeltaLines = {}			
+	logger.writeDebugMessage( ClassManager,"Определение последнего и предыдущего загрузочных фалов для проведения процедуры детектирования дельты");			
+	logger.writeDebugMessage( ClassManager,"Построение таблицы загружаемых файлов с ключами в виде количества миллисекунд для даты создания файла");				
+	for fileNumber, fileName in pairs (files) do			
+		logger.writeDebugMessage( ClassManager,"Получаем полный путь к файлу загрузки");			
+		filePath = mainDirPath..fileName;					
+		logger.writeDebugMessage( ClassManager,"Проверка, допустим ли формат текущего файла "..filePath.." для загрузки");	
+		if(validateLoadFileFormat(ClassManager, fileName))then				
+			logger.writeDebugMessage( ClassManager,"Файл разрешен к загрузке");
+			local resultString = "Загрузка файла "..filePath..":";				
+			local date = IO.File.GetCreationTime ( filePath)		
+			logger.writeDebugMessage( ClassManager,"Заполнение таблицы соответствия даты создания и файла, а так же таблицы для сортировки по дате создания");
+			loadingFilesDateKeysTable[date:ToOLEDate()] = filePath	
+			table.insert(loadingFiles,date:ToOLEDate())				
+		end
+	end
+	logger.writeDebugMessage( ClassManager,"Построена таблица загрузочных файлов с количеством элементов "..table.count(loadingFiles));
+	
+	
+	if (table.count(loadingFiles) == table.count(loadingFilesDateKeysTable) and table.count(loadingFiles) > 1 ) then
+		logger.writeDebugMessage( ClassManager,"Сортировка таблицы");		
+		table.sort(loadingFiles);						
+		--Изменения от 05.11.14
+		lastFile = loadingFilesDateKeysTable[ClassManager.getClass("Service").getItemFromTableByIndex(loadingFiles, table.count(loadingFiles)-1, -1)] 
+		--dataLoadFormScript.addLstDataLoadResultsItem("последний файл - "..string.match(lastFile, lessLeinghtFileName ))
+		
+		fileBeforeLast = loadingFilesDateKeysTable[ClassManager.getClass("Service").getItemFromTableByIndex(loadingFiles, table.count(loadingFiles)-2, -1)]						
+		--dataLoadFormScript.addLstDataLoadResultsItem("предпоследний файл - "..string.match(fileBeforeLast, lessLeinghtFileName))
+		------------------------------
+		logger.writeDebugMessage( ClassManager,"Дельта будет вычислена на основании следующих файлов: предпоследний - '"..fileBeforeLast.."', и последний - '"..lastFile.."'");	
+		local fileBeforeLastLines = {}				
+		local fileLastLines = {}							
+		local counter = 1;				
+		--создание вложенных директория для файлов с новыми объектами и исчезнувшими из базы данных
+		local deltaDirPath = IO.Path.AddSlash (mainDirPath..ClassManager.getClass("Constanta").getDeltaDirName())
+		local absentDeltaDirPath = IO.Path.AddSlash (deltaDirPath..ClassManager.getClass("Constanta").getAbsentDeltaDirName())
+		logger.writeDebugMessage( ClassManager,"Проверка существования директорий для дельты данных.");		
+		local absentDeltaErrString = ""
+		local deltaFile = nil
+		local deltaAbsentFile = nil			
+		local errString = ""
+		logger.writeDebugMessage( ClassManager,"Проверка существования директории "..deltaDirPath);
+		result = IO.Folder.Exists ( deltaDirPath )		
+		if (result) then
+			logger.writeDebugMessage( ClassManager,"Директория для файла дельты данных уже существует.");
+			logger.writeDebugMessage( ClassManager,"Создание файла для записи дельты данных.");			
+			deltaFile = io.open(deltaDirPath..ClassManager.getClass("Constanta").getDeltaFileName(), "w")				
+			if (deltaFile ~= nil) then
+				logger.writeDebugMessage( ClassManager,"Файл создан.");					
+			else
+				logger.writeDebugMessage( ClassManager,"Файл не создан.");					
+			end					
+		else
+			logger.writeDebugMessage( ClassManager,"Создание директории для дельты данных.");
+			result, errString = IO.Folder.Create (deltaDirPath);		
+			if (result) then
+				logger.writeDebugMessage( ClassManager,"Дирекория создана");				
+				logger.writeDebugMessage( ClassManager,"Копирование конфигурационного файла загрузки в созданную директорию "..deltaDirPath);
+				IO.File.Copy(mainDirPath..ClassManager.getClass("Constanta").getConfigFileName(), deltaDirPath..ClassManager.getClass("Constanta").getConfigFileName())
+			else
+				message = "Не была создана директория для файла с дельты данных ввиду возникшей ошибки: "..errString
+				logger.writeDebugMessage( ClassManager,message);
+				if (messagesIdentication[message] == nil) then
+					messagesIdentication[message] = message;
+					writeLoadDataLog (ClassManager, message)
+				end 
+			end
+		end
+		if (result) then						
+			if (deltaFile == nil) then
+				logger.writeDebugMessage( ClassManager,"Создание файла для записи дельты данных.");
+				deltaFile = io.open(deltaDirPath..ClassManager.getClass("Constanta").getDeltaFileName(), "w")	
+				if (deltaFile ~= nil) then
+					logger.writeDebugMessage( ClassManager,"Файл создан.");					
+				else
+					logger.writeDebugMessage( ClassManager,"Файл не создан.");					
+				end	
+			end
+			logger.writeDebugMessage( ClassManager,"Проверка существования директории "..absentDeltaDirPath);
+			absentDeltaResult = IO.Folder.Exists ( absentDeltaDirPath )
+			if (absentDeltaResult) then
+				logger.writeDebugMessage( ClassManager,"Вложенная директория для файла дельты удаленнх данных уже существует.");
+				logger.writeDebugMessage( ClassManager,"Создание файла для записи дельты удаленных данных.");
+				deltaAbsentFile = io.open(absentDeltaDirPath..ClassManager.getClass("Constanta").getAbsentDeltaFileName(), "w")	
+				if (deltaAbsentFile ~= nil) then
+					logger.writeDebugMessage( ClassManager,"Файл создан.");					
+				else
+					logger.writeDebugMessage( ClassManager,"Файл не создан.");					
+				end					
+			else
+				logger.writeDebugMessage( ClassManager,"Создание вложенной директории для дельты удаленных данных "..absentDeltaDirPath);			
+				absentDeltaResult, absentDeltaErrString = IO.Folder.Create (absentDeltaDirPath);		
+				if (absentDeltaResult) then
+					logger.writeDebugMessage( ClassManager,"Дирекория создана");
+					logger.writeDebugMessage( ClassManager,"Копирование конфигурационного файла загрузки в созданную директорию "..absentDeltaDirPath);
+					IO.File.Copy(mainDirPath..ClassManager.getClass("Constanta").getConfigFileName(), absentDeltaDirPath..ClassManager.getClass("Constanta").getConfigFileName())
+					logger.writeDebugMessage( ClassManager,"Создание файла для записи дельты удаленных данных.");
+					deltaAbsentFile = io.open(absentDeltaDirPath..ClassManager.getClass("Constanta").getAbsentDeltaFileName(), "w")	
+					if (deltaAbsentFile ~= nil) then
+						logger.writeDebugMessage( ClassManager,"Файл создан.");					
+					else
+						logger.writeDebugMessage( ClassManager,"Файл не создан.");					
+					end					
+				else
+					message = "Не была создана директория для файла с дельты удаленных данных ввиду возникшей ошибки: "..absentDeltaErrString
+					logger.writeDebugMessage( ClassManager, message);
+					if (messagesIdentication[message] == nil) then
+						messagesIdentication[message] = message;
+						writeLoadDataLog (ClassManager, message)
+					end 					
+				end				
+			end		
+		end
+		if (result and absentDeltaResult) then
+			logger.writeDebugMessage( ClassManager,"Составление карты предыдущего файла");					
+			for line in io.lines(fileBeforeLast) do												
+				fileBeforeLastLines[line]="Line";			
+			end	
+			
+			logger.writeDebugMessage( ClassManager,"Составление карты последнего файла");		
+			for line in io.lines(lastFile) do												
+				fileLastLines[line]="Line";			
+			end		
+					
+			logger.writeDebugMessage( ClassManager,"Карты построены");	
+			logger.writeDebugMessage( ClassManager,"Цикл вычисления информационной дельты: новые объекты");
+			for line in io.lines(lastFile) do	
+				
+				if (fileBeforeLastLines[line] == nil) then
+						
+					detectedDeltaLines[counter] = line
+					if (deltaFile ~= nil) then
+						deltaFile:write(line.."\n");				
+					end
+					counter = counter + 1
+					table.insert(deltaLines, line)
+				
+				end			
+			end		
+			logger.writeDebugMessage( ClassManager,"Цикл вычисления информационной дельты: удаленные объекты");
+			for line in io.lines(fileBeforeLast) do							
+				if (fileLastLines[line] == nil) then												
+					detectedDeltaLines[counter] = line
+					if (deltaAbsentFile ~= nil) then
+						deltaAbsentFile:write(line.."\n");				
+					end
+					counter = counter + 1
+					table.insert(deltaLines, line)							
+				end						
+			end
+			if (deltaFile ~= nil) then
+				deltaFile:close()
+			end
+			if (deltaAbsentFile ~= nil) then
+				deltaAbsentFile:close()
+			end
+			logger.writeDebugMessage( ClassManager,"Дельта определена. Количество записей: "..table.count(deltaLines));
+		else
+			logger.writeDebugMessage( ClassManager,"Возникли ошибки в процессе создания директорий для файлов дельты информации. Цикл вычисления дельты информации был прерван.");
+		end
+	else
+		logger.writeDebugMessage( ClassManager,"Вычисление дельты невозможно для директории "..mainDirPath);
+	end	
+	logger.writeDebugMessage( ClassManager,"------------------------Метод detectDelta() класса DataLoader завершил работу------------------------")			
+	return (result and absentDeltaResult), detectedDeltaLines
+end
+
+--основной метод обработки директории с загрузочными файлами
+function readFilesInDirr(ClassManager, initialPathValue, mode, isDataTestPassedBefore, dataLoadFormScript)	
+	local isDetectDelta = dataLoadFormScript.isChkIsDetectDelta()	
+	initLogger(ClassManager);	
+	if (table.count(dataBaseProperties) == 0) then
+		dataBaseProperties = ClassManager.getClass("DBWorker").descoverDataBaseProperties(ClassManager);
+	end	
+	local messages = {};
+	local terminsNumber = 0;
+	local isDataTestPassed = isDataTestPassedBefore;		
+	if (isDataTestPassed == nil) then
+		logger.writeDebugMessage( ClassManager,"isDataTestPassed пришел пустым ")		
+		isDataTestPassed = true;
+	end	
+	logger.writeDebugMessage( ClassManager,"------------------------Метод readFilesInDirr() класса DataLoader------------------------")		
+	local initialPath = initialPathValue;			    
+	logger.writeDebugMessage( ClassManager,"Получаем список вложенных файлов и директорий, находящихся в каталоге "..initialPath)		
+	local subdirs, files =  IO.Folder.DirsAndFiles (initialPath);				
+	local mainDirPath = IO.Path.AddSlash(initialPath);	
+	local resultString = "";	
+	local filePath = "";
+	local isFoldersCreated = true;
+	clearConfBase()
+	clearConfKeySet()
+	clearConfLoadConfig()
+	clearConfConnectionsConfig()
+	logger.writeDebugMessage( ClassManager,"Пришел isDataTestPassed = "..render(isDataTestPassed));		
+	logger.writeDebugMessage( ClassManager,"Проверка конфигурационного файла");			
+	if (validateConfigFile(ClassManager, mainDirPath)) then			
+		logger.writeDebugMessage(ClassManager,"Трансформация конфигурации загрузки: "..render(getConfLoadConfig()));				
+		setConfLoadConfig(trasformateLoadConfiguration(ClassManager, getConfLoadConfig()));
+		logger.writeDebugMessage(ClassManager,"Трансформированная конфигурация загрузки: "..render(getConfLoadConfig()));		
+		logger.writeDebugMessage( ClassManager,"Чтение файлов из директории "..initialPath);	
+		for fileNumber, fileName in pairs (files) do								
+			logger.writeDebugMessage( ClassManager,"Получаем полный путь к файлу загрузки");						
+			filePath = mainDirPath..fileName;								
+			logger.writeDebugMessage( ClassManager,"Проверка, допустим ли формат текущего файла "..filePath.." для загрузки");				
+			local isLoadAllowed = isDetectDelta or validateLoadFileFormat(ClassManager, fileName);
+			if(isLoadAllowed)then
+				logger.writeDebugMessage( ClassManager,"Файл разрешен к загрузке");
+				local resultString = "Загрузка файла "..filePath..":";								
+				writeLoadDataLog (ClassManager, resultString)
+				logger.writeDebugMessage( ClassManager,"Получение времени начала обработки файла");
+				local startTime = ClassManager.getClass("Service").getTodayDate().." "..ClassManager.getClass("Service").getNowTime();														
+				logger.writeDebugMessage( ClassManager,"Построчное считывание файла загрузки с разделителями");				
+				local loadingDataTable = {};								
+				local endTime = "";
+				local resultString = "";
+				logger.writeDebugMessage(ClassManager,"Преобразование настройки игнорируемых строк файла загрузки");
+				local skippedLines = getSkipLines():split(getFileDataSeparator());				
+				local errornousLines = {};																								
+				logger.writeDebugMessage(ClassManager,"Заполнение массива данных из файла");																																														
+				if getLinesForCheck()[filePath] ~= nil then					
+					local checkingItemsTable = {}				
+					local counter = 1;
+					deltaLines[filePath] = {}				
+					for line in io.lines(filePath) do									
+						deltaLines[filePath][counter] = line														
+						counter = counter + 1														
+					end						
+					for _,checkingItemIndex in pairs (getLinesForCheck()[filePath]) do						
+						table.insert(messages, "Будет проверяться строка "..checkingItemIndex)
+						checkingItemsTable[checkingItemIndex] = deltaLines[filePath][checkingItemIndex]						
+						counter = counter + 1;						
+					end
+					if  table.count(checkingItemsTable) > 0 then
+						deltaLines[filePath] = checkingItemsTable													
+					end
+				else					
+					local counter = 1
+					if (isDetectDelta) then	
+						isFoldersCreated, deltaLines[filePath] = detectDelta(ClassManager, mainDirPath, files, dataLoadFormScript);																		
+						isDataTestPassed = isFoldersCreated					
+						if (isDataTestPassed) then
+							dataLoadFormScript.setChkIsDetectDelta(false);
+							dataLoadFormScript.setTxtPathText(mainDirPath..ClassManager.getClass("Constanta").getDeltaDirName());												
+						end						
+					else			
+						local counter = 1
+						deltaLines[filePath] = {}
+						for line in io.lines(filePath) do									
+							deltaLines[filePath][counter] = line														
+							counter = counter + 1														
+						end										
+					end			
+				end						
+				logger.writeDebugMessage(ClassManager,"Количество загружаемых записей: "..table.count(deltaLines));								
+				local loadConfigTableCount = table.count(getConfLoadConfig())												
+				for lineCounter, line in pairs(deltaLines[filePath]) do								
+					logger.writeDebugMessage( ClassManager,"Обработка загрузочного файла: строка № "..lineCounter)						
+					logger.writeDebugMessage(ClassManager,"Проверка конфигурации необрабатываемых строк файла загрузки");																											
+					if (isDetectDelta or not ClassManager.getClass("Service").isItemExistsInTable(skippedLines, tostring(lineCounter)))then														
+						logger.writeDebugMessage( ClassManager,"Сравнение количества терминов с количеством в предыдущей строке");											
+						if (terminsNumber == 0 or terminsNumber == string.scount(line, getLineTerminsSeparator())) then
+							logger.writeDebugMessage( ClassManager,"Получение количества терминов в строке");																				
+							terminsNumber = string.scount(line, getLineTerminsSeparator());																
+							logger.writeDebugMessage( ClassManager,"Получение массива элементов строки");												
+							loadingDataTable = string.split(line, getLineTerminsSeparator());								
+							logger.writeDebugMessage( ClassManager,"В строке присутствует следующее количество терминов: "..terminsNumber);						
+							logger.writeDebugMessage( ClassManager,"Создание программного объекта на основе конфигурационного файла");																				
+							logger.writeDebugMessage( ClassManager,"Чтение таблицы конфигураций загрузки с количеством элементов "..loadConfigTableCount);																																				
+							for index, configLoad in pairs(getConfLoadConfig()) do
+								logger.writeDebugMessage( ClassManager,"Чтение конфигурации загрузки "..render(configLoad));																																
+								local isEntityNew = true
+								logger.writeDebugMessage( ClassManager,"Получение программного объекта для базы данных с мнемокодом "..getConfBase());																																
+								local entity = ClassManager.newEntity(ClassManager, getConfBase(), true, isEntityNew);								
+								isEntityNew = false
+								logger.writeDebugMessage( ClassManager,"Заполнение программного объекта на основе данных из файла загрузки и запись полученных сообщений");																																		
+								local entityErrorMessages = entity.setBeanFromLine(loadingDataTable, configLoad, mode, false);									
+								local isMessageAdded = false;										
+								for _, message in pairs (entityErrorMessages) do																								
+									if (messagesIdentication[message] == nil) then
+										isMessageAdded = true;
+										messagesIdentication[message] = message;
+										writeLoadDataLog (ClassManager, getTabDelimiterForMessage().."Строка "..lineCounter..": "..message)																							
+									end
+								end												
+								if (isMessageAdded == true) then																															
+									table.insert(errornousLines,lineCounter)			
+									isDataTestPassed = false;											
+									logger.writeDebugMessage( ClassManager,"Во время заполнения программного объекта произошли ошибки: "..render(entityErrorMessages))
+								end
+								logger.writeDebugMessage( ClassManager,"Результат проверки сообщений об ошибках из метода заполнения программного объекта: isDataTestPassed="..render(isDataTestPassed));																	
+								if ((not isDataTestPassed) or mode == ClassManager.getClass("Constanta").getCnstDataLoaderTestMode()) then																												
+									logger.writeDebugMessage( ClassManager,"Включен режим тестирования и изучения данных");																	
+									local isDataValid, messages = doTestData(ClassManager, entity, configLoad)											
+									logger.writeDebugMessage( ClassManager,"doTestData вернул "..render(isDataValid));																	
+									logger.writeDebugMessage( ClassManager,"Проверка результатов тестирования данных");																	
+									if (not isDataValid) then											
+										logger.writeDebugMessage( ClassManager,"Данные не готовы к загрузке");																												
+										isMessageAdded = false;
+										for index, message in pairs (messages)  do
+											if (messagesIdentication[message] == nil) then
+												isMessageAdded = true														
+												messagesIdentication[message] = message;
+												writeLoadDataLog (ClassManager, getTabDelimiterForMessage().."Строка "..lineCounter..": "..message)															
+											end
+										end
+										if (isMessageAdded) then																							
+											table.insert(errornousLines,lineCounter)
+										end											
+										isDataTestPassed = isDataValid;
+									else
+										logger.writeDebugMessage( ClassManager,"Данные готовы к загрузке");																	
+									end							
+								elseif (mode == ClassManager.getClass("Constanta").getCnstDataLoaderLoadMode()) then
+									--поиск существующей записи
+									if (string.len(getConfKeySet()) > 0) then
+										doSearchExistingRecord (ClassManager, entity, loadingDataTable, configLoad, messagesIdentication, lineCounter, errornousLines)
+									end
+									--процедура связывания записей															
+									local connectionEntities = {};																
+									if (string.len(getConfConnectionsConfig()) > 0) then
+										processConnectionConfiguration(ClassManager, entity, loadingDataTable, mode)												
+									end
+									-----------------------------------------------------------					
+									logger.writeDebugMessage( ClassManager,"Сохранение аттрибутов программного объекта в базу данных");									
+									entity.saveBeanToDb();																											
+									logger.writeDebugMessage( ClassManager,"Сохранение выполнено успешно");									
+								end
+							end
+						else
+							message = "Количество терминов в строке отличается. Предыдущая строка содержала количество понятий "..terminsNumber..",а данная строка - "..table.count(loadingDataTable)..".Вероятно какой-то термин содержит разделительный символ "..getLineTerminsSeparator();	
+							isDataTestPassed = false;
+							table.insert(errornousLines,lineCounter)	
+							if (messagesIdentication[message] == nil) then
+								messagesIdentication[message] = message;
+								writeLoadDataLog (ClassManager, getTabDelimiterForMessage().."Строка "..lineCounter..": "..message)
+							end
+						end
+					else
+						logger.writeDebugMessage( ClassManager,"Строка № "..lineCounter.." находится в списке необрабатываемых.");												
+					end												
+					entity = nil;
+				end						
+				if (isFoldersCreated) then
+					errornousLines = table.iunion(errornousLines,{})									
+					getLinesForCheck()[filePath]= errornousLines									
+				end
+				if (table.count(getLinesForCheck()[filePath]) > 0) then
+					writeLoadDataLog (ClassManager, "При проверке данных в некоторых строках были обнаружены ошибки. Номера строк:\n"..table.concat(getLinesForCheck()[filePath],";"))
+				end				
+				logger.writeDebugMessage( ClassManager,"Получение времени окончания обработки файла");
+				endTime = ClassManager.getClass("Service").getTodayDate().." "..ClassManager.getClass("Service").getNowTime();				
+				logger.writeDebugMessage( ClassManager,"Генерация сообщения для Log-файла");
+				if (mode == ClassManager.getClass("Constanta").getCnstDataLoaderTestMode()) then
+					resultString = "Данные файла "..filePath.." протестированы | "..startTime.." | "..endTime;					
+				elseif (mode == ClassManager.getClass("Constanta").getCnstDataLoaderLoadMode()) then 
+					resultString = "Данные файла "..filePath.." загружены | "..startTime.." | "..endTime;					
+				end						
+				writeLoadDataLog (ClassManager, resultString)
+				logger.writeDebugMessage( ClassManager,"В итоге isDataTestPassed = "..render(isDataTestPassed));				
+			else					
+				logger.writeDebugMessage( ClassManager,"Файл не разрешен к загрузке");				
+			end
+			if (isDetectDelta) then
+				break;
+			end
+		end	
+		
+	else
+		logger.writeDebugMessage( ClassManager,"Конфигурационный файл в директории "..mainDirPath.." некорректен.");		
+		isDataTestPassed = false;
+	end				
+	logger.writeDebugMessage( ClassManager,"Рекурсивный вызов метода readFilesInDirr");	
+	for subNumber, subName in pairs(subdirs)do			
+		isDataTestPassed = readFilesInDirr(ClassManager, mainDirPath..subName, mode, isDataTestPassed, dataLoadFormScript);			 		
+	end
+	logger.writeDebugMessage( ClassManager,"------------------------Метод readFilesInDirr() класса DataLoader завершил работу------------------------")	
+	writeLoadDataLog (ClassManager, "", true)
+	return isDataTestPassed;
+end
+
+function doSearchExistingRecord(ClassManager, entity, loadingDataTable, configLoad, messagesIdentication, lineCounter, errornousLines)
+	initLogger(ClassManager);	
+	logger.writeDebugMessage( ClassManager,"------------------------Метод doSearchExistingRecord() класса DataLoadee------------------------");		
+	logger.writeDebugMessage( ClassManager,"Поиск существующих объектов по полям, которые определены в конфигурационном файле загрузки");		
+	local keySetTable = string.split(getConfKeySet(), getFileDataSeparator());
+	logger.writeDebugMessage( ClassManager,"Начальная подготовка строчного запроса");		
+	local stringRequest = "ОТ "..getConfBase().."01 ";
+	local expressionConnector="";		
+	local message = ""
+	logger.writeDebugMessage( ClassManager,"Дополнение строчного запроса на основании набора ключевых полей из файла конфигурации");		
+	local isAndUse = false;
+	for index, fieldNumber in pairs (keySetTable) do								
+		fieldNumber = tonumber(fieldNumber)
+		logger.writeDebugMessage( ClassManager,"Получение значения аттрибута программного объекта по номеру поля "..fieldNumber);		
+		local attributeValue = entity.getAttributeByFieldNumber(fieldNumber)						
+		if (attributeValue == nil) then										
+			message = "Для поля с номером "..fieldNumber.." не определен возврат значения аттрибута в методе getAttributeByFieldNumber";
+			if (messagesIdentication[message] == nil) then
+				messagesIdentication[message] = message;
+				writeLoadDataLog (ClassManager, getTabDelimiterForMessage()..message)
+			end
+		elseif(string.len(render(attributeValue))>0) then									
+			logger.writeDebugMessage( ClassManager,"Получены значения аттрибута для множественного поля "..fieldNumber..": "..render(attributeValue));					
+			if (isAndUse) then
+				expressionConnector = "И "															
+			end
+			isAndUse = true														
+			logger.writeDebugMessage( ClassManager,"Проверка поля № "..fieldNumber..", не является ли множетвенным");												
+			logger.writeDebugMessage( ClassManager, "Получение свойств поля");													
+			local fieldParameters = dataBaseProperties[getConfBase()][fieldNumber]																		
+			local statusMultiple = Field.Multiple											
+			logger.writeDebugMessage( ClassManager, "Проверка на статус 'Множественное'");																														
+			if (fieldParameters.field:TestStatus(statusMultiple)) then		
+				logger.writeDebugMessage( ClassManager,"Поле "..fieldNumber.." является множественным");		
+				stringRequest = stringRequest.."("
+				for terminNumber, termin in pairs (attributeValue) do		
+					logger.writeDebugMessage( ClassManager,"Добавление значение аттрибута к строчному запросу");		
+					if (terminNumber > 1) then
+						stringRequest = stringRequest.." ИЛИ "
+					end
+					stringRequest = stringRequest..expressionConnector..fieldNumber.." РВ '"..termin.."' "
+				end
+				stringRequest = stringRequest..")"
+			else				
+				logger.writeDebugMessage( ClassManager,"Поле "..fieldNumber.." не является множественным");		
+				logger.writeDebugMessage( ClassManager,"Добавление значение аттрибута к строчному запросу");		
+				stringRequest = stringRequest..expressionConnector..fieldNumber.." РВ '"..attributeValue.."' "
+			end			
+			logger.writeDebugMessage( ClassManager,"Строчный запрос обновлен")
+		end
+	end					
+	logger.writeDebugMessage( ClassManager,"Получение набора записей по составленному строчному запросу: "..stringRequest);
+	local existedObjects = ClassManager.getClass("RequestController").doSearchExistinfEntity(ClassManager, stringRequest) 
+	if (existedObjects.Count == 1) then
+		logger.writeDebugMessage( ClassManager,"Извлечение единственной записи в полученном наборе и заполнение программного объекта значениями из записи.")
+		entity.setBeanFromRecord(existedObjects:GetRecordByIndex(1));																			
+		logger.writeDebugMessage( ClassManager,"Обновление программного объекта на основе данных из файла загрузки и запись полученных сообщений");																								
+		local entityErrorMessages = entity.setBeanFromLine(loadingDataTable, configLoad, mode, true);												
+		isMessageAdded = false;
+		for _, message in pairs (entityErrorMessages) do																											
+			if (messagesIdentication[message] == nil) then
+				isMessageAdded = true;
+				messagesIdentication[message] = message;
+				writeLoadDataLog (ClassManager, getTabDelimiterForMessage().."Строка "..lineCounter..": "..message)
+			end
+		end
+		if (isMessageAdded) then
+			table.insert(errornousLines,lineCounter)										
+		end
+	else		
+		logger.writeDebugMessage( ClassManager,"Получено следующее количество записей из БД: "..existedObjects.Count)
+	end
+	logger.writeDebugMessage( ClassManager,"------------------------Метод doSearchExistingRecord() класса DataLoader завершил работу------------------------");		
+end
+
+function processConnectionConfiguration(ClassManager, entity, loadingDataTable, mode)
+	initLogger(ClassManager);	
+	logger.writeDebugMessage( ClassManager,"------------------------Метод processConnectionConfiguration() класса DataLoadee------------------------");		
+	logger.writeDebugMessage( ClassManager,"Получение карты связывания объектов");		
+	local connectionMap = string.split(getConfConnectionsConfig(), getFileDataSeparator());						
+	connectionMap = trasformateLoadConfiguration(ClassManager, connectionMap)
+	logger.writeDebugMessage( ClassManager,"Проход по карте связывания и создание связанных программных объектов");		
+	local stringRequest = nil;
+	local passedEntitiesCodes = {};									
+	local prefix = 0;												
+	for key, connectionConfigurationParts in pairs (connectionMap) do																																																			
+		for key, connectionConfiguration in pairs (connectionConfigurationParts) do
+			local connectedEntity = nil;																											
+			logger.writeDebugMessage( ClassManager,"Проверка существования объекта типа "..connectionConfiguration[2]);	
+			if (passedEntitiesCodes[connectionConfiguration[2]]~=nil) then
+				prefix = prefix + 1;
+			end														
+			logger.writeDebugMessage( ClassManager,"Создание программного объекта для базы|таблицы с мнемокодом "..connectionConfiguration[2]);		
+			connectedEntity = ClassManager.newEntity(ClassManager, connectionConfiguration[2], true, true, prefix );													
+			passedEntitiesCodes[connectionConfiguration[2]]= connectedEntity													
+			logger.writeDebugMessage( ClassManager,"Поиск существующего связанного объекта");		
+			stringRequest = "ОТ "..connectionConfiguration[2].."01 ";
+			logger.writeDebugMessage( ClassManager,"Получение значения аттрибута текущего программного объекта по позиции № "..connectionConfiguration[1].." в таблице загрузки данных");		
+			local attributeValue = loadingDataTable[tonumber(connectionConfiguration[1])]																																			
+			if(string.len(attributeValue)>0) then							
+				logger.writeDebugMessage( ClassManager,"Получено значение "..attributeValue.." для позиции "..connectionConfiguration[1].." в файле загрузки");		
+				logger.writeDebugMessage( ClassManager,"Добавление значение аттрибута к строчному запросу");										
+				stringRequest = stringRequest..connectionConfiguration[3].." РВ '"..attributeValue.."' "
+				logger.writeDebugMessage( ClassManager,"Строчный запрос обновлен")											
+				logger.writeDebugMessage( ClassManager,"Заполнение объекта для связи")		
+				local configTable = {}
+				table.insert(configTable, string.split("1,"..connectionConfiguration[2]..configTermsSeparator..connectionConfiguration[3],configTermsSeparator))
+				connectedEntity.setBeanFromLine({attributeValue}, configTable, mode, true)																
+				logger.writeDebugMessage( ClassManager,"Объект заполнен")																								
+				logger.writeDebugMessage( ClassManager,"Получение набора записей по составленному строчному запросу: "..stringRequest);
+				local existedObjects = ClassManager.getClass("RequestController").doSearchExistinfEntity(ClassManager, stringRequest) 																													
+				logger.writeDebugMessage( ClassManager,"Добавление связанного программного объекта")
+				connectedEntity.addConnectedEntity(entity);	
+				if (existedObjects.Count == 1) then
+					logger.writeDebugMessage( ClassManager,"Извлечение единственной записи в полученном наборе и заполнение программного объекта значениями из записи.")															
+					connectedEntity.setBeanFromRecord(existedObjects:GetRecordByIndex(1));	
+					connectedEntity.setLinks()
+				else
+					logger.writeDebugMessage( ClassManager,"Получено следующее количество записей из БД: "..existedObjects.Count)
+					logger.writeDebugMessage( ClassManager,"Сохранение поисковых аттрибутов объекта")																																																																																														
+					connectedEntity.saveBeanToDb()
+					logger.writeDebugMessage( ClassManager,"Объект сохранен")
+				end																														
+				logger.writeDebugMessage( ClassManager,"Добавление связанного объекта в текущий");		
+				entity.addConnectedEntity(connectedEntity);																																																																																																																									
+			end			
+		end			
+	end	
+	logger.writeDebugMessage( ClassManager,"------------------------Метод processConnectionConfiguration() класса DataLoader завершил работу------------------------");		
+end
+
+function validateConfigFile (ClassManager, folderPath, resultFile, entity)	
+	initLogger(ClassManager);
+	logger.writeDebugMessage( ClassManager,"------------------------Метод validateConfigFile() класса DataLoader------------------------")	
+	local configFileErrorMsg = "Некорректный config.ini в директории "..folderPath.." :";
+	local messages = {};
+	local message="";
+	local userResMesTable = {};	
+	local isConfigFileValid = false;
+	local isBaseConfigValid = true; 
+	local isLoadConfigurationValid = true; 
+	local configFileName = ClassManager.getClass("Constanta").getDataLoadConfigName();
+	local filePath = IO.Path.AddSlash(folderPath)..configFileName;
+	logger.writeDebugMessage( ClassManager,"Проверка, существует ли конфигурационный файл "..filePath)
+	if IO.File.Exists (filePath )then
+		logger.writeDebugMessage( ClassManager,"Получение содержимого конфигурационного файла");				
+		detectConfiguration(ClassManager, filePath);
+		logger.writeDebugMessage( ClassManager,"Проверка данных конфигурации на пустые значения");				
+		if((getConfBase() ~= nil and getConfBase():len()> 0) and (getConfLoadConfig() ~= nil and table.count(getConfLoadConfig())>0))then
+			logger.writeDebugMessage( ClassManager,"Проверка количества символов мнемокода базы|таблицы");				
+			if(string.len(getConfBase():match(getBaseRule())) ~= 2)then				
+				isBaseConfigValid = false;
+				message = getTabDelimiterForMessage().."мнемокод "..getConfBase().." некорректен, т.к. должен состоять из 2-х символов."
+				logger.writeDebugMessage( ClassManager, message);
+				enchanceMessageTableWithErrorConfigFileMsg(ClassManager, userResMesTable, configFileErrorMsg)
+				table.insert(userResMesTable, message);
+			end
+			logger.writeDebugMessage( ClassManager,"Проверка существования базы|таблицы с мнемокодом "..getConfBase());				
+			if isBaseConfigValid then
+				logger.writeDebugMessage( ClassManager,"Проверка существования базы|таблицы с заданным мнемокодом");				
+				if(CroApp.GetBank():GetBase(getConfBase()) == nil) then
+					isBaseConfigValid = false;
+					message = getTabDelimiterForMessage().."Несуществующий мнемокод базы для загрузки: "..getConfBase();
+					logger.writeDebugMessage( ClassManager, message);				
+					enchanceMessageTableWithErrorConfigFileMsg(ClassManager, userResMesTable, configFileErrorMsg)
+					table.insert(userResMesTable, message);
+				end
+			end
+			if isBaseConfigValid then
+				logger.writeDebugMessage( ClassManager,"Проверка корректности данных конфигурации полей базы|таблицы");				
+				for index, configLoad in pairs (getConfLoadConfig()) do
+					logger.writeDebugMessage( ClassManager,"Формирование таблицы конфигураций загрузки данных из строки: "..configLoad);				
+					local lineConfValueTable = configLoad:split(ClassManager.getClass("Constanta").getCnstConfigSeparator());					
+					logger.writeDebugMessage( ClassManager,"Итерирование по таблице конфигураций: "..render(lineConfValueTable));				
+					for i, v in pairs(lineConfValueTable) do																												
+						if(string.sub(v,2,2) ~= "@") then
+							if v:match(getValueRule()) == nil then
+								message = getTabDelimiterForMessage().."некорректный параметр конфигурации: "..v;
+								logger.writeDebugMessage( ClassManager, message);				
+								enchanceMessageTableWithErrorConfigFileMsg(ClassManager, userResMesTable, configFileErrorMsg)
+								table.insert(userResMesTable, message);
+								isLoadConfigurationValid = false;
+							else								
+								local configValues = string.swap(v, "{", "");								
+								configValues = string.swap(configValues, "}", "");								
+								logger.writeDebugMessage( ClassManager,"Получение таблицы конфигурации");
+								local tConfigValues = string.split(configValues, configTermsSeparator);	
+								logger.writeDebugMessage(ClassManager,"Получение мнемокода базы данных");
+								local baseCode = tConfigValues[2];		
+								logger.writeDebugMessage( ClassManager,"Получение номера аттрибута базы данных");							
+								fieldNumber = tonumber(tConfigValues[3])																
+								logger.writeDebugMessage( ClassManager,"Проверка статусов поля № "..fieldNumber);												
+								logger.writeDebugMessage( ClassManager, "Получение свойств поля");													
+								local fieldParameters = dataBaseProperties[baseCode][fieldNumber]																		
+								local statusNonEditable = Field.NotEditable											
+								logger.writeDebugMessage( ClassManager, "Проверка на статус 'Некорректирумое поле'");																					
+								if (fieldParameters ~= nil and fieldParameters.field ~= nil) then
+									if (fieldParameters.field:TestStatus(statusNonEditable)) then																		
+										message = getTabDelimiterForMessage().."ВНИМАНИЕ ОШИБКА КОНФИГУРАЦИИ: конфигурация загрузки данных настроена на запись некорректируемого поля № "..fieldNumber;																		
+										enchanceMessageTableWithErrorConfigFileMsg(ClassManager, userResMesTable, configFileErrorMsg)
+										table.insert(userResMesTable, message)									
+										logger.writeDebugMessage( ClassManager, message);																						
+										isLoadConfigurationValid = false;
+									end	
+								else
+									message = getTabDelimiterForMessage().."ВНИМАНИЕ ОШИБКА КОНФИГУРАЦИИ: в конфигурации задано несуществующее поле № "..fieldNumber.." для базы данных с мнемокодом "..baseCode;																		
+									enchanceMessageTableWithErrorConfigFileMsg(ClassManager, userResMesTable, configFileErrorMsg)
+									table.insert(userResMesTable, message)		
+									isLoadConfigurationValid = false;
+								end								
+							end
+						end					
+					end
+				end
+			end
+			if (isBaseConfigValid and string.len(getConfKeySet()) > 0) then
+				logger.writeDebugMessage( ClassManager,"Проверка корректности набора ключевых полей базы|таблицы");								
+				if(getConfKeySet():match(getKeySetRule()) == nil)then
+					message = getTabDelimiterForMessage().."некорректный набор ключевых полей: "..getConfKeySet();
+					logger.writeDebugMessage( ClassManager, message);				
+					enchanceMessageTableWithErrorConfigFileMsg(ClassManager, userResMesTable, configFileErrorMsg)
+					table.insert(userResMesTable, message);
+					isLoadConfigurationValid = false;
+				end	
+			end
+			if (isBaseConfigValid and string.len(getConfConnectionsConfig()) > 0) then
+				logger.writeDebugMessage( ClassManager,"Проверка корректности набора полей связей базы|таблицы");								
+				if(getConfConnectionsConfig():match(getConnectionRule()) == nil)then
+					message = getTabDelimiterForMessage().."некорректный набор полей связей: "..getConfConnectionsConfig();
+					logger.writeDebugMessage( ClassManager, message);				
+					enchanceMessageTableWithErrorConfigFileMsg(ClassManager, userResMesTable, configFileErrorMsg)
+					table.insert(userResMesTable, message);
+					isLoadConfigurationValid = false;
+				else
+					logger.writeDebugMessage( ClassManager,"Получение карты связывная объектов");		
+					local connectionMap = string.split(getConfConnectionsConfig(), getFileDataSeparator());						
+					logger.writeDebugMessage( ClassManager,"Проход по карте связывания");		
+					for key, connectionConfiguration in pairs (connectionMap) do
+						connectionConfiguration = string.swap(connectionConfiguration, "{","")
+						connectionConfiguration = string.swap(connectionConfiguration, "}","")
+						connectionConfiguration = string.split(connectionConfiguration, ",")
+						logger.writeDebugMessage( ClassManager,"Проверка корректности мнемокода");								
+						if(string.len(string.match(connectionConfiguration[2], getBaseRule())) ~= 2)then				
+							isBaseConfigValid = false;
+							message = getTabDelimiterForMessage().."мнемокод "..connectionConfiguration[2].." некорректен, т.к. должен состоять из 2-х символов."
+							logger.writeDebugMessage( ClassManager, message);
+							enchanceMessageTableWithErrorConfigFileMsg(ClassManager, userResMesTable, configFileErrorMsg)
+							table.insert(userResMesTable, message);
+						elseif (CroApp.GetBank():GetBase(connectionConfiguration[2]) == nil) then							
+							isBaseConfigValid = false;
+							message = getTabDelimiterForMessage().."Несуществующий мнемокод базы для загрузки: "..getConfBase();
+							logger.writeDebugMessage( ClassManager, message);				
+							enchanceMessageTableWithErrorConfigFileMsg(ClassManager, userResMesTable, configFileErrorMsg)
+							table.insert(userResMesTable, message);
+						end						
+					end
+				end	
+			end
+			isConfigFileValid = isBaseConfigValid and isLoadConfigurationValid;				
+		else
+			message = getTabDelimiterForMessage().."файл конфигурации имеет недостаточное количество параметров";
+			logger.writeDebugMessage( ClassManager, message);				
+			enchanceMessageTableWithErrorConfigFileMsg(ClassManager, userResMesTable, configFileErrorMsg)
+			table.insert(userResMesTable, message);
+		end		
+	else 		
+		isConfigFileValid = true;
+	end			
+	userResMesTable = table.iunion(userResMesTable,{})
+	for position, message in pairs(userResMesTable) do		
+		writeLoadDataLog (ClassManager, message)			
+	end	
+	logger.writeDebugMessage(ClassManager,"------------------------Метод validateConfigFile() класса DataLoader завершил работу------------------------")	
+	return isConfigFileValid;
+end
+
+function detectConfiguration(ClassManager, filePath)
+	initLogger(ClassManager);
+	logger.writeDebugMessage(ClassManager,"------------------------Метод detectConfiguration() класса DataLoader------------------------")	
+	local configSplitTable = {};
+	local counter = 0;	
+	initLineTerminsSeparator()
+	local configurationTable = {}
+	setConfBase("")
+	setConfLoadConfig({})
+	setConfKeySet("")
+	setSkipLines("")
+	setConfConnectionsConfig("")
+	--setLineTerminsSeparator("")
+	for line in io.lines(filePath) do
+		counter = counter+1;
+		logger.writeDebugMessage( ClassManager,"Обработка строки №\'"..counter.."\'");				
+		if(line:len()>0)then
+			logger.writeDebugMessage( ClassManager,"Проверка, не является ли строка комментарием");		
+			if(string.sub(line,1,1) ~= ClassManager.getClass("Constanta").getCnstCommentSeparator())then
+				logger.writeDebugMessage( ClassManager,"Получение конфигурации из строки");					
+				configSplitTable = line:split(configSeparator);			
+				logger.writeDebugMessage( ClassManager,"Проверка количества элементов конфигурации. Должно быть 2");	
+				if(table.count(configSplitTable) ==2)then						
+					logger.writeDebugMessage( ClassManager,"Заполнение конфигурационных параметров");						
+					if(configSplitTable[1] == ClassManager.getClass("Constanta").getCnstConfigDataLoadBase())then	
+						logger.writeDebugMessage( ClassManager,"Получение мнемокода базы данных/таблицы");	
+						setConfBase(configSplitTable[2]);
+						logger.writeDebugMessage( ClassManager,getConfBase());	
+					elseif(configSplitTable[1] == ClassManager.getClass("Constanta").getCnstConfigDataLoadFields())then						
+						logger.writeDebugMessage( ClassManager,"Получение и добавление загрузочной конфигурации");	
+						addConfLoadConfig(configSplitTable[2]);
+						logger.writeDebugMessage( ClassManager,configSplitTable[2]);	
+					elseif(configSplitTable[1] == ClassManager.getClass("Constanta").getCnstKeySet())then						
+						logger.writeDebugMessage( ClassManager,"Получение конфигурации ключей таблицы");	
+						setConfKeySet(configSplitTable[2]);
+						logger.writeDebugMessage( ClassManager,getConfKeySet());						
+					elseif(configSplitTable[1] == ClassManager.getClass("Constanta").getCnstConfigConnections())then						
+						logger.writeDebugMessage( ClassManager,"Получение конфигурации связи объектов");	
+						setConfConnectionsConfig(configSplitTable[2]);
+						logger.writeDebugMessage( ClassManager,getConfConnectionsConfig());	
+					elseif (configSplitTable[1] == ClassManager.getClass("Constanta").getCnstSkipLines())then		
+						logger.writeDebugMessage( ClassManager,"Получение конфигурации пропуска строк в файле загрузки");	
+						setSkipLines(configSplitTable[2])							
+						logger.writeDebugMessage( ClassManager,getSkipLines());	
+					elseif (configSplitTable[1] == ClassManager.getClass("Constanta").getCnstLineTerminSeparator())then		
+						logger.writeDebugMessage( ClassManager,"Получение конфигурации разделителя понятий в строке в файле загрузки");							
+						setLineTerminsSeparator(configSplitTable[2])
+						logger.writeDebugMessage( ClassManager,getLineTerminsSeparator());	
+					else
+						logger.writeDebugMessage( ClassManager,"Неиспользуемая конфигурационная строка "..line);	
+					end								
+				else
+					logger.writeDebugMessage(ClassManager,"Некорректное количество элементов конфигурации: "..table.count(configSplitTable));	
+				end
+			else
+				logger.writeDebugMessage( ClassManager,"Строка является комментарием и не обрабатывается");	
+			end
+		else
+			logger.writeDebugMessage( ClassManager,"Строка пустая");		
+		end	
+	end
+	configurationTable["base"] = getConfBase()	
+	configurationTable["loadConfiguration"] = getConfLoadConfig()
+	configurationTable["keySet"] = getConfKeySet():split(";")	
+	configurationTable["skipLines"] = getSkipLines()	
+	configurationTable["terminSeparator"] = getLineTerminsSeparator()	
+	configurationTable["connectionConfiguration"] = getConfConnectionsConfig()		
+	logger.writeDebugMessage(ClassManager,"------------------------Метод detectConfiguration() класса DataLoader завершил работу------------------------")	
+	return configurationTable
+end
+
+function validateLoadFileFormat(ClassManager, fileName)
+	initLogger(ClassManager);
+	local fileTypeFlag = false;
+	logger.writeDebugMessage( ClassManager,"Получаем типы разрешенных форматов")	
+	local allowTypes = ClassManager.getClass("Constanta").getFilesTypes(); --allowed files types table	
+	for index, item in pairs(allowTypes) do	
+		fileTypeFlag =  string.ends (fileName, item)  --returns true if filename ends with item 		
+	end	
+	return fileTypeFlag;
+end
+
+function writeLoadDataLog (ClassManager, resultString, isWriteFile)	
+	initLogger(ClassManager);
+	if (isWriteFile) then
+		logger.writeDebugMessage( ClassManager,"Получаем путь к директории, в которой будет формироваться файл отчета о загрузке. Создаем новый файл.")		
+		local messagesFileDirectory = IO.Path.AddSlash(ClassManager.getClass("Constanta").getLogFilePath());
+		local resultFile = io.open(messagesFileDirectory.. ClassManager.getClass("Constanta").getLogFileName(), getResulFileWorkMode());									
+		if (resultFile == nil) then
+			logger.writeDebugMessage( ClassManager,"Файл не создан.")		
+			--table.insert(resultStringTable, "Файл сообщений не создан в директории "..messagesFileDirectory);
+			addResultStringTable("Файл сообщений не создан в директории "..messagesFileDirectory)
+		else
+			--[[
+			if (getResulFileWorkMode() ~= "a+") then
+				logger.writeDebugMessage( ClassManager,"Устанавливаем режим записи лог-файла в 'append'");				
+				setResulFileWorkMode("a+");										
+			end--]]
+			logger.writeDebugMessage( ClassManager,"Предварительное преобразование строки сообщения и сохранение в лог-файл");	
+			--resultFile:write(string.swap(resultString, "\\", "/").."\n");					
+			resultFile:write(table.concat(resultStringTable, "\n"));	
+			logger.writeDebugMessage( ClassManager,"Закрытие Log-файла");				
+			resultFile:close()	
+		end
+	else		
+		addResultStringTable(resultString)
+		--table.insert(resultStringTable, resultString);
+	end
+end
+
+
+--Метод, добавляющий специальную преамбулу к сообщениям из методов верификации структуры конфигурационного файла
+function enchanceMessageTableWithErrorConfigFileMsg(ClassManager, userResMesTable, configFileErrorMsg)
+	if (table.count(userResMesTable) == 0 ) then
+		table.insert(userResMesTable, configFileErrorMsg);
+	end
+end
+
+function doTestData(ClassManager, entity, configTable)	
+	initLogger(ClassManager);
+	local isValid = true;
+	local dataTestMessages = {};
+	logger.writeDebugMessage(ClassManager,"------------------------Метод doTestData() класса DataLoader------------------------")	
+	logger.writeDebugMessage(ClassManager,"Итерирование по таблице конфигурации загрузки данных")	
+	for index, tConfigValues in pairs (configTable) do
+		logger.writeDebugMessage(ClassManager,"Очистка элементов конфигурации от фигурных скобок")		
+		logger.writeDebugMessage(ClassManager,"Получение мнемокода таблицы, в которую должны загружаться данные")	
+		local baseCode = tConfigValues[2];
+		logger.writeDebugMessage(ClassManager,"Проверка типа пришедшого объекта")	
+		if baseCode ~= entity.getEntityBaseCode()then
+			logger.writeDebugMessage(ClassManager,"Получение программного объекта типа для таблица с мнемокодом "..baseCode)	
+			entity = ClassManager.newEntity(ClassManager, baseCode, true, false)
+		end
+		logger.writeDebugMessage(ClassManager,"Получение номер поля таблицы, в которое должно сохраняться значение")					
+		local fieldNumber = tonumber(tConfigValues[3]);					
+		logger.writeDebugMessage(ClassManager,"Получение ранее сохраненных свойств поля № "..fieldNumber.." базы данных с мнемокодом '"..baseCode.."'")	
+		local fieldParameters = dataBaseProperties[baseCode][fieldNumber]		
+		if (fieldParameters == nil) then
+			logger.writeDebugMessage(ClassManager,"Не было получено свойств для поля № "..fieldNumber.." базы данных с мнемокодом '"..baseCode.."'")	
+		else
+			logger.writeDebugMessage(ClassManager,"Проверка типа поля и выявление необходимости проверки на длину загружаемого понятия")	
+			if (fieldParameters.fieldType == Field.Text or fieldParameters.fieldType == Field.Numeric or
+				fieldParameters.fieldType == Field.Date or fieldParameters.fieldType == Field.Time) then						
+				logger.writeDebugMessage(ClassManager,"Получение понятия")	
+				local entityTermin = entity.getAttributeByFieldNumber(fieldNumber);														
+				logger.writeDebugMessage(ClassManager,"Проверка статуса поля, не множественное ли оно")	
+				if (fieldParameters.fieldStatus == Field.Multiple) then
+					logger.writeDebugMessage(ClassManager,"Поле множественное. Итерирование по таблице значений множественного поля")					
+					if (entityTermin ~= nil) then							
+						for index, termin in pairs (entityTermin) do
+							logger.writeDebugMessage(ClassManager,"Проверка длины понятия")								
+							local messages = checkEntityTermin (ClassManager, fieldParameters, termin)
+							logger.writeDebugMessage(ClassManager,"Проверка понятия по типу данных")								
+							table.insert(messages, doCheckValueByType(ClassManager, fieldParameters, termin))
+							if (messages ~= nil and table.count(messages)>0)then			
+								logger.writeDebugMessage(ClassManager,"Проверка не пройдена. Возникли ошибки: "..render(messages))	
+								isValid = false;			
+								for ind, val in pairs (messages) do
+									table.insert(dataTestMessages, val);		
+								end
+							else
+								logger.writeDebugMessage(ClassManager,"Проверка пройдена")	
+							end	
+						end
+					end
+				else				
+					logger.writeDebugMessage(ClassManager,"Проверка длины понятия")						
+					local messages = checkEntityTermin (ClassManager, fieldParameters, entityTermin)
+					logger.writeDebugMessage(ClassManager,"Проверка понятия по типу данных")								
+					table.insert(messages, doCheckValueByType(ClassManager, fieldParameters, entityTermin))
+					if (messages ~= nil and table.count(messages)>0)then			
+						logger.writeDebugMessage(ClassManager,"Проверка не пройдена. Возникли ошибки: "..render(messages))		
+						isValid = false;			
+						for ind, val in pairs (messages) do
+							table.insert(dataTestMessages, val);		
+						end
+					else
+						logger.writeDebugMessage(ClassManager,"Проверка пройдена")	
+					end		
+				end			
+			end
+		end
+	end
+	logger.writeDebugMessage(ClassManager,"Итоговый результат проверки данных "..render(isValid))	
+	logger.writeDebugMessage(ClassManager,"------------------------Метод doTestData() класса DataLoader завершил работу------------------------")	
+	return isValid, dataTestMessages
+end
+
+function doCheckValueByType(ClassManager, fieldParameters, value)
+	initLogger(ClassManager);
+	logger.writeDebugMessage(ClassManager,"------------------------Метод doCheckValueByType() класса DataLoader------------------------")	
+	local message = nil;
+	logger.writeDebugMessage(ClassManager,"Проверка, не пустое ли значение")	
+	if (value ~= nil and string.len(value)>0) then
+		logger.writeDebugMessage(ClassManager,"Проверка типа поля")
+		if (fieldParameters.fieldType == Field.Numeric) then						
+			logger.writeDebugMessage(ClassManager,"Поле цифровое. Термин должен содержать только цифры. Проверка.")
+			if (tonumber(value) == nil) then
+				logger.writeDebugMessage(ClassManager,"Значение содержит недопустимые символы: "..value)
+				message = "Поле с номером "..fieldParameters.fieldNumber.." являтся цифровым. Значение "..value.." не может быть преобразовано в цифру. Сохранение невозможно"				
+			end		
+		elseif (fieldParameters.fieldType == Field.Date) then						
+			logger.writeDebugMessage(ClassManager,"Поле lfns. Термин должен содержать формат даты. Проверка.")
+			if (string.match(value, "%d%d.%d%d.%d%d%d%d") == nil and string.match(value, "%d%d.%d%d.%d%d") == nil) then
+				logger.writeDebugMessage(ClassManager,"Значение не подходит формату даты 00.00.0000 или 00.00.00: "..value)
+				message = "Поле с номером "..fieldParameters.fieldNumber.." являтся датой. Значение "..value.." не может быть преобразовано в дату. Сохранение невозможно"				
+			else
+				local dateTime = DateTime(value)
+				if not dateTime or tonumber(string.sub (value, 1 , 2)) > 31 or tonumber(string.sub (value, 4 , 5)) > 12 then
+					logger.writeDebugMessage(ClassManager,"Значение  даты "..value.." содержит неподходящие элементы и не может быть преобразвано в формат даты")
+					message = "Значение даты "..value.." содержит некорректные значения. Сохранение невозможно"				
+				end
+			end		
+		end
+	end
+	logger.writeDebugMessage(ClassManager,"------------------------Метод doCheckValueByType() класса DataLoader завершил работу------------------------")	
+	return message
+end
+
+function checkEntityTermin (ClassManager, fieldParameters, entityTermin)
+	initLogger(ClassManager);
+	logger.writeDebugMessage(ClassManager,"------------------------Метод checkEntityTermin() класса DataLoader------------------------")	
+	local message = nil;	
+	local messages = {}
+	logger.writeDebugMessage(ClassManager,"Проверка термина и статуса поля № "..fieldParameters.fieldNumber..", поля связей и автозаполняемые поля, а так же некорректируемые поля не проверяются")						
+	if (entityTermin ~= nil) then				
+		if (fieldParameters.fieldLength <= string.len(entityTermin)) then										
+			message = "Выявлено превышение максимально допустимого количества символов в понятии '"..entityTermin.."'. Для аттрибута '"..
+					fieldParameters.fieldName.."' базы данных '"..fieldParameters.fieldBase.Name.."'' длина строки не должна превышать "..fieldParameters.fieldLength;							
+			table.insert(messages, message)
+		end
+		--проверка на запрещенные символы							
+		for index, symbol in pairs (getForbiddenSymobls()) do		
+			if (string.scount(entityTermin, symbol)) > 0 then
+				message = "Выявлен запрещенный символ: "..symbol;				
+				table.insert(messages, message)				
+			end	
+		end
+		--end
+	end		
+	logger.writeDebugMessage(ClassManager,"------------------------Метод checkEntityTermin() класса DataLoader завершил работу------------------------")	
+	return messages;
+end
+
+function readFileForConfiguration(ClassManager, filePath, lineNumber, separator)
+	local terminNumbers = {}
+	local termins = {}
+	local linesCounter = 1
+	for line in io.input(filePath):lines() do
+		if linesCounter == lineNumber then
+			termins = line:split(separator)
+			for i = 1, table.count(termins) do
+				table.insert(terminNumbers, i)
+			end
+			break;
+		end
+		linesCounter = linesCounter + 1
+	end
+	return terminNumbers, termins
+end
+
+--метод формирования структуры каталогов для пользовательского интерфейса конфигуратора
+function constructDirectiryTable(ClassManager, previousDirectory, subdirName, directoryTable)
+	local allDirectories = directoryTable;
+	directoryTable = {}	
+	directoryTable["Bold"] = true
+	local directoryPath = IO.Path.AddSlash(previousDirectory)..subdirName
+	if subdirName == "" then
+		directoryTable["Text"] = directoryPath
+	else
+		directoryTable["Text"] = subdirName
+	end
+	local filesTable = {}			
+	local subdirs, files =  IO.Folder.DirsAndFiles (directoryPath);				
+	for fileNumber, fileName in pairs (files) do							
+		if validateLoadFileFormat(ClassManager, fileName) then
+			filesTable = {}
+			filesTable["Text"] = fileName
+			table.insert(directoryTable,filesTable )
+		end		
+	end	
+	for subdirNumber, subdirName in pairs (subdirs) do	
+		directoryTable = constructDirectiryTable(ClassManager, directoryPath, subdirName, directoryTable)
+	end
+	table.insert(allDirectories,directoryTable)		
+	return allDirectories
+end

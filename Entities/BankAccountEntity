@@ -1,0 +1,392 @@
+	local accountName = nil;
+local currency = nil;
+local accountType = nil;
+local accountNumber = nil;
+local bankNames = nil;
+local note = nil;
+local entityRecord = nil;
+local bankAccountBaseCode = nil;
+local accountOpenDate = nil;
+local accountCloseDate = nil;
+local accountArrested = nil;
+local organizationEntities = {}
+local personEntities = {}
+local classManager = nil;
+
+function initLogger()
+	if logger == nil then
+		logger = getClassManager().getClass("Logger");	
+	end
+end
+
+function getClassManager()
+    return classManager;
+end
+function setClassManager(classManagerValue)
+    classManager = classManagerValue;
+end
+
+function getEntityRecord()
+    return entityRecord;
+end
+function setEntityRecord(entityRecordValue)
+    entityRecord = entityRecordValue;
+end
+
+function getOrganizationEntities()
+    return organizationEntities;
+end
+function addOrganizationEntity(newOrganizationEntity)
+    table.insert(organizationEntities,newOrganizationEntity);
+end
+function setOrganizationEntities(newOrganizationEntities)
+    organizationEntities = newOrganizationEntities;
+end
+
+function getPersonEntities()
+    return personEntities;
+end
+function addPersonEntity(newPersonEntity)
+    table.insert(personEntities,newPersonEntity);
+end
+function setPersonEntities(newPersonEntities)
+    personEntities = newPersonEntities;
+end
+
+function getEntityBaseCode()
+    return bankAccountBaseCode;
+end
+function setEntityBaseCode(bankAccountBaseCodeValue)
+    bankAccountBaseCode = bankAccountBaseCodeValue;
+end
+--------------------------------------------------
+function setBeanFromLine(dataTable, configTable, mode, isCurrentEntityOnly) -- передаем таблицу с данными для загрузки и  таблицу с конфигурацией для загрузки
+	initLogger();
+	local messages = {};	
+	local configValues = "";
+	local tConfigValues = "";
+	local terminPosition = 0;
+	local fieldNumber = 0;
+	local extractedTermin = "";	
+	local isConnectedEntityNew = true;
+	local passedEntitiesCodes = {}
+	for index, tConfigValues in ipairs(configTable) do		
+		local localVocKey = nil;				
+		logger.writeDebugMessage( getClassManager(),"Получена конфигурациz: "..render(tConfigValues));
+		logger.writeDebugMessage( getClassManager(),"Получение номера аттрибута базы данных");
+		fieldNumber = tonumber(tConfigValues[3]);	
+		logger.writeDebugMessage(getClassManager(),"Получение позиции в строке загрузки");		
+		if (string.sub(tConfigValues[1],1,1) ~= "@") then
+			terminPosition = tonumber(tConfigValues[1]);					
+			logger.writeDebugMessage( getClassManager(),"Получение термина строки по позиции № "..terminPosition);
+			extractedTermin = dataTable[terminPosition];
+		else
+			extractedTermin = string.sub(tConfigValues[1],2);
+			localVocKey = tonumber(extractedTermin)
+		end		
+		logger.writeDebugMessage( getClassManager(), "Был получен термин для загрузки в поле "..fieldNumber);
+		if (extractedTermin ~= nil and string.len(extractedTermin)>0) then			
+			if (tConfigValues[2] == getEntityBaseCode()) then
+				if (fieldNumber == 1) then									
+					setAccountName(extractedTermin);	
+				elseif(fieldNumber == 5) then
+					setAccountNumber(extractedTermin);
+				elseif(fieldNumber == 9) then
+					setNote(extractedTermin);
+				elseif(fieldNumber == 21) then
+					setAccountOpenDate(extractedTermin);		
+				elseif(fieldNumber == 22) then
+					setAccountCloseDate(extractedTermin);						
+				else
+					local vocCode = getClassManager().getClass("FieldsWorker").getVocFieldBaseCode(getClassManager(),getEntityBaseCode(),fieldNumber)			
+					if (vocCode ~= nil) then						
+						if (localVocKey == nil) then
+							localVocKey, errorMessages = getClassManager().getClass("DBWorker").convertExternalVocTermin(getClassManager(), extractedTermin, vocCode);				
+							for _,message in pairs(errorMessages) do
+								table.insert(messages, message)
+							end
+						end	
+						if(fieldNumber == 7) then						
+							setBankName(localVocKey);
+						elseif(fieldNumber == 3) then						
+							setAccountType(localVocKey);					
+						elseif(fieldNumber == 2) then						
+							setCurrency(localVocKey);					
+						elseif(fieldNumber == 23) then						
+							setAccountArrested(localVocKey);		
+						end	
+					else
+						logger.writeDebugMessage( getClassManager(), "Поле № "..fieldNumber.. " не обрабатывает программным объектом");
+					end
+				end	
+			else					
+				isConnectedEntityNew = table.count(getClassManager().getClass("Service").getIndexesFromTable(passedEntitiesCodes, tConfigValues[2]))==0
+				if (not isCurrentEntityOnly) then
+					logger.writeDebugMessage( getClassManager(),"Термин принадлежит базе данных с мнемокодом "..tConfigValues[2]);			
+					logger.writeDebugMessage( getClassManager(),"Создание нового программного объекта")
+					local connectedEntity = getClassManager().newEntity(getClassManager(), tConfigValues[2], true, isConnectedEntityNew)			
+					if (isConnectedEntityNew) then
+						logger.writeDebugMessage( getClassManager(),"Добавление созданного объекта для установления связи")				
+						addConnectedEntity (connectedEntity);			
+					end
+					isConnectedEntityNew = false;				
+					logger.writeDebugMessage( getClassManager(),"Заполнение программного объекта на основе данных из файла загрузки и запись полученных сообщений");																								
+					local errorMessages = connectedEntity.setBeanFromLine(dataTable, {tConfigValues}, mode); 						
+					for _,message in pairs(errorMessages) do
+						table.insert(messages, message)
+					end	
+					logger.writeDebugMessage(getClassManager(),"Проверка режима работы системы: "..mode);	
+					if (mode == getClassManager().getClass("Constanta").getCnstDataLoaderLoadMode()) then
+						logger.writeDebugMessage(getClassManager(),"Сохранение программного объекта в базу данных с мнемокодом "..tConfigValues[2]);																													
+						connectedEntity.saveBeanToDb();						
+					end
+				end
+			end
+			table.insert(passedEntitiesCodes,tConfigValues[2]);
+		end
+	end	
+	return messages;
+end
+
+function addConnectedEntity (connectedEntity)
+	local connectedEntityCode = connectedEntity.getEntityBaseCode();
+	if (connectedEntityCode == getClassManager().getClass("Constanta").getCnstOrganization()) then
+		addOrganizationEntity(connectedEntity);	
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstPerson()) then
+		addPersonEntity(connectedEntity);		
+	end		
+end
+
+function getAttributeByFieldNumber(fieldNumber)
+	local attribute = nil;
+	local noAttributeLineDefined = false;
+	fieldNumber = tonumber(fieldNumber)	
+	if (fieldNumber == 1) then									
+		attribute = getAccountName();		
+	elseif(fieldNumber == 2) then
+		attribute = getCurrency();
+	elseif(fieldNumber == 3) then
+		attribute = getAccountType();
+	elseif(fieldNumber == 5) then
+		attribute = getAccountNumber();
+	elseif(fieldNumber == 7) then
+		attribute = getBankName()
+	elseif(fieldNumber == 9) then
+		attribute = getNote()	
+	elseif(fieldNumber == 21) then
+		attribute = getAccountOpenDate()	
+	elseif(fieldNumber == 22) then
+		attribute = getAccountCloseDate()	
+	elseif(fieldNumber == 23) then
+		attribute = getAccountArrested()	
+	else
+		noAttributeLineDefined = true;
+	end		
+	--необходимо для логики выдачи сообщения про неопределенный номер поля в данном методе
+	if (noAttributeLineDefined == false and attribute == nil) then
+		attribute = "";		
+	end	
+	return attribute;
+end
+--------------------------------------------------
+function clearEntities()
+	setOrganizationEntities({});
+	setPersonEntities({});	
+end
+
+function setLinks()	
+	local organizationBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstOrganization());												
+	local bankAccountBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstBankAccount());								
+	local personBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstPerson());								
+	--organizations linking	
+	for key, organizationEntity in pairs(getOrganizationEntities()) do						
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), getEntityRecord())) then
+			getEntityRecord():Unlock();
+		end
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), organizationEntity.getEntityRecord())) then
+			organizationEntity.getEntityRecord():Unlock();
+		end
+		bankAccountBase:AddLink(getEntityRecord().SN,8,organizationBase,organizationEntity.getEntityRecord().SN, Base.LockWait, Base.LockWait);																	
+	end
+	--persons linking	
+	for key, personEntity in pairs(getPersonEntities()) do						
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), getEntityRecord())) then
+			getEntityRecord():Unlock();
+		end
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), personEntity.getEntityRecord())) then
+			personEntity.getEntityRecord():Unlock();
+		end
+		bankAccountBase:AddLink(getEntityRecord().SN,8,personBase,personEntity.getEntityRecord().SN, Base.LockWait, Base.LockWait);																	
+	end
+	setEntityRecord(bankAccountBase:GetRecord(getEntityRecord().SN));
+end
+
+function setBeanFromRecord(bankAccountRecord)	
+	local bankAccountBaseCode = getEntityBaseCode();
+	if bankAccountRecord.Base.Code == bankAccountBaseCode then				
+		setEntityRecord(bankAccountRecord)
+		setAccountName(		getClassManager().getClass("FieldsWorker").getField(bankAccountBaseCode, bankAccountRecord , 1 , "" , "", ""));
+		setCurrency(		getClassManager().getClass("FieldsWorker").getField(bankAccountBaseCode, bankAccountRecord , 2 , "" , "", ""));
+		setAccountType(		getClassManager().getClass("FieldsWorker").getField(bankAccountBaseCode, bankAccountRecord , 3 , "" , "", ""));
+		setAccountNumber(	getClassManager().getClass("FieldsWorker").getField(bankAccountBaseCode, bankAccountRecord , 5 , "" , "", ""));
+		setBankName(		getClassManager().getClass("FieldsWorker").getField(bankAccountBaseCode, bankAccountRecord , 7 , 0  , "", ""));
+		setNote(			getClassManager().getClass("FieldsWorker").getField(bankAccountBaseCode, bankAccountRecord , 9 , "" , "", ""));			
+		setAccountOpenDate(	getClassManager().getClass("FieldsWorker").getField(bankAccountBaseCode, bankAccountRecord , 21, "" , "", ""));			
+		setAccountCloseDate(getClassManager().getClass("FieldsWorker").getField(bankAccountBaseCode, bankAccountRecord , 22, "" , "", ""));			
+		setAccountArrested(	getClassManager().getClass("FieldsWorker").getField(bankAccountBaseCode, bankAccountRecord , 23, "" , "", ""));			
+	end
+end
+
+function setBeanFromView(view)	
+	setAccountName(view.getTxtAccountNameText());				
+	setCurrency(view.getDpdCurrencySelectedCode())	
+	setAccountType(view.getDpdAccountTypeSelectedCode());		
+	setAccountNumber(view.getTxtAccountNumberText())	
+	setBankName(view.getDpdBankNameSelectedCode());				
+	setAccountOpenDate(view.getTxtAccountOpenDateText());				
+	setAccountCloseDate(view.getTxtAccountCloseDateText());				
+	setAccountArrested(view.getDpdAccountArrestedSelectedCode());				
+	setNote(view.getTxtNoteText())		
+end
+
+function saveBeanToDb()
+	local saveResult = true;			
+	local bankAccountBaseCode = getEntityBaseCode();	
+	if (getEntityRecord() == nil) then		
+		setEntityRecord(CroApp.GetBank():GetBase(bankAccountBaseCode):AddRecord())					
+	end				
+	local bankAccountRecord = getEntityRecord();					
+	if bankAccountRecord.Base.Code == bankAccountBaseCode then				
+		getClassManager().getClass("FieldsWorker").setField(bankAccountBaseCode, bankAccountRecord, 1 , "", getAccountName(), nil, nil, true);				
+		getClassManager().getClass("FieldsWorker").setField(bankAccountBaseCode, bankAccountRecord, 2 , "", getCurrency(), nil, nil, true);
+		getClassManager().getClass("FieldsWorker").setField(bankAccountBaseCode, bankAccountRecord, 3 , "", getAccountType(), nil, nil, true);
+		getClassManager().getClass("FieldsWorker").setField(bankAccountBaseCode, bankAccountRecord, 5 , "", getAccountNumber(), nil, nil, true);
+		getClassManager().getClass("FieldsWorker").setField(bankAccountBaseCode, bankAccountRecord, 7 , "" ,getBankName(), nil, nil, true);
+		getClassManager().getClass("FieldsWorker").setField(bankAccountBaseCode, bankAccountRecord, 21, "" ,getAccountOpenDate(), nil, nil, true);
+		getClassManager().getClass("FieldsWorker").setField(bankAccountBaseCode, bankAccountRecord, 22, "" ,getAccountCloseDate(), nil, nil, true);
+		getClassManager().getClass("FieldsWorker").setField(bankAccountBaseCode, bankAccountRecord, 23, "" ,getAccountArrested(), nil, nil, true);
+		getClassManager().getClass("FieldsWorker").setField(bankAccountBaseCode, bankAccountRecord, 9 , "", getNote(), nil, nil, false);		
+		setLinks();
+	else
+		saveResult = false;
+	end	
+	return saveResult;
+end
+----------------------------
+function getPersonEntities()
+    return personEntities;
+end
+function addPersonEntity(personEntityValue)
+    table.insert(personEntities, personEntityValue)
+end
+
+function getAccountName()
+    return accountName;
+end
+function setAccountName(accountNameValue)
+    accountName = accountNameValue;
+end
+
+function getCurrency()
+    return currency;
+end
+function getCurrencyDefinition()
+    local defIndexes = getClassManager().getClass("Service").getIndexesFromTable(
+						getClassManager().getClass("Constanta").getDpdCurrencyCodes(),getCurrency());	
+	return getClassManager().getClass("Service").getItemFromTableByIndex(getClassManager().getClass("Constanta").getDpdCurrencyDefinitions(),
+																		getClassManager().getClass("Service").getItemFromTableByIndex(defIndexes,1));
+end
+function setCurrency(currencyValue)
+    currency = currencyValue;
+end
+
+function getAccountType()
+    return accountType;
+end
+function getAccountTypeDefinition()
+    local defIndexes = getClassManager().getClass("Service").getIndexesFromTable(
+						getClassManager().getClass("Constanta").getDpdAccountTypeCodes(),getAccountType());	
+	return getClassManager().getClass("Service").getItemFromTableByIndex(getClassManager().getClass("Constanta").getDpdAccountTypeDefinitions(),
+																		getClassManager().getClass("Service").getItemFromTableByIndex(defIndexes,1));
+end
+function setAccountType(accountTypeValue)
+    accountType = accountTypeValue;
+end
+
+function getAccountNumber()
+    return accountNumber;
+end
+function setAccountNumber(accountNumberValue)
+    accountNumber = accountNumberValue;
+end
+ 
+function getBankName()
+    return bankName;
+end
+function setBankName(bankNameValue)
+    bankName = bankNameValue;
+end
+
+function getNote()
+    return note;
+end
+function setNote(noteValue)
+    note = noteValue;
+end
+
+function getAccountOpenDate()
+    return accountOpenDate;
+end
+function setAccountOpenDate(accountOpenDateValue)
+    accountOpenDate = accountOpenDateValue;
+end
+
+function getAccountCloseDate()
+    return accountCloseDate;
+end
+function setAccountCloseDate(accountCloseDateValue)
+    accountCloseDate = accountCloseDateValue;
+end
+
+function getAccountArrested()
+    return accountArrested;
+end
+function getAccountArrestedDefinition()
+    local defIndexes = getClassManager().getClass("Service").getIndexesFromTable(
+						getClassManager().getClass("Constanta").getDpdAccountArrestedCodes(),getAccountArrested());	
+	return getClassManager().getClass("Service").getItemFromTableByIndex(getClassManager().getClass("Constanta").getDpdAccountArrestedDefinitions(),
+																		getClassManager().getClass("Service").getItemFromTableByIndex(defIndexes,1));
+end
+function setAccountArrested(accountArrestedValue)
+    accountArrested = accountArrestedValue;
+end
+----------------------------------------
+function toShortString(isWithConnectedItems)
+	local result = {};			
+	table.insert(result, getAccountNumber())		
+	table.insert(result, getAccountName())		
+	table.insert(result, getCurrencyDefinition())		
+	if (isWithConnectedItems) then
+		for key, organizationEntity in pairs(getOrganizationEntities()) do		
+			table.insert(result, organizationEntity.toShortString(false))
+		end
+		for key, personEntity in pairs(getPersonEntities()) do		
+			table.insert(result, personEntity.toShortString(false))
+		end
+	end	
+	return table.concat(result," | ")
+end
+
+function clearEntity()
+	clearEntities()
+	setEntityRecord(nil)
+	setAccountName(nil)
+	setCurrency(nil)
+	setAccountType(nil)
+	setAccountNumber(nil)
+	setBankName(nil)
+	setNote(nil)
+	setAccountArrested(nil)
+	setAccountCloseDate(nil)
+	setAccountOpenDate(nil)
+end

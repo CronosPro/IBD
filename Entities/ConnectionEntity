@@ -1,0 +1,332 @@
+local countryCode = nil;
+local providerCode = nil;
+local phoneNumber = nil;
+local note = nil;
+local entityRecord = nil;
+local telephoneBaseCode = nil;
+local email = nil;
+local entityBaseCode = nil;
+local connectionTypeEntities = {}
+local classManager = nil;
+local infoField = nil;
+local logger = nil;
+local providerCodeExt = nil;
+local fullNumber = nil;
+
+function initLogger()
+	if logger == nil then
+		logger = getClassManager().getClass("Logger");	
+	end
+end
+
+function getClassManager()
+    return classManager;
+end
+function setClassManager(classManagerValue)
+    classManager = classManagerValue;
+end
+
+function getConnectionTypeEntities()
+    return connectionTypeEntities;
+end
+function addConnectionTypeEntity(newConnectionTypeEntity)
+    table.insert(connectionTypeEntities,newConnectionTypeEntity);
+end
+function setConnectionTypeEntities(newConnectionTypeEntities)
+    connectionTypeEntities = newConnectionTypeEntities;
+end
+
+function getEntityBaseCode()
+    return entityBaseCode;
+end
+function setEntityBaseCode(entityBaseCodeValue)
+    entityBaseCode = entityBaseCodeValue;
+end
+--------------------------------------------------
+function setBeanFromLine(dataTable, configTable, mode, isCurrentEntityOnly) -- передаем таблицу с данными для загрузки и  таблицу с конфигурацией для загрузки	
+	initLogger();
+	local messages = {};	
+	local configValues = "";
+	local tConfigValues = "";
+	local terminPosition = 0;
+	local fieldNumber = 0;
+	local extractedTermin = "";	
+	local isConnectedEntityNew = true;
+	local passedEntitiesCodes = {}
+	for index, tConfigValues in ipairs(configTable) do		
+		local localVocKey = nil;				
+		logger.writeDebugMessage( getClassManager(),"Получена конфигурациz: "..render(tConfigValues));
+		logger.writeDebugMessage( getClassManager(),"Получение номера аттрибута базы данных");
+		fieldNumber = tonumber(tConfigValues[3]);	
+		logger.writeDebugMessage(getClassManager(),"Получение позиции в строке загрузки");		
+		if (string.sub(tConfigValues[1],1,1) ~= "@") then
+			terminPosition = tonumber(tConfigValues[1]);					
+			logger.writeDebugMessage( getClassManager(),"Получение термина строки по позиции № "..terminPosition);
+			extractedTermin = dataTable[terminPosition];
+		else
+			extractedTermin = string.sub(tConfigValues[1],2);
+			localVocKey = tonumber(extractedTermin)
+		end		
+		logger.writeDebugMessage( getClassManager(), "Был получен термин для загрузки в поле "..fieldNumber);
+		if (extractedTermin ~= nil and string.len(extractedTermin)>0) then			
+			if (tConfigValues[2] == getEntityBaseCode()) then						
+				if(fieldNumber == 3) then				
+					setPhoneNumber(extractedTermin);
+				elseif(fieldNumber == 5) then				
+					setNote(extractedTermin);		
+				elseif(fieldNumber == 6) then
+					setProviderCodeExt(extractedTermin)
+				elseif(fieldNumber == 7) then
+					setEmail(extractedTermin);										
+				elseif(fieldNumber == 105) then
+					setFullNumber(extractedTermin);										
+				else
+					local vocCode = getClassManager().getClass("FieldsWorker").getVocFieldBaseCode(getClassManager(),getEntityBaseCode(),fieldNumber)
+					if (vocCode ~= nil) then						
+						if (localVocKey == nil) then
+							localVocKey, errorMessages = getClassManager().getClass("DBWorker").convertExternalVocTermin(getClassManager(), extractedTermin, vocCode);				
+							for _,message in pairs(errorMessages) do
+								table.insert(messages, message)
+							end
+						end		
+						if (fieldNumber == 1) then									
+							setCountryCode(localVocKey);	
+						elseif(fieldNumber == 2) then
+							setProviderCode(localVocKey);					
+						end
+					else
+						logger.writeDebugMessage( getClassManager(), "Поле № "..fieldNumber.. " не обрабатывает программным объектом");
+					end
+				end
+			else			
+				isConnectedEntityNew = table.count(getClassManager().getClass("Service").getIndexesFromTable(passedEntitiesCodes, tConfigValues[2]))==0
+				if (not isCurrentEntityOnly) then
+					logger.writeDebugMessage( getClassManager(),"Термин принадлежит базе данных с мнемокодом "..tConfigValues[2]);			
+					logger.writeDebugMessage( getClassManager(),"Создание нового программного объекта")
+					local connectedEntity = getClassManager().newEntity(getClassManager(), tConfigValues[2], true, isConnectedEntityNew)			
+					if (isConnectedEntityNew) then
+						logger.writeDebugMessage( getClassManager(),"Добавление созданного объекта для установления связи")				
+						addConnectedEntity (connectedEntity);			
+					end
+					isConnectedEntityNew = false;				
+					logger.writeDebugMessage( getClassManager(),"Заполнение программного объекта на основе данных из файла загрузки и запись полученных сообщений");																								
+					local errorMessages = connectedEntity.setBeanFromLine(dataTable, {tConfigValues}, mode); 						
+					for _,message in pairs(errorMessages) do
+						table.insert(messages, message)
+					end	
+					logger.writeDebugMessage(getClassManager(),"Проверка режима работы системы: "..mode);	
+					if (mode == getClassManager().getClass("Constanta").getCnstDataLoaderLoadMode()) then
+						logger.writeDebugMessage(getClassManager(),"Сохранение программного объекта в базу данных с мнемокодом "..tConfigValues[2]);																													
+						connectedEntity.saveBeanToDb();						
+					end
+				end
+			end
+			table.insert(passedEntitiesCodes,tConfigValues[2]);
+		end			
+	end		
+	return messages;
+end
+
+function addConnectedEntity (connectedEntity)
+	local connectedEntityCode = connectedEntity.getEntityBaseCode();
+	if (connectedEntityCode == getClassManager().getClass("Constanta").getCnstConnectionType()) then
+		addConnectionTypeEntity(connectedEntity);		
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstOrganization() or 
+			connectedEntityCode == getClassManager().getClass("Constanta").getCnstPerson()) then
+		for index, connectionTypeEntity in pairs (getConnectionTypeEntities()) do
+			connectionTypeEntity.addConnectedEntity(connectedEntity);			
+			connectedEntity.addConnectionTypeEntity(connectionTypeEntity)
+		end
+	end	
+end
+
+function getAttributeByFieldNumber(fieldNumber)
+	local attribute = nil;
+	local noAttributeLineDefined = false;
+	fieldNumber = tonumber(fieldNumber)	
+	if (fieldNumber == 1) then									
+		attribute = getCountryCode();		
+	elseif(fieldNumber == 2) then
+		attribute = getProviderCode();
+	elseif(fieldNumber == 3) then
+		attribute = getPhoneNumber();	
+	elseif(fieldNumber == 5) then
+		attribute = getNote();	
+	elseif(fieldNumber == 6) then
+		attribute = getProviderCodeExt();	
+	elseif(fieldNumber == 7) then
+		attribute = getEmail()
+	elseif(fieldNumber == 105) then
+		attribute = getFullNumber()
+	else
+		noAttributeLineDefined = true;
+	end		
+	--необходимо для логики выдачи сообщения про неопределенный номер поля в данном методе
+	if (noAttributeLineDefined == false and attribute == nil) then
+		attribute = "";		
+	end	
+	return attribute;
+end
+--------------------------------------------------
+function clearEntities()
+	setConnectionTypeEntities({})	
+end
+
+function setLinks()
+	local connectionTypeBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstConnectionType());												
+	local connectionBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstConnection());								
+	--connectionType linking			
+	for key, connectionTypeEntity in pairs(getConnectionTypeEntities()) do						
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), getEntityRecord())) then
+			getEntityRecord():Unlock();
+		end
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), connectionTypeEntity.getEntityRecord())) then
+			connectionTypeEntity.getEntityRecord():Unlock();
+		end
+		connectionBase:AddLink(getEntityRecord().SN,4,connectionTypeBase,connectionTypeEntity.getEntityRecord().SN, Base.LockWait, Base.LockWait);																	
+	end
+	setEntityRecord(connectionBase:GetRecord(getEntityRecord().SN));
+end
+
+function setBeanFromRecord(telephoneRecord)	
+	local telephoneBaseCode = getEntityBaseCode();
+	if telephoneRecord.Base.Code == telephoneBaseCode then		
+		setEntityRecord(telephoneRecord)
+		setCountryCode(		getClassManager().getClass("FieldsWorker").getField(telephoneBaseCode, telephoneRecord , 1 , "" , "", ""));
+		setProviderCode(	getClassManager().getClass("FieldsWorker").getField(telephoneBaseCode, telephoneRecord , 2 , "" , "", ""));
+		setPhoneNumber(		getClassManager().getClass("FieldsWorker").getField(telephoneBaseCode, telephoneRecord , 3 , "" , "", ""));		
+		setNote(			getClassManager().getClass("FieldsWorker").getField(telephoneBaseCode, telephoneRecord , 5 , "" , "", ""));		
+		setProviderCodeExt(	getClassManager().getClass("FieldsWorker").getField(telephoneBaseCode, telephoneRecord , 6 , "" , "", ""));		
+		setEmail(			getClassManager().getClass("FieldsWorker").getField(telephoneBaseCode, telephoneRecord , 7 , "" , "", ""));						
+		setFullNumber(			getClassManager().getClass("FieldsWorker").getField(telephoneBaseCode, telephoneRecord , 105 , "" , "", ""));					
+		setInfoField(		getClassManager().getClass("FieldsWorker").getField(telephoneBaseCode, telephoneRecord , 100 , "" , "", ""));					
+	end
+end
+
+function updateEntity()
+	setBeanFromRecord(getClassManager(), getEntityRecord())	
+end
+
+function setBeanFromView(view)
+	setCountryCode(view.getDpdCountryCodeSelectedCode());				
+	setProviderCode(view.getDpdProviderCodeSelectedCode());	
+	setPhoneNumber(view.getTxtPhoneNumberText());			
+	setEmail(view.getTxtEmailText());			
+	setNote(view.getTxtNoteText());	
+	--setInfoField(view.getTxtInfoFieldText());
+end
+
+
+function saveBeanToDb()
+	local saveResult = true;		
+	local telephoneBaseCode = getEntityBaseCode();
+	if (getEntityRecord() == nil) then		
+		setEntityRecord(CroApp.GetBank():GetBase(telephoneBaseCode):AddRecord())					
+	end	
+	local telephoneRecord = getEntityRecord();
+	if telephoneRecord.Base.Code == telephoneBaseCode then					
+		getClassManager().getClass("FieldsWorker").setField(telephoneBaseCode, telephoneRecord, 1, "", getCountryCode(), nil, nil, true);				
+		getClassManager().getClass("FieldsWorker").setField(telephoneBaseCode, telephoneRecord, 2, "", getProviderCode(), nil, nil, true);
+		getClassManager().getClass("FieldsWorker").setField(telephoneBaseCode, telephoneRecord, 3, "", getPhoneNumber(), nil, nil, true);
+		getClassManager().getClass("FieldsWorker").setField(telephoneBaseCode, telephoneRecord, 5, "", getNote(), nil, nil, false);			
+		getClassManager().getClass("FieldsWorker").setField(telephoneBaseCode, telephoneRecord, 6, "", getProviderCodeExt(), nil, nil, false);			
+		getClassManager().getClass("FieldsWorker").setField(telephoneBaseCode, telephoneRecord, 105, "", getFullNumber(), nil, nil, false);			
+		getClassManager().getClass("FieldsWorker").setField(telephoneBaseCode, telephoneRecord, 7, "", getEmail(), nil, nil, true);		
+		setLinks(getClassManager())				
+	else
+		saveResult = false;
+	end	
+	return saveResult;
+end
+function getCountryCode()
+    return countryCode;
+end
+function setCountryCode(countryCodeValue)
+    countryCode = countryCodeValue;
+end
+
+function getProviderCode()
+    return providerCode;
+end
+function setProviderCode(providerCodeValue)
+    providerCode = providerCodeValue;
+end
+
+function getPhoneNumber()
+    return phoneNumber;
+end
+function setPhoneNumber(phoneNumberValue)
+    phoneNumber = phoneNumberValue;
+end
+
+function getNote()
+    return note;
+end
+function setNote(noteValue)
+    note = noteValue;
+end
+
+function getEntityRecord()
+    return entityRecord;
+end
+function setEntityRecord(entityRecordValue)
+    entityRecord = entityRecordValue;
+end
+
+function getEmail()
+    return email;
+end
+function setEmail(emailValue)
+    email = emailValue;
+end
+
+function getInfoField()
+    return infoField;
+end
+function setInfoField(infoFieldValue)
+    infoField = infoFieldValue;
+end
+
+function getProviderCodeExt()
+    return providerCodeExt;
+end
+function setProviderCodeExt(providerCodeExtValue)
+    providerCodeExt = providerCodeExtValue;
+end
+
+function getFullNumber()
+    return fullNumber;
+end
+function setFullNumber(fullNumberValue)
+    fullNumber = fullNumberValue;
+end
+
+function toShortString(withConnectedEntities)
+	local result = {};			
+	if (withConnectedEntities) then
+		for key, connectionTypeEntity in pairs(getConnectionTypeEntities()) do				
+			if (connectionTypeEntity == nil) then								
+				table.insert(result, connectionTypeEntity.toShortString(false))		
+			end
+		end	
+	end
+	if getInfoField() ~= nil and (string.len(string.trim(getInfoField())) > 0) then
+		table.insert(result, getInfoField());
+	else		
+		table.insert(result, getCountryCode()..getProviderCode().." "..getPhoneNumber())		
+		table.insert(result, getEmail())		
+		table.insert(result, getNote())			
+	end	
+	return table.concat(result," | ")
+end
+
+function clearEntity()
+	clearEntities()
+	setEntityRecord(nil)
+	setCountryCode(nil)
+	setProviderCode(nil)
+	setPhoneNumber(nil)
+	setEmail(nil)
+	setNote(nil)
+	setInfoField(nil)
+end

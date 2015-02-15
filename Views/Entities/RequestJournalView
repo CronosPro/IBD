@@ -1,0 +1,303 @@
+local ClassManager = nil;
+local Entity = nil;
+local unloadController = nil;
+local formsController = nil;
+local constanta = nil;
+local logger = nil;
+local objectList = nil;
+local childForms = {};
+
+local lblTypeOfCheck = nil;
+local dpdTypeOfCheck = nil;
+local lblRequestEmployee = nil;
+local dpdRequestEmployee = nil;
+local lblRequestDepartment = nil;
+local dpdRequestDepartment = nil;
+local lblDateOfCheck = nil;
+local txtDateOfCheck = nil;
+local lblPerformEmployee = nil;
+local txtPerformEmployee = nil;
+local btnClose = nil;
+local txtInfoPanel = nil;
+local txtComment = nil;
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function getObjectList()
+    return objectList;
+end
+function setObjectList(objectListValue)
+    objectList = objectListValue;
+end
+
+function Форма_Open( form	)
+    setClassManager(Arg.ClassManager)
+    setControllersReferences()
+    return true;
+end
+
+function Форма_Load( form )
+	logger.writeDebugMessage(ClassManager,"------------------------Метод Форма_Load() класса RequestJournalView------------------------")		
+	getClassManager().setClass(form, form)
+    logger.writeDebugMessage(ClassManager,"Проверка, не пришел ли пустой набор объектов")		
+	if (Arg.Data ~= nil) then
+		logger.writeDebugMessage(ClassManager,"В наборе присутствуют объекты в количестве "..table.count(Arg.Data))		
+        for key,entity in pairs(Arg.Data) do
+			logger.writeDebugMessage(ClassManager,"Проверка, принадлежит ли объект №"..key.." базе Журнал Запросов")		
+            if (entity.getEntityBaseCode() == constanta.getCnstRequestJournal()) then
+                Entity = entity;
+				logger.writeDebugMessage(ClassManager,"Установка записи с системным номером "..Entity.getEntityRecord().SN.." в качестве текущей записи формы")		
+                form.RecordNumber = Entity.getEntityRecord().SN;
+            end
+        end
+    end
+	logger.writeDebugMessage(ClassManager,"Проверка, был ли получен объект базы данных Журнал запросов")		
+    if (Entity == nil) then
+		logger.writeDebugMessage(ClassManager,"Объект не получен. Закрытие формы")		
+        Форма_UnloadForm( form);
+		logger.writeDebugMessage(ClassManager,"Форма закрыта")		
+    else
+		logger.writeDebugMessage(ClassManager,"Установка элементов управления")		
+        setControls(form);
+		logger.writeDebugMessage(ClassManager,"Заполнение полей формы")		
+        setFormFromEntity(Entity);
+		logger.writeDebugMessage(ClassManager,"Добавление формы во внутренний список открытых форм")		
+        table.insert(childForms,form);
+    end
+	logger.writeDebugMessage(ClassManager,"------------------------Метод Форма_Load() класса RequestJournalView закончил работу------------------------")		
+end
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+    constanta = getClassManager().getClass("Constanta");
+	logger = getClassManager().getClass("Logger");
+end
+
+function Форма_UnloadForm( form, mode )    
+	unloadController.doUnload(getClassManager(), form, childForms);
+    getClassManager().setClass(form, nil)
+    return true;
+end
+
+
+function setControls(form)
+    lblTypeOfCheck = form.lblTypeOfCheck;
+    dpdTypeOfCheck = form.dpdTypeOfCheck;
+    lblRequestEmployee = form.lblRequestEmployee;
+    dpdRequestEmployee = form.dpdRequestEmployee;
+    lblRequestDepartment = form.lblRequestDepartment;
+    dpdRequestDepartment = form.dpdRequestDepartment;
+    lblDateOfCheck = form.lblDateOfCheck;
+    txtDateOfCheck = form.txtDateOfCheck;
+    lblPerformEmployee = form.lblPerformEmployee;
+    txtPerformEmployee = form.txtPerformEmployee;
+    btnClose = form.btnClose;
+    txtInfoPanel = form.txtInfoPanel;
+	txtComment = form.txtComment;
+    populateLists();
+end
+
+function populateLists()
+
+end
+
+function setFormFromEntity(entity)    
+	setDpdTypeOfCheckSelectedItem(entity.getTypeOfCheck());		
+    setDpdRequestEmployeeSelectedItem(entity.getRequestEmployee());		
+    setDpdRequestDepartmentSelectedItem(entity.getRequestDepartment());
+    setTxtDateOfCheckText(entity.getPerformedOnDate());
+    setTxtPerformEmployeeText(entity.getPerformedByEmployee());	
+	setTxtCommentText(entity.getComment());
+end
+
+function setLblTypeOfCheckText( lblTypeOfCheckValue )
+   lblTypeOfCheck.Value = lblTypeOfCheckValue
+end
+function getLblTypeOfCheckText( )
+    return lblTypeOfCheck.Value
+end
+
+function addDpdTypeOfCheckItem( dpdTypeOfCheckValue )
+   dpdTypeOfCheck:Add(dpdTypeOfCheckValue)
+end
+function addDpdTypeOfCheckItems( dpdTypeOfCheckValues )
+    if dpdTypeOfCheckValues ~= nil then
+        for key, value in pairs (dpdTypeOfCheckValues) do
+            addDpdTypeOfCheckItem(value)
+        end
+    end
+end
+function clearDpdTypeOfCheckItems( )
+   dpdTypeOfCheck:Clear(index)
+end
+function getDpdTypeOfCheckSelectedItem( )
+    return dpdTypeOfCheck.Text
+end
+function setDpdTypeOfCheckSelectedItem( dpdTypeOfCheckItemValue)	
+   dpdTypeOfCheck.Value = dpdTypeOfCheckItemValue   
+end
+function getDpdTypeOfCheckSelectedIndex( )
+    return dpdTypeOfCheck.SelectedIndex
+end
+function getDpdTypeOfCheckSelectedCode( )
+    return dpdTypeOfCheck.Value
+end
+function setDpdTypeOfCheckSelectedIndex( dpdTypeOfCheckIndexValue )
+    dpdTypeOfCheck.SelectedIndex = dpdTypeOfCheckIndexValue
+end
+function setDpdTypeOfCheckEnabled( isDpdTypeOfCheckEnabled )
+   dpdTypeOfCheck.Enabled = isDpdTypeOfCheckEnabled
+end
+
+function setLblRequestEmployeeText( lblRequestEmployeeValue )
+   lblRequestEmployee.Value = lblRequestEmployeeValue
+end
+function getLblRequestEmployeeText( )
+    return lblRequestEmployee.Value
+end
+
+function addDpdRequestEmployeeItem( dpdRequestEmployeeValue )
+   dpdRequestEmployee:Add(dpdRequestEmployeeValue)
+end
+function addDpdRequestEmployeeItems( dpdRequestEmployeeValues )
+    if dpdRequestEmployeeValues ~= nil then
+        for key, value in pairs (dpdRequestEmployeeValues) do
+            addDpdRequestEmployeeItem(value)
+        end
+    end
+end
+function clearDpdRequestEmployeeItems( )
+   dpdRequestEmployee:Clear(index)
+end
+function getDpdRequestEmployeeSelectedItem( )
+    return dpdRequestEmployee.Text
+end
+function setDpdRequestEmployeeSelectedItem( dpdRequestEmployeeItemValue)
+    dpdRequestEmployee.Value = dpdRequestEmployeeItemValue
+end
+function getDpdRequestEmployeeSelectedIndex( )
+    return dpdRequestEmployee.SelectedIndex
+end
+function getDpdRequestEmployeeSelectedCode( )
+    return dpdRequestEmployee.Value
+end
+function setDpdRequestEmployeeSelectedIndex( dpdRequestEmployeeIndexValue )
+    dpdRequestEmployee.SelectedIndex = dpdRequestEmployeeIndexValue
+end
+function setDpdRequestEmployeeEnabled( isDpdRequestEmployeeEnabled )
+   dpdRequestEmployee.Enabled = isDpdRequestEmployeeEnabled
+end
+
+function setLblRequestDepartmentText( lblRequestDepartmentValue )
+   lblRequestDepartment.Value = lblRequestDepartmentValue
+end
+function getLblRequestDepartmentText( )
+    return lblRequestDepartment.Value
+end
+
+function addDpdRequestDepartmentItem( dpdRequestDepartmentValue )
+   dpdRequestDepartment:Add(dpdRequestDepartmentValue)
+end
+function addDpdRequestDepartmentItems( dpdRequestDepartmentValues )
+    if dpdRequestDepartmentValues ~= nil then
+        for key, value in pairs (dpdRequestDepartmentValues) do
+            addDpdRequestDepartmentItem(value)
+        end
+    end
+end
+function clearDpdRequestDepartmentItems( )
+   dpdRequestDepartment:Clear(index)
+end
+function getDpdRequestDepartmentSelectedItem( )
+    return dpdRequestDepartment.Text
+end
+function setDpdRequestDepartmentSelectedItem( dpdRequestDepartmentItemValue)
+    dpdRequestDepartment.Value = dpdRequestDepartmentItemValue
+end
+function getDpdRequestDepartmentSelectedIndex( )
+    return dpdRequestDepartment.SelectedIndex
+end
+function getDpdRequestDepartmentSelectedCode( )
+    return dpdRequestDepartment.Value
+end
+function setDpdRequestDepartmentSelectedIndex( dpdRequestDepartmentIndexValue )
+    dpdRequestDepartment.SelectedIndex = dpdRequestDepartmentIndexValue
+end
+function setDpdRequestDepartmentEnabled( isDpdRequestDepartmentEnabled )
+   dpdRequestDepartment.Enabled = isDpdRequestDepartmentEnabled
+end
+
+function setLblDateOfCheckText( lblDateOfCheckValue )
+   lblDateOfCheck.Value = lblDateOfCheckValue
+end
+function getLblDateOfCheckText( )
+    return lblDateOfCheck.Value
+end
+
+function getTxtDateOfCheckText( )
+    return txtDateOfCheck.Value
+end
+function setTxtDateOfCheckText( txtDateOfCheckValue )
+    txtDateOfCheck.Value = txtDateOfCheckValue
+end
+function setTxtDateOfCheckEnabled( isTxtDateOfCheckEnabled )
+   txtDateOfCheck.Enabled = isTxtDateOfCheckEnabled
+end
+
+function setLblPerformEmployeeText( lblPerformEmployeeValue )
+   lblPerformEmployee.Value = lblPerformEmployeeValue
+end
+function getLblPerformEmployeeText( )
+    return lblPerformEmployee.Value
+end
+
+function getTxtPerformEmployeeText( )
+    return txtPerformEmployee.Value
+end
+function setTxtPerformEmployeeText( txtPerformEmployeeValue )
+    txtPerformEmployee.Value = txtPerformEmployeeValue
+end
+function setTxtPerformEmployeeEnabled( isTxtPerformEmployeeEnabled )
+   txtPerformEmployee.Enabled = isTxtPerformEmployeeEnabled
+end
+
+function setBtnCloseText( btnCloseValue )
+   btnClose.Text = btnCloseValue
+end
+function getBtnCloseText( )
+    return btnClose.Text
+end
+function setBtnCloseEnabled( isBtnCloseEnabled )
+   btnClose.Enabled = isBtnCloseEnabled
+end
+
+function btnClose_Click( control )
+--    setFormFromEntity(Entity);
+    Форма_UnloadForm( control.Form);
+end
+
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setTxtInfoPanelEnabled( isTxtInfoPanelEnabled )
+   txtInfoPanel.Enabled = isTxtInfoPanelEnabled
+end
+
+function getTxtCommentText( )
+    return txtComment.Value
+end
+function setTxtCommentText( txtCommentValue )
+    txtComment.Value = txtCommentValue
+end
+function setTxtCommentEnabled( isTxtCommentEnabled )
+   txtComment.Enabled = isTxtCommentEnabled
+end

@@ -1,0 +1,492 @@
+
+local ClassManager = nil;
+local Entity = nil;
+local unloadController = nil;
+local formsController = nil;
+local validationController = nil;
+local constanta = nil;
+local objectList = nil
+local childForms = {};
+local mainObject = nil;
+local isNewObject = false;
+
+local lblPosition = nil;
+local txtPosition = nil;
+local lblStartDate = nil;
+local txtStartDate = nil;
+local btnStartDate = nil;
+local lblEndDate = nil;
+local txtEndDate = nil;
+local btnEndDate = nil;
+local lblDismissalReason = nil;
+local txtDismissalReason = nil;
+local lblNotes = nil;
+local txtNotes = nil;
+local btnSave = nil;
+local btnClose = nil;
+local txtInfoPanel = nil;
+local lblSortOfEmployee = nil;
+local dpdSortOfEmployee = nil;
+local lnkPerson = nil;
+local lnkOrganization = nil;
+local lblPersonLink = nil;
+local lblOrganizationLink = nil;
+local pnlButtons = nil;	
+local pctLogo = nil
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function getObjectList()
+    return objectList;
+end
+function setObjectList(objectListValue)
+    objectList = objectListValue;
+end
+
+function getMainObject()
+    return mainObject;
+end
+function setMainObject(mainObjectValue)
+    mainObject = mainObjectValue;
+end
+
+function getIsNewObject()
+    return isNewObject;
+end
+function setIsNewObject(isNewObjectValue)
+    isNewObject = isNewObjectValue;
+	if (lnkOrganization ~= nil) then		
+		lnkOrganization.setIsNewObject(isNewObjectValue)	
+	end
+	if (lnkPerson ~= nil) then		
+		lnkPerson.setIsNewObject(isNewObjectValue)	
+	end
+end
+
+function getEntity()	
+    return Entity;
+end
+function setEntity(entityValue)
+    Entity = entityValue;
+end
+
+function Форма_Open( form	)	
+	setClassManager(Arg.ClassManager)		
+    setControllersReferences()			
+    return true;
+end
+
+function Форма_Load( form )    			
+	getClassManager().setClass(form, form)		    
+	setObjectList(Arg.FormModule);	
+	--form.X = getObjectList().getCurrentForm().X+getObjectList().getCurrentForm().Width	
+	if (Arg.Data ~= nil) then		
+        local personEntities = {};	
+		local organizationEntities = {};	
+		for key,entity in pairs(Arg.Data) do							
+			if (entity.getEntityBaseCode() == constanta.getCnstJobTrack()) then				
+				Entity = entity;				
+				form.RecordNumber = Entity.getEntityRecord().SN;								
+			elseif (entity.getEntityBaseCode() == constanta.getCnstPerson()) then
+				table.insert(personEntities, entity);
+			elseif (entity.getEntityBaseCode() == constanta.getCnstOrganization()) then
+				table.insert(organizationEntities, entity);
+            end					
+        end			
+		Entity.setPersonEntities(personEntities)		
+		Entity.setOrganizationEntities(organizationEntities)				
+    end		
+    if (Entity == nil) then
+        Форма_UnloadForm( form);
+	else		
+		table.insert(childForms,form);								
+		setControls(form);					
+		setFormFromEntity(Entity);						
+		setViewAsNewObject(Arg.viewAsNewObject);
+		setIsNewObject(Arg.isNewObject);
+    end		
+end
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+	validationController = getClassManager().getClass("ValidationController");
+    constanta = getClassManager().getClass("Constanta");
+end
+
+function Форма_UnloadForm( form, mode )
+    unloadController.doUnload(getClassManager(), form, childForms, true);
+    getClassManager().setClass(form, nil)
+    return true;
+end
+
+function setControls(form)	
+    lblPosition = form.lblPosition;
+    txtPosition = form.txtPosition;
+    lblStartDate = form.lblStartDate;
+    txtStartDate = form.txtStartDate;
+    btnStartDate = form.btnStartDate;
+    lblEndDate = form.lblEndDate;
+    txtEndDate = form.txtEndDate;
+    btnEndDate = form.btnEndDate;
+    lblDismissalReason = form.lblDismissalReason;
+    txtDismissalReason = form.txtDismissalReason;
+    lblNotes = form.lblNotes;
+    txtNotes = form.txtNotes;
+    btnSave = form.btnSave;
+	pctLogo = form.pctLogo;
+    btnClose = form.btnClose;
+    txtInfoPanel = form.txtInfoPanel;
+    lblSortOfEmployee = form.lblSortOfEmployee;
+    dpdSortOfEmployee = form.dpdSortOfEmployee;
+    pnlButtons = form.pnlButtons;	
+	lnkPerson = form.lnkPerson;			
+	lnkOrganization = form.lnkOrganization;		
+	lblPersonLink = form.lblPersonLink;		
+	lblOrganizationLink = form.lblOrganizationLink;	
+	lblOrganizationLink.Visible = false;			
+	lblPersonLink.Visible = false;		
+	lblOrganizationLink.Visible = false;			
+	lnkOrganization.Visible = false;			
+	lnkPerson.Visible = false;					
+	--Arg.MainObjectBean = getMainObject();	
+	Arg.MainForm = form;
+	if table.count(Entity.getPersonEntities())>0 then 							
+		lnkPerson.Visible = true;		
+		lblPersonLink.Visible = true;	
+		lnkOrganization	= nil;	
+		lnkPerson = form.lnkPerson.Controls["Область данных"].Form.Module;
+		lnkPerson.setArg(Arg);	
+		lnkPerson.Форма_Open(form.lnkPerson.Controls["Область данных"].Form)
+		lnkPerson.Форма_Load(form.lnkPerson.Controls["Область данных"].Form)
+		lnkPerson.setPnlButtonsVisibility(false);		
+	elseif table.count(Entity.getOrganizationEntities())>0 then 										
+		lnkOrganization.Visible = true;		
+		lnkPerson = nil;		
+		lblOrganizationLink.Visible = true;				
+		lnkOrganization = form.lnkOrganization.Controls["Область данных"].Form.Module;				
+		lnkOrganization.setArg(Arg);		
+		lnkOrganization.Форма_Open(form.lnkOrganization.Controls["Область данных"].Form)		
+		lnkOrganization.Форма_Load(form.lnkOrganization.Controls["Область данных"].Form)		
+		lnkOrganization.setPnlButtonsVisibility(false);				
+	end	
+	adjustFormSize(form);	
+	setPctLogoBackColor(constanta.getSystemBackColor());
+	setTxtInfoPanelBackColor(constanta.getSystemBackColor());
+    populateLists();
+end
+function populateLists()
+
+end
+function setFormFromEntity(entity)
+    setTxtPositionText(entity.getPosition());
+    setTxtStartDateText(entity.getStartDate());
+    setTxtEndDateText(entity.getEndDate());
+    setTxtDismissalReasonText(entity.getDismissalReason());
+    setTxtNotesText(entity.getNotes());    
+    setDpdSortOfEmployeeSelectedItem(entity.getSortOfEmployee());	
+end
+
+function setLblPositionText( lblPositionValue )
+   lblPosition.Value = lblPositionValue
+end
+function getLblPositionText( )
+    return lblPosition.Value
+end
+
+function getTxtPositionText( )	
+    return txtPosition.Value
+end
+function setTxtPositionText( txtPositionValue )	
+    txtPosition.Value = txtPositionValue
+end
+function setTxtPositionEnabled( isTxtPositionEnabled )
+   txtPosition.Enabled = isTxtPositionEnabled
+end
+
+function setLblStartDateText( lblStartDateValue )
+   lblStartDate.Value = lblStartDateValue
+end
+function getLblStartDateText( )
+    return lblStartDate.Value
+end
+
+function getTxtStartDateText( )
+    return txtStartDate.Value
+end
+function setTxtStartDateText( txtStartDateValue )
+    txtStartDate.Value = txtStartDateValue
+end
+function setTxtStartDateEnabled( isTxtStartDateEnabled )
+   txtStartDate.Enabled = isTxtStartDateEnabled
+end
+
+function setBtnStartDateText( btnStartDateValue )
+   btnStartDate.Text = btnStartDateValue
+end
+function getBtnStartDateText( )
+    return btnStartDate.Text
+end
+function setBtnStartDateEnabled( isBtnStartDateEnabled )
+   btnStartDate.Enabled = isBtnStartDateEnabled
+end
+
+function setLblEndDateText( lblEndDateValue )
+   lblEndDate.Text = lblEndDateValue
+end
+function getLblEndDateText( )
+    return lblEndDate.Text
+end
+
+function getTxtEndDateText( )	
+    return txtEndDate.Value
+end
+function setTxtEndDateText( txtEndDateValue )
+    txtEndDate.Value = txtEndDateValue
+end
+function setTxtEndDateEnabled( isTxtEndDateEnabled )
+   txtEndDate.Enabled = isTxtEndDateEnabled
+end
+
+function setBtnEndDateText( btnEndDateValue )
+   btnEndDate.Text = btnEndDateValue
+end
+function getBtnEndDateText( )
+    return btnEndDate.Text
+end
+function setBtnEndDateEnabled( isBtnEndDateEnabled )
+   btnEndDate.Enabled = isBtnEndDateEnabled
+end
+
+function setLblDismissalReasonText( lblDismissalReasonValue )
+   lblDismissalReason.Value = lblDismissalReasonValue
+end
+function getLblDismissalReasonText( )
+    return lblDismissalReason.Value
+end
+
+function getTxtDismissalReasonText( )
+    return txtDismissalReason.Value
+end
+function setTxtDismissalReasonText( txtDismissalReasonValue )
+    txtDismissalReason.Value = txtDismissalReasonValue
+end
+function setTxtDismissalReasonEnabled( isTxtDismissalReasonEnabled )
+   txtDismissalReason.Enabled = isTxtDismissalReasonEnabled
+end
+
+function setLblNotesText( lblNotesValue )
+   lblNotes.Value = lblNotesValue
+end
+function getLblNotesText( )
+    return lblNotes.Value
+end
+
+function getTxtNotesText( )
+    return txtNotes.Value
+end
+function setTxtNotesText( txtNotesValue )
+    txtNotes.Value = txtNotesValue
+end
+function setTxtNotesEnabled( isTxtNotesEnabled )
+   txtNotes.Enabled = isTxtNotesEnabled
+end
+
+function setBtnSaveText( btnSaveValue )
+   btnSave.Text = btnSaveValue
+end
+function getBtnSaveText( )
+    return btnSave.Text
+end
+function setBtnSaveEnabled( isBtnSaveEnabled )
+   btnSave.Enabled = isBtnSaveEnabled
+end
+
+function setBtnCloseText( btnCloseValue )
+   btnClose.Text = btnCloseValue
+end
+function getBtnCloseText( )
+    return btnClose.Text
+end
+function setBtnCloseEnabled( isBtnCloseEnabled )
+   btnClose.Enabled = isBtnCloseEnabled
+end
+
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setTxtInfoPanelEnabled( isTxtInfoPanelEnabled )
+   txtInfoPanel.Enabled = isTxtInfoPanelEnabled
+end
+function setTxtInfoPanelBackColor( txtInfoPanelBackColor )
+   txtInfoPanel.BackColor = txtInfoPanelBackColor
+end
+
+function setLblSortOfEmployeeText( lblSortOfEmployeeValue )
+   lblSortOfEmployee.Value = lblSortOfEmployeeValue
+end
+function getLblSortOfEmployeeText( )
+    return lblSortOfEmployee.Value
+end
+
+function addDpdSortOfEmployeeItem( dpdSortOfEmployeeValue )
+   dpdSortOfEmployee:Add(dpdSortOfEmployeeValue)
+end
+function addDpdSortOfEmployeeItems( dpdSortOfEmployeeValues )
+    if dpdSortOfEmployeeValues ~= nil then
+        for key, value in pairs (dpdSortOfEmployeeValues) do
+            addDpdSortOfEmployeeItem(value)
+        end
+    end
+end
+function clearDpdSortOfEmployeeItems( )
+   dpdSortOfEmployee:Clear(index)
+end
+function getDpdSortOfEmployeeSelectedItem( )
+    return dpdSortOfEmployee.Text
+end
+function setDpdSortOfEmployeeSelectedItem( dpdSortOfEmployeeItemValue)
+    dpdSortOfEmployee.Value = dpdSortOfEmployeeItemValue
+end
+function getDpdSortOfEmployeeSelectedIndex( )
+    return dpdSortOfEmployee.SelectedIndex
+end
+function getDpdSortOfEmployeeSelectedCode( )
+    return dpdSortOfEmployee.Value
+end
+function setDpdSortOfEmployeeSelectedIndex( dpdSortOfEmployeeIndexValue )
+    dpdSortOfEmployee.SelectedIndex = dpdSortOfEmployeeIndexValue
+end
+function setDpdSortOfEmployeeEnabled( isDpdSortOfEmployeeEnabled )
+   dpdSortOfEmployee.Enabled = isDpdSortOfEmployeeEnabled
+end
+
+function setLblPersonLinkText( lblPersonLinkValue )
+   lblPersonLink.Value = lblPersonLinkValue
+end
+function getLblPersonLinkText( )
+    return lblPersonLink.Value
+end
+
+function setLblOrganizationLinkText( lblOrganizationLinkValue )
+   lblOrganizationLink.Value = lblOrganizationLinkValue
+end
+function getLblOrganizationLinkText( )
+    return lblOrganizationLink.Value
+end
+
+function setPctLogo( pctLogoValue )
+   pctLogo.Value = pctLogoValue
+end
+function setPctLogoBackColor( pctLogoBackColor )
+   pctLogo.BackColor = pctLogoBackColor
+end
+
+------------end autogenerated part-----------------------
+function btnClose_Click( control )    
+	setFormFromEntity(Entity);
+	if (lnkOrganization ~= nil) then				
+		local currentOrg = lnkOrganization.getEntity();		
+		lnkOrganization.setFormFromEntity(currentOrg);
+		lnkOrganization.btnClose_Click()
+	end
+	if (lnkPerson ~= nil) then				
+		local currentPerson = lnkPerson.getEntity();		
+		lnkPerson.setFormFromEntity(currentPerson);
+		lnkPerson.btnClose_Click()
+	end
+	Форма_UnloadForm( control.Form);
+end
+
+function setTxtInfoPanelText( txtInfoPanelValue )
+    txtInfoPanel.Text = txtInfoPanelValue
+end
+function getTxtInfoPanelText( )
+    return txtInfoPanel.Text
+end
+
+function setLblSortOfEmployeeText( lblSortOfEmployeeValue )
+   lblSortOfEmployee.Text = lblSortOfEmployeeValue
+end
+function getLblSortOfEmployeeText( )
+    return lblSortOfEmployee.Text
+end
+
+function getLnkPerson( )
+    return lnkPerson
+end
+
+function setPnlButtonsVisibility( pnlButtonsVisibilityValue )
+   pnlButtons.Visible = pnlButtonsVisibilityValue
+end
+function getPnlButtons( )
+    return pnlButtons
+end
+
+function btnSave_Click( control, isInternal, isOpenInForm )				
+	if validationController.doValidate(getClassManager(), btnSave) == true then			
+		setIsNewObject(false);
+		Entity.clearEntities();	
+		Entity.setBeanFromView(btnSave.Form.Module)					
+		if (Entity.saveBeanToDb() == true) then							
+			if (lnkPerson ~= nil) then			
+				lnkPerson.btnSave_Click();			
+				Entity.addPersonEntity(lnkPerson.getEntity())
+			elseif(lnkOrganization ~= nil) then				
+				lnkOrganization.btnSave_Click();				
+				Entity.addOrganizationEntity(lnkOrganization.getEntity())				
+			end						
+			getObjectList().refreshForm(Entity, isOpenInForm);		
+			setTxtInfoPanelText("Запись успешно сохранена в базу данных");	
+			if (not isInternal) then					
+				Форма_UnloadForm( btnSave.Form);						   			
+			end
+		else
+			setTxtInfoPanelText("ВНИМАНИЕ!!! Запись не сохранена в базу данных");
+		end		
+	else
+		setTxtInfoPanelText("Проверка данных не пройдена");
+	end	
+end
+
+function adjustFormSize(form)	
+	if (lblPersonLink.Visible) then		
+		local delta = form.lnkOrganization.Width - form.lnkPerson.Width				
+		form.Width = form.Width - delta;				
+		txtInfoPanel.Width = txtInfoPanel.Width - delta;
+		pnlButtons.Width = pnlButtons.Width - delta;		
+		btnSave.X = btnSave.X-delta/2
+		btnClose.X = btnClose.X-delta/2				
+		delta = form.lnkOrganization.Height - form.lnkPerson.Height 						
+		form.Height = form.Height - delta;						
+		pnlButtons.Y = pnlButtons.Y - delta;				
+	end
+end
+
+function detectConnectedEntitiesNumber()
+	if (lnkPerson ~= nil) then 				
+		lnkPerson.detectConnectedEntitiesNumber();
+	elseif (lnkOrganization ~= nil)then 										
+		lnkOrganization.detectConnectedEntitiesNumber();			
+	end
+end
+
+function setViewAsNewObject(isNew)
+	setIsNewObject(isNew);
+	if (lnkOrganization ~= nil) then		
+		lnkOrganization.setViewAsNewObject(isNew)		
+	elseif (lnkPerson ~=nil) then		
+		lnkPerson.setViewAsNewObject(isNew)		
+	end
+end
+function Форма_BeforeSaveForm( event )
+	event.PermitSave = false;
+end

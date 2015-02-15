@@ -1,0 +1,766 @@
+---------Получение ссылок на класс-формы----------------
+local ClassManager = nil
+local unloadController = nil;
+local formsController = nil;
+local validationController = nil;
+local requestController = nil;
+local constanta = nil;
+local service = nil;
+local childForms = {}
+local connectedPeopleEntities = {}--хранит PersonEntity объекты 
+local connectedOrganizationsEntities = {}--хранит OrgEntity объекты
+local mainOrganizationEntity = nil;
+
+function getMainOrganizationEntity()
+    return mainOrganizationEntity;
+end
+function setMainOrganizationEntity(mainOrganizationEntityValue)
+    mainOrganizationEntity = mainOrganizationEntityValue;
+end
+
+function insertConnectedPeopleEntity( connectedPersonEntity, index )				
+	table.insert(getConnectedPeopleEntities(),getLstConnectedPeopleItemsCount(),connectedPersonEntity) ;  					
+	insertLstConnectedPeopleItem(connectedPersonEntity.toShortString(getClassManager(), index)) ;			
+end
+function swapConnectedPeopleEntity (connectedPersonEntity, index)
+	for key, entity in pairs(getConnectedPeopleEntities()) do				
+		if (key == index) then			
+			removeLstConnectedPeopleItem(index+1);						
+			insertLstConnectedPeopleItem(entity.toShortString(getClassManager()), index+1) ;										
+		end				
+	end
+end
+function clearConnectedPeopleEntities()
+	connectedPeopleEntities = nil;
+	connectedPeopleEntities = {}
+	clearLstConnectedPeopleItems();
+end
+function removeConnectedPeopleEntity(index)	
+	setConnectedPeopleEntities(getClassManager().getClass("Service").removeFromTable(getConnectedPeopleEntities(),index));
+	removeLstConnectedPeopleItem(index);			
+end
+function getConnectedPeopleEntities()
+	return connectedPeopleEntities;
+end
+function setConnectedPeopleEntities(connectedPeopleEntitiesValue)
+	connectedPeopleEntities = connectedPeopleEntitiesValue;
+end
+
+function insertConnectedOrganizationsEntity( connectedOrganizationEntity, index )	
+	table.insert(getConnectedOrganizationsEntities(),getLstConnectedOrganizationsItemsCount(),connectedOrganizationEntity) ;  	
+	insertLstConnectedOrganizationsItem(connectedOrganizationEntity.toShortString(getClassManager()), index);		
+end
+function clearConnectedOrganizationsEntities()
+	connectedOrganizationsEntities = nil;
+	connectedOrganizationsEntities = {}
+	clearLstConnectedOrganizationsItems();
+end
+function swapConnectedOrganizationsEntity (connectedOrganizationEntity, index)
+	for key, entity in pairs(getConnectedOrganizationsEntities()) do				
+		if (key == index) then						
+			removeLstConnectedOrganizationsItem(index+1);						
+			insertLstConnectedOrganizationsItem(entity.toShortString(getClassManager()), index+1) ;										
+		end				
+	end
+end
+function removeConnectedOrganizationsEntity(index)		
+	setConnectedOrganizationsEntities(getClassManager().getClass("Service").removeFromTable(getConnectedOrganizationsEntities(),index));
+	removeLstConnectedOrganizationsItem(index+1);		
+end
+function getConnectedOrganizationsEntities()
+	return connectedOrganizationsEntities;
+end
+function setConnectedOrganizationsEntities(connectedOrganizationsEntitiesValue)
+	connectedOrganizationsEntities = connectedOrganizationsEntitiesValue;
+end
+
+function getClassManager()
+	return ClassManager
+end
+
+function setClassManager(ClassManagerNew)
+	ClassManager = ClassManagerNew
+end
+
+function setControllersReferences()
+	unloadController = getClassManager().getClass("UnloadController");
+	formsController = getClassManager().getClass("FormsController");
+	validationController = getClassManager().getClass("ValidationController");
+	requestController = getClassManager().getClass("RequestController");
+	constanta = getClassManager().getClass("Constanta");
+	service =  getClassManager().getClass("Service");
+end
+
+function Форма_Open( form )	
+	setClassManager(Arg.ClassManager)			
+	setControllersReferences();		
+	return true;
+end
+
+
+function Форма_Load( form )			
+	setControls(form);	
+	getClassManager().setClass(form, form);		
+	table.insert(childForms,form);		
+end
+
+function Форма_UnloadForm( form, mode )			
+	unloadController.doUnload(getClassManager(), form, childForms)
+	getClassManager().setClass(form,nil)
+	return true;
+end
+----------------------------
+local lblCompanyName = nil;
+local txtCompanyName = nil;
+local lblCompanyUnn = nil;
+local txtCompanyUnn = nil;
+local btnClose = nil;
+local btnSearch = nil;
+local lstConnectedPeople = nil;
+local btnAddConnectedPerson = nil;
+local btnDeleteRelatedPerson = nil;
+local lblTypeOfCheck = nil;
+local dpdTypeOfCheck = nil;
+local lstConnectedOrganizations = nil;
+local btnAddConnectedOrganization = nil;
+local btnDeleteRelatedOrganization = nil;
+local btnPopulateSearch = nil;
+local btnTypeOfCheckVocEditor = nil;
+local lblRequestDepartment = nil;
+local dpdRequestDepartment = nil;
+local btnDepartmentVocEditor = nil;
+local lblRequestEmployee = nil;
+local dpdRequestEmployee = nil;
+local btnEmployeeVocEditor = nil;
+local txtTypeOfCheck = nil;
+local pnlCheckOrganization = nil;
+local txtRequestDepartment = nil;
+
+function setControls(form)
+    lblCompanyName = form.lblCompanyName;
+    txtCompanyName = form.txtCompanyName;
+    lblCompanyUnn = form.lblCompanyUnn;
+    txtCompanyUnn = form.txtCompanyUnn;
+    btnClose = form.btnClose;
+    btnSearch = form.btnSearch;
+    lstConnectedPeople = form.lstConnectedPeople;
+    btnAddConnectedPerson = form.btnAddConnectedPerson;
+    btnDeleteRelatedPerson = form.btnDeleteRelatedPerson;
+    lblTypeOfCheck = form.lblTypeOfCheck;
+    dpdTypeOfCheck = form.dpdTypeOfCheck;
+    lstConnectedOrganizations = form.lstConnectedOrganizations;
+    btnAddConnectedOrganization = form.btnAddConnectedOrganization;
+    btnDeleteRelatedOrganization = form.btnDeleteRelatedOrganization;
+    btnPopulateSearch = form.btnPopulateSearch;
+    btnTypeOfCheckVocEditor = form.btnTypeOfCheckVocEditor;
+    lblRequestDepartment = form.lblRequestDepartment;
+    dpdRequestDepartment = form.dpdRequestDepartment;
+    btnDepartmentVocEditor = form.btnDepartmentVocEditor;
+    lblRequestEmployee = form.lblRequestEmployee;
+    dpdRequestEmployee = form.dpdRequestEmployee;
+    btnEmployeeVocEditor = form.btnEmployeeVocEditor;
+	pnlCheckOrganization = form.pnlCheckOrganization;
+	txtTypeOfCheck = form.txtTypeOfCheck;
+	txtRequestDepartment = form.txtRequestDepartment;	
+    populateLists();
+end
+
+function populateLists()
+	addDpdTypeOfCheckItems(constanta.getDpdTypeOfCheckDefinitions());	
+	addDpdRequestDepartmentItems(constanta.getDpdDepartmentDefinitions());	
+	addDpdRequestEmployeeItems(constanta.getDpdEmployeeDefinitions());	
+end
+function setLblCompanyNameText( lblCompanyNameValue )
+   lblCompanyName.Text = lblCompanyNameValue
+end
+function getLblCompanyNameText( )
+    return lblCompanyName.Text
+end
+
+function setTxtCompanyNameText( txtCompanyNameValue )
+    txtCompanyName.Text = txtCompanyNameValue
+end
+function getTxtCompanyNameText( )
+    return txtCompanyName.Text
+end
+
+function setLblCompanyUnnText( lblCompanyUnnValue )
+   lblCompanyUnn.Text = lblCompanyUnnValue
+end
+function getLblCompanyUnnText( )
+    return lblCompanyUnn.Text
+end
+
+function setTxtCompanyUnnText( txtCompanyUnnValue )
+    txtCompanyUnn.Text = txtCompanyUnnValue
+end
+function getTxtCompanyUnnText( )
+    return string.trim(txtCompanyUnn.Text)
+end
+
+function setBtnCloseText( btnCloseValue )
+   btnClose.Text = btnCloseValue
+end
+function getBtnCloseText( )
+    return btnClose.Text
+end
+
+function btnClose_Click( control )
+    Форма_UnloadForm( control.Form);
+end
+
+function addLstConnectedPeopleItem( lstConnectedPeopleValue )
+   lstConnectedPeople:Add(lstConnectedPeopleValue)
+end
+function insertLstConnectedPeopleItem( lstConnectedPeopleValue, index )
+   lstConnectedPeople:Insert(lstConnectedPeopleValue, index);
+end
+function addLstConnectedPeopleItems( lstConnectedPeopleValues )
+    if lstConnectedPeopleValues ~= nil then
+        for key, value in pairs (lstConnectedPeopleValues) do
+            addLstConnectedPeopleItem(value);
+        end
+    end
+end
+function clearLstConnectedPeopleItems( )
+   lstConnectedPeople:Clear();
+end
+function removeLstConnectedPeopleItem( index )
+   lstConnectedPeople:Remove(index);
+end
+function getLstConnectedPeopleItem( index )
+    return lstConnectedPeople:GetItem(index);
+end
+function setLstConnectedPeopleItemChecked( index, isChecked)
+    lstConnectedPeople:SetItemChecked(index, isChecked);
+end
+function isLstConnectedPeopleItemChecked( lstConnectedPeopleIndexValue )
+    lstConnectedPeople:IsIndexChecked (lstConnectedPeopleIndexValue);
+end
+function getLstConnectedPeopleSelectedIndex( )
+    return lstConnectedPeople.SelectedIndex;
+end
+function getLstConnectedPeopleCheckedItems( )
+    return lstConnectedPeople.CheckedItems;
+end
+function getLstConnectedPeopleCheckedIndices( )
+    return lstConnectedPeople.CheckedIndices;
+end
+function getLstConnectedPeopleItemsCount( )
+    return lstConnectedPeople.ItemsCount;
+end
+
+function setBtnAddConnectedPersonText( btnAddConnectedPersonValue )
+   btnAddConnectedPerson.Text = btnAddConnectedPersonValue
+end
+function getBtnAddConnectedPersonText( )
+    return btnAddConnectedPerson.Text
+end
+
+function setBtnDeleteRelatedPersonText( btnDeleteRelatedPersonValue )
+   btnDeleteRelatedPerson.Text = btnDeleteRelatedPersonValue
+end
+function getBtnDeleteRelatedPersonText( )
+    return btnDeleteRelatedPerson.Text
+end
+
+function setLblTypeOfCheckText( lblTypeOfCheckValue )
+   lblTypeOfCheck.Text = lblTypeOfCheckValue
+end
+function getLblTypeOfCheckText( )
+    return lblTypeOfCheck.Text
+end
+
+function addDpdTypeOfCheckItem( dpdTypeOfCheckValue )
+   dpdTypeOfCheck:Add(dpdTypeOfCheckValue)
+end
+function addDpdTypeOfCheckItems( dpdTypeOfCheckValues )	
+    if dpdTypeOfCheckValues ~= nil then
+        for key, value in pairs (dpdTypeOfCheckValues) do
+            addDpdTypeOfCheckItem(value)
+        end
+    end
+end
+function clearDpdTypeOfCheckItesm( )
+   dpdTypeOfCheck:Clear(index)
+end
+function getDpdTypeOfCheckSelectedItem( )
+    return dpdTypeOfCheck.SelectedItem
+end
+function setDpdTypeOfCheckSelectedItem( dpdTypeOfCheckItemValue)
+	clearDpdTypeOfCheckItesm( )
+	addDpdTypeOfCheckItems(constanta.getDpdTypeOfCheckDefinitions());	
+    dpdTypeOfCheck.SelectedItem = dpdTypeOfCheckItemValue
+end
+function getDpdTypeOfCheckSelectedCode( )		
+	return service.getItemFromTableByIndex(constanta.getDpdTypeOfCheckCodes(),getDpdTypeOfCheckSelectedIndex())    
+end
+function getDpdTypeOfCheckSelectedIndex( )
+    return dpdTypeOfCheck.SelectedIndex
+end
+function setDpdTypeOfCheckSelectedIndex( dpdTypeOfCheckIndexValue )
+    dpdTypeOfCheck.SelectedIndex = dpdTypeOfCheckIndexValue
+end
+function setDpdTypeOfCheckFocused( dpdTypeOfCheckFocusValue )
+    dpdTypeOfCheck.Focused = dpdTypeOfCheckFocusValue
+end
+
+function addLstConnectedOrganizationsItem( lstConnectedOrganizationsValue )
+   lstConnectedOrganizations:Add(lstConnectedOrganizationsValue)
+end
+function insertLstConnectedOrganizationsItem( lstConnectedOrganizationsValue, index )
+   lstConnectedOrganizations:Insert(lstConnectedOrganizationsValue, index);
+end
+function addLstConnectedOrganizationsItems( lstConnectedOrganizationsValues )
+    if lstConnectedOrganizationsValues ~= nil then
+        for key, value in pairs (lstConnectedOrganizationsValues) do
+            addLstConnectedOrganizationsItem(value);
+        end
+    end
+end
+function clearLstConnectedOrganizationsItems( )
+   lstConnectedOrganizations:Clear();
+end
+function removeLstConnectedOrganizationsItem( index )
+   lstConnectedOrganizations:Remove(index);
+end
+function getLstConnectedOrganizationsItem( index )
+    return lstConnectedOrganizations:GetItem(index);
+end
+function setLstConnectedOrganizationsItemChecked( index, isChecked)
+    lstConnectedOrganizations:SetItemChecked(index, isChecked);
+end
+function isLstConnectedOrganizationsItemChecked( lstConnectedOrganizationsIndexValue )
+    lstConnectedOrganizations:IsIndexChecked (lstConnectedOrganizationsIndexValue);
+end
+function getLstConnectedOrganizationsSelectedIndex( )
+    return lstConnectedOrganizations.SelectedIndex;
+end
+function getLstConnectedOrganizationsCheckedItems( )
+    return lstConnectedOrganizations.CheckedItems;
+end
+function getLstConnectedOrganizationsCheckedIndices( )
+    return lstConnectedOrganizations.CheckedIndices;
+end
+function getLstConnectedOrganizationsItemsCount( )
+    return lstConnectedOrganizations.ItemsCount;
+end
+
+
+function setBtnAddConnectedOrganizationText( btnAddConnectedOrganizationValue )
+   btnAddConnectedOrganization.Text = btnAddConnectedOrganizationValue
+end
+function getBtnAddConnectedOrganizationText( )
+    return btnAddConnectedOrganization.Text
+end
+
+function setBtnDeleteRelatedOrganizationText( btnDeleteRelatedOrganizationValue )
+   btnDeleteRelatedOrganization.Text = btnDeleteRelatedOrganizationValue
+end
+function getBtnDeleteRelatedOrganizationText( )
+    return btnDeleteRelatedOrganization.Text
+end
+
+function setLblRequestDepartmentText( lblRequestDepartmentValue )
+   lblRequestDepartment.Text = lblRequestDepartmentValue
+end
+function getLblRequestDepartmentText( )
+    return lblRequestDepartment.Text
+end
+
+function addDpdRequestDepartmentItem( dpdRequestDepartmentValue )
+   dpdRequestDepartment:Add(dpdRequestDepartmentValue)
+end
+function addDpdRequestDepartmentItems( dpdRequestDepartmentValues )
+    if dpdRequestDepartmentValues ~= nil then
+        for key, value in pairs (dpdRequestDepartmentValues) do
+            addDpdRequestDepartmentItem(value)
+        end
+    end
+end
+function clearDpdRequestDepartmentItems( )
+   dpdRequestDepartment:Clear(index)
+end
+function getDpdRequestDepartmentSelectedItem( )
+    return dpdRequestDepartment.Text
+end
+function setDpdRequestDepartmentSelectedItem( dpdRequestDepartmentItemValue)
+    dpdRequestDepartment.SelectedItem = dpdRequestDepartmentItemValue
+end
+function getDpdRequestDepartmentSelectedIndex( )
+    return dpdRequestDepartment.SelectedIndex
+end
+function getDpdRequestDepartmentSelectedCode( )
+   return service.getItemFromTableByIndex(constanta.getDpdDepartmentCodes(),getDpdRequestDepartmentSelectedIndex())    
+end
+function setDpdRequestDepartmentSelectedIndex( dpdRequestDepartmentIndexValue )
+    dpdRequestDepartment.SelectedIndex = dpdRequestDepartmentIndexValue
+end
+function setDpdRequestDepartmentEnabled( isDpdRequestDepartmentEnabled )
+   dpdRequestDepartment.Enabled = isDpdRequestDepartmentEnabled
+end
+
+function setBtnDepartmentVocEditorText( btnDepartmentVocEditorValue )
+   btnDepartmentVocEditor.Text = btnDepartmentVocEditorValue
+end
+function getBtnDepartmentVocEditorText( )
+    return btnDepartmentVocEditor.Text
+end
+function setBtnDepartmentVocEditorEnabled( isBtnDepartmentVocEditorEnabled )
+   btnDepartmentVocEditor.Enabled = isBtnDepartmentVocEditorEnabled
+end
+
+function setLblRequestEmployeeText( lblRequestEmployeeValue )
+   lblRequestEmployee.Text = lblRequestEmployeeValue
+end
+function getLblRequestEmployeeText( )
+    return lblRequestEmployee.Text
+end
+
+function addDpdRequestEmployeeItem( dpdRequestEmployeeValue )
+   dpdRequestEmployee:Add(dpdRequestEmployeeValue)
+end
+function addDpdRequestEmployeeItems( dpdRequestEmployeeValues )
+    if dpdRequestEmployeeValues ~= nil then
+        for key, value in pairs (dpdRequestEmployeeValues) do
+            addDpdRequestEmployeeItem(value)
+        end
+    end
+end
+function clearDpdRequestEmployeeItems( )
+   dpdRequestEmployee:Clear(index)
+end
+function getDpdRequestEmployeeSelectedItem( )
+    return dpdRequestEmployee.Text
+end
+function setDpdRequestEmployeeSelectedItem( dpdRequestEmployeeItemValue)
+    dpdRequestEmployee.SelectedItem = dpdRequestEmployeeItemValue
+end
+function getDpdRequestEmployeeSelectedIndex( )
+    return dpdRequestEmployee.SelectedIndex
+end
+function getDpdRequestEmployeeSelectedCode( )
+   return service.getItemFromTableByIndex(constanta.getDpdEmployeeCodes(),getDpdRequestEmployeeSelectedIndex())    
+end
+function setDpdRequestEmployeeSelectedIndex( dpdRequestEmployeeIndexValue )
+    dpdRequestEmployee.SelectedIndex = dpdRequestEmployeeIndexValue
+end
+function setDpdRequestEmployeeEnabled( isDpdRequestEmployeeEnabled )
+   dpdRequestEmployee.Enabled = isDpdRequestEmployeeEnabled
+end
+
+function setBtnEmployeeVocEditorText( btnEmployeeVocEditorValue )
+   btnEmployeeVocEditor.Text = btnEmployeeVocEditorValue
+end
+function getBtnEmployeeVocEditorText( )
+    return btnEmployeeVocEditor.Text
+end
+function setBtnEmployeeVocEditorEnabled( isBtnEmployeeVocEditorEnabled )
+   btnEmployeeVocEditor.Enabled = isBtnEmployeeVocEditorEnabled
+end
+-------------------------------------
+function btnClose_Click( control )	
+	Форма_UnloadForm( control.Form)		
+end
+---------------------------------------------
+function btnSearch_Click( control )			
+	if validationController.doValidate(getClassManager(), control) == true then							
+		local recordSets = requestController.doRequest(getClassManager(), control);		
+		local entites = {};
+		for key, recordSet in pairs(recordSets) do			
+			if (recordSet.Count > 0) then
+				for entKey, entity in pairs(getClassManager().getClass("FormsController").getEntitiesFromRecordSet(getClassManager(), recordSet)) do
+					table.insert (entites, entity);
+				end				
+			end
+		end
+		table.insert(childForms,getClassManager().getClass("FormsController").openNeccessaryForm(getClassManager(), control, recordSet, nil, entites));		
+	end
+end
+
+function btnAddConnectedPerson_Click( control )
+	table.insert(childForms,getClassManager().getClass("FormsController").openNeccessaryForm(getClassManager(), control,nil));
+end
+
+function btnDeleteRelatedPerson_Click( control )
+	local checkedIndexes = getLstConnectedPeopleCheckedIndices();	
+	local connectedPeopleEntitiesCopy = {};	
+	if (table.count(checkedIndexes) > 0	) then				
+		--for key, index in pairs(checkedIndexes) do									   
+		local isNotFound = true;
+		for entityKey, entity in pairs(getConnectedPeopleEntities()) do			
+			for key, index in pairs(checkedIndexes) do			
+				if entityKey == index-1 then
+					isNotFound = false;
+					break;
+				end
+			end	
+			if isNotFound then
+				table.insert(connectedPeopleEntitiesCopy,entity);				
+			end		
+			isNotFound = true;
+		end		
+		clearConnectedPeopleEntities();		
+		for entityKey, entity in pairs(connectedPeopleEntitiesCopy) do
+			insertConnectedPeopleEntity(entity,entityKey);
+		end		
+	end
+end
+
+function btnAddConnectedOrganization_Click( control )
+	table.insert(childForms,getClassManager().getClass("FormsController").openNeccessaryForm(getClassManager(), control,nil));
+end
+
+function btnDeleteRelatedOrganization_Click( control )
+	local checkedIndexes = getLstConnectedOrganizationsCheckedIndices();	
+	local connectedOrganizationsEntitiesCopy = {};
+	if (table.count(checkedIndexes) > 0	) then			
+		local isNotFound = true;				
+		for entityKey, entity in pairs(getConnectedOrganizationsEntities()) do			
+			for key, index in pairs(checkedIndexes) do				
+				if entityKey == index-1 then
+					isNotFound = false;
+					break;			
+				end				
+			end
+			if isNotFound then
+				table.insert(connectedOrganizationsEntitiesCopy,entity);	
+			end	
+			isNotFound = true;	
+		end							
+		clearConnectedOrganizationsEntities();
+		for entityKey, entity in pairs(connectedOrganizationsEntitiesCopy) do
+			insertConnectedOrganizationsEntity(entity, entityKey);
+		end		
+	end
+end
+
+function lstConnectedPeople_DoubleClick( control )
+	local chosenObj = {}
+	local selectedIndex = getLstConnectedPeopleSelectedIndex()-1;	
+	local selectedObject = nil;
+	--определение какой объект запрошен									 
+	for key, object in pairs(getConnectedPeopleEntities()) do					
+		if selectedIndex == key then
+			selectedObject = object;	
+			selectedObject.setListPosition(selectedIndex);			
+			break;
+		end		
+	end		
+	if selectedObject ~= nil then			
+		local openedForm = getClassManager().getClass("FormsController").openNeccessaryForm(getClassManager(),control,nil);
+		table.insert(childForms, openedForm);				
+		openedForm.Module.setFormFromEntity(selectedObject);		
+		openedForm.Module.setBtnAddPersonText("Сохранить")
+	else
+		MsgBox("Не выделен ни один из объектов списка. Повторите операцию.", IconWarning)
+	end	
+end
+
+function lstConnectedOrganizations_DoubleClick( control )	
+	local chosenObj = {}
+	local selectedIndex = getLstConnectedOrganizationsSelectedIndex()-1;
+	local selectedObject = nil;
+	--определение какой объект запрошен		
+	for key, object in pairs(getConnectedOrganizationsEntities()) do			
+		if selectedIndex == key then
+			selectedObject = object;	
+			selectedObject.setListPosition(selectedIndex);			
+			break;
+		end
+	end		
+	if selectedObject ~= nil then			
+		local openedForm = getClassManager().getClass("FormsController").openNeccessaryForm(getClassManager(),control,nil);
+		table.insert(childForms, openedForm);		
+		openedForm.Module.setFormFromEntity(selectedObject);		
+		openedForm.Module.setControlFocused(openedForm.Module.getDpdTypeOfCheck())
+	else
+		MsgBox("Не выделен ни один из объектов списка. Повторите операцию.", IconWarning)
+	end	
+end
+
+function dpdTypeOfCheck_SelectedIndexChanged( control, index )
+	dpdTypeOfCheck.ToolTip = getDpdTypeOfCheckSelectedItem();
+end
+
+
+function txtCompanyUnn_Click( control )	
+	control:SetSelection()
+end
+
+function btnTypeOfCheckVocEditor_Click( control )
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(),control,nil))
+end
+
+function setChosenRecord(form, entityRecord)	
+	if (entityRecord ~= nil) then
+		local organizationRec = entityRecord;	
+		setMainOrganizationEntity(getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstOrganization()));				
+		getMainOrganizationEntity().setBeanFromRecord(organizationRec);				
+		if (string.len(string.swap(getMainOrganizationEntity().getFullName(), " ", "")) > 0) then
+			setTxtCompanyNameText(getMainOrganizationEntity().getFullName());				
+		end
+		if (string.len(string.swap(getMainOrganizationEntity().getUnn(), " ", "")) > 0) then
+			setTxtCompanyUnnText(getMainOrganizationEntity().getUnn());
+		end
+		local founderAndPartnersRecordSet = getClassManager().getClass("DBWorker").getItemsForOrganization(getClassManager(),getClassManager().getClass("Constanta").getCnstFoundersAndPartners(),organizationRec);			
+		local jobTrackRecordSet = getClassManager().getClass("DBWorker").getItemsForOrganization(getClassManager(),getClassManager().getClass("Constanta").getCnstJobTrack(),organizationRec);			
+		for founderRec in founderAndPartnersRecordSet.Records do
+			local founderEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstFoundersAndPartners());
+			founderEntity.setBeanFromRecord(founderRec);
+			local organizationControllingRecordSet = getClassManager().getClass("DBWorker").getItemsForFoundersAndPartnersControlling(getClassManager(),getClassManager().getClass("Constanta").getCnstOrganization(),founderRec);
+			local organizationControlledRecordSet = getClassManager().getClass("DBWorker").getItemsForFoundersAndPartnersControlled(getClassManager(),getClassManager().getClass("Constanta").getCnstOrganization(),founderRec);
+			local personRecordSet = getClassManager().getClass("DBWorker").getItemsForFoundersAndPartners(getClassManager(),getClassManager().getClass("Constanta").getCnstPerson(),founderRec);				
+			organizationControllingRecordSet:Remove(organizationRec.SN);
+			organizationControlledRecordSet:Remove(organizationRec.SN);
+			for orgRecord in organizationControllingRecordSet.Records do				
+				local organizationEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstOrganization());					
+				local connectedOrganizationEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstConnectedOrganization());
+				connectedOrganizationEntity.setIsExisted(true);
+				organizationEntity.setBeanFromRecord(orgRecord);					
+				connectedOrganizationEntity.setOrganizationEntity(organizationEntity);		
+				connectedOrganizationEntity.setFoundersAndPartnersEntity(founderEntity);					
+				connectedOrganizationEntity.setIsControlling(true)
+				connectedOrganizationEntity.setIsControlled(false)
+				insertConnectedOrganizationsEntity(connectedOrganizationEntity,0);							
+			end				
+			for orgRecord in organizationControlledRecordSet.Records do
+				local organizationEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstOrganization());
+				local connectedOrganizationEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstConnectedOrganization());
+				connectedOrganizationEntity.setIsExisted(true);
+				organizationEntity.setBeanFromRecord(orgRecord);
+				connectedOrganizationEntity.setOrganizationEntity(organizationEntity);		
+				connectedOrganizationEntity.setFoundersAndPartnersEntity(founderEntity);					
+				connectedOrganizationEntity.setIsControlling(false)
+				connectedOrganizationEntity.setIsControlled(true)
+				insertConnectedOrganizationsEntity(connectedOrganizationEntity,0);							
+			end				
+			for personRecord in personRecordSet.Records do
+				local personEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstPerson());
+				local connectedPersonEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstConnectedPerson());
+				connectedPersonEntity.setIsExisted(true);
+				personEntity.setBeanFromRecord(personRecord);						
+				connectedPersonEntity.setPersonEntity(personEntity);
+				connectedPersonEntity.setIsFounder(true);	
+				connectedPersonEntity.setFounderEntity(founderEntity);	
+				insertConnectedPeopleEntity(connectedPersonEntity,0);								
+			end				
+		end			
+		for jobTrackRec in jobTrackRecordSet.Records do				
+			local jobTrackEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstJobTrack());				
+			jobTrackEntity.setBeanFromRecord(jobTrackRec);				
+			local personRecordSet = getClassManager().getClass("DBWorker").getItemsForJobTrack(getClassManager(),getClassManager().getClass("Constanta").getCnstPerson(),jobTrackRec);				
+			for personRecord in personRecordSet.Records do					
+				local personEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstPerson());					
+				local connectedPersonEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstConnectedPerson());					
+				connectedPersonEntity.setIsExisted(true);
+				personEntity.setBeanFromRecord(personRecord);					
+				connectedPersonEntity.setPersonEntity(personEntity);					
+				connectedPersonEntity.setIsFounder(false);						
+				connectedPersonEntity.setJobTrackEntity(jobTrackEntity);					
+				insertConnectedPeopleEntity(connectedPersonEntity,0);												
+			end
+		end		
+		setDpdTypeOfCheckFocused(true);
+	end	
+	setPnlCheckOrganizationEnable (true);
+	setBtnSearchEnable(true);	
+end
+
+function btnPopulateSearch_Click( control )	
+	if validationController.doValidate(getClassManager(), control) then
+		local organizationRecordSet = requestController.populateSearch(getClassManager(), control);
+		clearConnectedPeopleEntities();
+		clearConnectedOrganizationsEntities();
+		--[[if (organizationRecordSet.Count > 1) then
+			MsgBox("Найдено более 1 подходящей организации.\n\rОпределите организацию, соответствующую Вашим данным и повторите поиск.",BtnOk + IconWarning)
+			table.insert(childForms,getClassManager().getClass("FormsController").openNeccessaryForm(getClassManager(), btnSearch, organizationRecordSet));
+		else		
+			if (organizationRecordSet.Count > 0) then				
+				MsgBox("В базе данных присутствует информация по данной организации.",BtnOk + IconInformation)
+				local organizationRec = organizationRecordSet:GetRecordByIndex(1);						
+				setChosenRecord(control.Form, organizationRec);
+			end
+		end--]]
+		if (organizationRecordSet.Count > 0) then
+			MsgBox("Найдены существующие объекты в количестве "..organizationRecordSet.Count .." штук.",BtnOk + IconInformation)	
+			table.insert(childForms,formsController.openNeccessaryForm(getClassManager(), control, organizationRecordSet, Entity));		
+		else	
+			setChosenRecord(control.Form, nil);
+		end
+	end	
+end
+
+function setPnlCheckOrganizationEnable (isEnabledValue)	
+	pnlCheckOrganization.Enabled = isEnabledValue;
+end
+function setBtnSearchEnable (isEnabledValue)	
+	btnSearch.Enabled = isEnabledValue;
+end
+
+function txtCompanyName_FocusLeave( control )
+	--txtCompanyName.Text = string.swap(string.swap(string.ulower(txtCompanyName.Text),"*",""),"?","");	
+end
+
+
+function txtCompanyUnn_KeyUp( event )	
+	service.doTextBoxLengthCheck( txtCompanyUnn, constanta.getUnpFieldLength())		
+end
+
+
+function txtCompanyUnn_FocusLeave( control )	
+	service.doTextBoxPatternCheck( txtCompanyUnn, "%a" )	
+end
+
+function btnDepartmentVocEditor_Click( control )
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(),control,nil))
+end
+
+function btnEmployeeVocEditor_Click( control )
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(),control,nil))
+end
+
+
+function dpdTypeOfCheck_FocusLeave( control )		
+	local selectedItem = dpdTypeOfCheck.SelectedItem;
+	dpdTypeOfCheck:Clear();
+	addDpdTypeOfCheckItems(constanta.getDpdTypeOfCheckDefinitions());	
+	dpdTypeOfCheck.SelectedItem = selectedItem;
+end
+
+function dpdRequestDepartment_FocusLeave( control )
+	local selectedDef = dpdRequestDepartment.Text;
+	clearDpdRequestDepartmentItems( )
+	addDpdRequestDepartmentItems(constanta.getDpdDepartmentDefinitions());
+	setDpdRequestDepartmentSelectedItem(selectedDef);
+end
+
+function dpdRequestEmployee_FocusLeave( control )
+	local selectedDef = dpdRequestEmployee.Text;
+	clearDpdRequestEmployeeItems( )
+	addDpdRequestEmployeeItems(constanta.getDpdEmployeeDefinitions());
+	setDpdRequestEmployeeSelectedItem(selectedDef);
+end
+
+function dpdTypeOfCheck_KeyUp( event )	
+	local termin = dpdTypeOfCheck.Text			
+	if (event.Key ~= 38 and event.Key ~= 40 and event.Key ~= 9 and event.Key ~= 13) then
+		--if (not string.starts(termin, "*")) then
+			requestController.doDropDownQuickSearch(dpdTypeOfCheck, constanta.getDpdTypeOfCheckDefinitions(), termin)	
+		--end
+	end
+end
+
+function dpdRequestDepartment_KeyUp( event )	
+	if (event.Key ~= 38 and event.Key ~= 40 and event.Key ~= 9 and event.Key ~= 13) then
+		local termin = dpdRequestDepartment.Text			
+		requestController.doDropDownQuickSearch(dpdRequestDepartment, constanta.getDpdDepartmentDefinitions(), termin)
+	end	
+end
+
+function dpdRequestEmployee_KeyUp( event )
+	if (event.Key ~= 38 and event.Key ~= 40 and event.Key ~= 9 and event.Key ~= 13) then
+		local termin = dpdRequestEmployee.Text				
+		requestController.doDropDownQuickSearch(dpdRequestEmployee, constanta.getDpdEmployeeDefinitions(), termin)
+	end
+end

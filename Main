@@ -1,0 +1,128 @@
+--------Получение ссылок на класс-формы----------------
+local ClassManager = nil
+local CurrentForm = nil;
+local unloadController = nil;
+local formsController = nil;
+local constanta = nil;
+local childForms = {}
+
+function getClassManager()
+	return ClassManager
+end
+
+function setClassManager(ClassManagerNew)
+	ClassManager = ClassManagerNew
+end
+
+function getForm()
+	return CurrentForm
+end
+
+function setForm(newCompanyForm)
+	CurrentForm = newCompanyForm
+end
+function btnCheckOrganization_Click( control )	
+	table.insert(childForms, formsController.openNeccessaryForm(getClassManager(), control , nil));
+end
+
+function setControllersReferences()
+	unloadController = getClassManager().getClass("UnloadController");
+	formsController = getClassManager().getClass("FormsController");
+	constanta = getClassManager().getClass("Constanta");
+end
+
+function Форма_Open( form )
+	local args = {}
+	args.invokingForm = form
+	--setClassManager(Arg.ClassManager)	
+	local ClassManagerForm = CroApp:GetBank():OpenForm("ClassFormClassManager", CroApp:GetBank(), "",  args)
+	ClassManager = ClassManagerForm.Module	
+	ClassManagerForm:CloseForm()	
+	setControllersReferences();		
+	return true;
+end
+
+
+function Форма_Load( form )	
+	setForm(form);
+	local loaderForm = formsController.openNeccessaryForm(getClassManager(), form.txtInfoPanel , nil);
+	local textInfo = "";	
+	local currentUser = getClassManager().getClass("Service").getCurrentUserName();
+	textInfo = "Имя пользователя: "..currentUser;	
+	local currentDate = getClassManager().getClass("Service").getTodayDate();	
+	textInfo = textInfo.."\rТекущая дата:            "..currentDate;	
+	local startTime = getClassManager().getClass("Service").getNowTime();	
+	textInfo = textInfo.."\rВремя запуска:         "..startTime;		
+	if (constanta.getIsDebug()) then
+		textInfo = textInfo.."\rВНИМАНИЕ:               включен режим отладки системы."
+	end
+	setTxtInfoPanel(textInfo);	
+	constanta.getDpdEmployeeDefinitions()
+	constanta.getDpdDepartmentDefinitions()
+	loaderForm:CloseForm();
+	--CroApp.Visible = false;
+    setControls(form);
+	setPctLogoBackColor(constanta.getSystemBackColor());
+	setFormBackColor(constanta.getSystemBackColor());
+end
+
+function setControls(form)
+    pctLogo = form.pctLogo;	   
+end
+
+function Форма_CloseForm( form )
+	CroApp.Visible = true;
+end
+
+function Форма_UnloadForm( form, mode )
+	unloadController.doUnload(getClassManager(), form, childForms)
+	return true;
+end
+
+
+function setTxtInfoPanel( txtInfoPanelValue )
+  Me.txtInfoPanel.Text = txtInfoPanelValue
+end
+
+function getTxtInfoPanel( )
+  return txtInfoPanel
+end
+
+function btnSearchPersons_Click( control )
+	table.insert(childForms, formsController.openNeccessaryForm(getClassManager(), control , nil));
+end
+
+function btnSearchOrganizations_Click( control )
+	table.insert(childForms, formsController.openNeccessaryForm(getClassManager(), control , nil));
+end
+
+function btnCheckApplicant_Click( control )
+	table.insert(childForms, formsController.openNeccessaryForm(getClassManager(), control , nil));
+end
+
+function btnCreateDocument_Click( control )
+	table.insert(childForms, formsController.openNeccessaryForm(getClassManager(), control , nil));
+end
+
+function setPctLogoBackColor( pctLogoBackColor )
+   pctLogo.BackColor = pctLogoBackColor
+end
+function getPctLogoText( )
+    return pctLogo.Value
+end
+
+
+function setFormBackColor( formBackColor )
+   CurrentForm.BackColor = formBackColor
+end
+function btnSettings_Click( control )
+	table.insert(childForms, formsController.openNeccessaryForm(getClassManager(), control , nil));
+end
+
+function btnDataLoader_Click( control )	
+	table.insert(childForms, formsController.openNeccessaryForm(getClassManager(), control , nil));
+end
+
+function btnServices_Click( control )
+	table.insert(childForms, formsController.openNeccessaryForm(getClassManager(), control , nil));
+end

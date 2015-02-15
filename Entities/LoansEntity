@@ -1,0 +1,398 @@
+local entityRecord = nil;
+local entityBaseCode = nil;
+
+local documentName = nil;
+local documentDescription = {};
+local accoutArrests = {};
+local indemnityContract = {};
+local accredetiveContract = {};
+local creditStatus = nil;
+
+local personEntities = {};
+local organizationEntities = {};
+local logger = nil;
+local classManager = nil;
+
+local wasEntityRecordLocked = false
+local wasConnectingEntityRecordLocked = false;
+
+function initLogger()
+	if logger == nil then
+		logger = getClassManager().getClass("Logger");	
+	end
+end
+------------------------------------------------------------------------------------------
+function getEntityRecord()
+    return entityRecord;
+end
+function setEntityRecord(entityRecordValue)
+    entityRecord = entityRecordValue;
+end
+function refreshEntityRecord()
+	if (getEntityRecord().Base:GetRecord(getEntityRecord().SN) ~= nil) then
+		setEntityRecord(getEntityRecord().Base:GetRecord(getEntityRecord().SN));		
+	end
+end
+
+function getEntityBaseCode()
+    return entityBaseCode;
+end
+
+function setEntityBaseCode(entityBaseCodeValue)
+    entityBaseCode = entityBaseCodeValue;
+end
+
+function getPersonEntities()
+    return personEntities;
+end
+function addPersonEntity(newPersonEntity)
+    table.insert(personEntities,newPersonEntity);
+end
+function setPersonEntities(newPersonEntities)
+    personEntities = newPersonEntities;
+end
+
+function getOrganizationEntities()
+    return organizationEntities;
+end
+function addOrganizationEntity(newOrganizationEntity)
+    table.insert(organizationEntities,newOrganizationEntity);
+end
+function setOrganizationEntities(newOrganizationEntities)
+    organizationEntities = newOrganizationEntities;
+end
+
+function clearEntities()
+	setOrganizationEntities({});
+	setPersonEntities({});	
+end
+
+function getClassManager()
+    return classManager;
+end
+function setClassManager(classManagerValue)
+    classManager = classManagerValue;
+end
+
+function checkIsObjectLocked(entityRecord)
+	if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), entityRecord)) then			
+		entityRecord:Unlock();	
+		wasEntityRecordLocked = true;
+	else
+		wasEntityRecordLocked = false;
+	end			
+end
+function checkIsConnectingObjectLocked(entityRecord)
+	if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), entityRecord)) then			
+		entityRecord:Unlock();	
+		wasConnectingEntityRecordLocked = true;
+	else
+		wasConnectingEntityRecordLocked = false;
+	end			
+end
+function checkWasObjectLocked(entityRecord)
+	if (wasEntityRecordLocked) then			
+		entityRecord:Lock();	
+	end			
+end
+function checkWasConnectingObjectLocked(entityRecord)
+	if (wasConnectingEntityRecordLocked) then			
+		entityRecord:Lock();	
+	end			
+end
+-------------------------------------------------------------------
+function getDocumentName()
+	return documentName
+end 
+function setDocumentName(documentNameValue)
+	documentName = documentNameValue;
+end
+
+function getDocumentDescription()
+	return documentDescription
+end 
+function setDocumentDescription(documentDescriptionValue)
+	documentDescription = table.iunion(documentDescriptionValue, {})
+end
+function addDocumentDescription(documentDescriptionValue)
+    table.insert(documentDescription,documentDescriptionValue);
+end
+
+function getAccoutArrests()
+	return accoutArrests
+end 
+function setAccoutArrests(accoutArrestsValue)
+	accoutArrests = table.iunion(accoutArrestsValue, {})
+end
+function addAccoutArrests(accoutArrestsValue)
+    table.insert(accoutArrests,accoutArrestsValue);
+end
+
+
+function getIndemnityContract()
+	return indemnityContract
+end 
+function setIndemnityContract(indemnityContractValue)
+	indemnityContract = table.iunion(indemnityContractValue, {})
+end
+function addIndemnityContract(indemnityContractValue)
+    table.insert(indemnityContract,indemnityContractValue);
+end
+
+function getAccredetiveContract()
+	return accredetiveContract
+end 
+function setAccredetiveContract(accredetiveContractValue)
+	accredetiveContract = table.iunion(accredetiveContractValue, {})
+end
+function addAccredetiveContract(accredetiveContractValue)
+    table.insert(accredetiveContract,accredetiveContractValue);
+end
+
+
+function getCreditStatus()
+	return creditStatus
+end 
+function setCreditStatus(creditStatusValue)
+	 creditStatus = creditStatusValue;
+end
+--[[function addCreditStatus(creditStatusValue)
+    table.insert(creditStatus,creditStatusValue);
+end]]
+
+-------------------------------------------------------------------------
+function setBeanFromLine(dataTable, configTable, mode, isCurrentEntityOnly) -- передаем таблицу с данными для загрузки и  таблицу с конфигурацией для загрузки
+	initLogger();
+	local messages = {};	
+	local configValues = "";
+	local tConfigValues = "";
+	local terminPosition = 0;
+	local fieldNumber = 0;
+	local extractedTermin = "";	
+	local isConnectedEntityNew = true;
+	local passedEntitiesCodes = {}
+	for index, tConfigValues in ipairs(configTable) do		
+		local localVocKey = nil;				
+		logger.writeDebugMessage( getClassManager(),"Получена конфигурация: "..render(tConfigValues));
+		logger.writeDebugMessage( getClassManager(),"Получение номера аттрибута базы данных");
+		fieldNumber = tonumber(tConfigValues[3]);	
+		logger.writeDebugMessage(getClassManager(),"Получение позиции в строке загрузки");		
+		if (string.sub(tConfigValues[1],1,1) ~= "@") then
+			terminPosition = tonumber(tConfigValues[1]);					
+			logger.writeDebugMessage( getClassManager(),"Получение термина строки по позиции № "..terminPosition);
+			extractedTermin = dataTable[terminPosition];
+		else
+			extractedTermin = string.sub(tConfigValues[1],2);
+			localVocKey = tonumber(extractedTermin)
+		end		
+		logger.writeDebugMessage( getClassManager(), "Был получен термин для загрузки в поле "..fieldNumber);
+		if (extractedTermin ~= nil and string.len(extractedTermin)>0) then			
+			if (tConfigValues[2] == getEntityBaseCode()) then
+				if(fieldNumber == 1) then
+					setDocumentName(extractedTermin);
+				elseif(fieldNumber == 2) then
+					addDocumentDescription(extractedTermin);
+				elseif(fieldNumber == 5) then
+					addAccoutArrests(extractedTermin);
+				elseif(fieldNumber == 6) then
+					addIndemnityContract(extractedTermin);
+				elseif(fieldNumber == 7) then
+					addAccredetiveContract(extractedTermin);
+				elseif(fieldNumber == 8) then
+					setCreditStatus(extractedTermin);
+				end
+			else			
+				isConnectedEntityNew = table.count(getClassManager().getClass("Service").getIndexesFromTable(passedEntitiesCodes, tConfigValues[2]))==0
+				if (not isCurrentEntityOnly) then
+					logger.writeDebugMessage( getClassManager(),"Термин принадлежит базе данных с мнемокодом "..tConfigValues[2]);			
+					logger.writeDebugMessage( getClassManager(),"Создание нового программного объекта")
+					local connectedEntity = getClassManager().newEntity(getClassManager(), tConfigValues[2], true, isConnectedEntityNew)			
+					if (isConnectedEntityNew) then
+						logger.writeDebugMessage( getClassManager(),"Добавление созданного объекта для установления связи")				
+						addConnectedEntity (connectedEntity);			
+					end
+					isConnectedEntityNew = false;				
+					logger.writeDebugMessage( getClassManager(),"Заполнение программного объекта на основе данных из файла загрузки и запись полученных сообщений");																								
+					local errorMessages = connectedEntity.setBeanFromLine(dataTable, {tConfigValues}, mode); 						
+					for _,message in pairs(errorMessages) do
+						table.insert(messages, message)
+					end	
+					logger.writeDebugMessage(getClassManager(),"Проверка режима работы системы: "..mode);	
+					if (mode == getClassManager().getClass("Constanta").getCnstDataLoaderLoadMode()) then
+						logger.writeDebugMessage(getClassManager(),"Сохранение программного объекта в базу данных с мнемокодом "..tConfigValues[2]);																													
+						connectedEntity.saveBeanToDb();						
+					end
+				end
+			end
+			table.insert(passedEntitiesCodes,tConfigValues[2]);	
+		end
+	end	
+	return messages;
+end
+
+function addConnectedEntity (connectedEntity)
+	local connectedEntityCode = connectedEntity.getEntityBaseCode();
+	if (connectedEntityCode == getClassManager().getClass("Constanta").getCnstOrganization()) then
+		addOrganizationEntity(connectedEntity);	
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstPerson()) then
+		addPersonEntity(connectedEntity);		
+	end		
+end
+
+function getAttributeByFieldNumber(fieldNumber)
+	local attribute = nil;
+	local noAttributeLineDefined = false;
+	fieldNumber = tonumber(fieldNumber)	
+	if (fieldNumber == 1) then									
+		attribute = getDocumentName();		
+	elseif(fieldNumber == 2) then
+		attribute = getDocumentDescription();
+	elseif(fieldNumber == 5) then
+		attribute = getAccoutArrests();
+	elseif(fieldNumber == 6) then
+		attribute = getIndemnityContract();
+	elseif(fieldNumber == 7) then
+		attribute = getAccredetiveContract();
+	elseif(fieldNumber == 8) then
+		attribute = getCreditStatus();
+	else
+		noAttributeLineDefined = true;
+	end		
+	--необходимо для логики выдачи сообщения про неопределенный номер поля в данном методе
+	if (noAttributeLineDefined == false and attribute == nil) then
+		attribute = "";		
+	end	
+	return attribute;
+end
+
+-------------------------------------------------------------------------
+function setLinks()	
+	
+	local loanBase 			= CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstLoan());								
+	local personBase 		= CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstPerson());								
+	local organizationBase 	= CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstOrganization());	
+	--refreshEntityRecord();	
+	
+	--persons linking	
+	for key, personEntity in pairs(getPersonEntities()) do		
+		checkIsObjectLocked(getEntityRecord())
+		checkIsConnectingObjectLocked(personEntity.getEntityRecord())
+		loanBase:AddLink(getEntityRecord().SN,3,personBase,personEntity.getEntityRecord().SN, Base.LockWait, Base.LockWait);																	
+		setEntityRecord(loanBase:GetRecord(getEntityRecord().SN));
+		checkWasObjectLocked(getEntityRecord())		
+		checkWasConnectingObjectLocked(personEntity.getEntityRecord())		
+		
+	end	
+	--organizations linking	
+	for key, organizationEntity in pairs(getOrganizationEntities()) do								
+		checkIsObjectLocked(getEntityRecord())
+		checkIsConnectingObjectLocked(organizationEntity.getEntityRecord())
+		loanBase:AddLink(getEntityRecord().SN,3,organizationBase,organizationEntity.getEntityRecord().SN, Base.LockWait, Base.LockWait);																	
+		setEntityRecord(loanBase:GetRecord(getEntityRecord().SN));
+		checkWasObjectLocked(getEntityRecord())
+		checkWasConnectingObjectLocked(organizationEntity.getEntityRecord())
+	end	
+end
+
+function deleteLinkOrganization(organizationEntity)
+	local orgBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstOrganization());								
+	local loanBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstLoan());
+	checkIsObjectLocked(getEntityRecord())
+	checkIsConnectingObjectLocked(organizationEntity.getEntityRecord())
+
+	loanBase:DeleteLink(getEntityRecord().SN, 3, orgBase, organizationEntity.getEntityRecord().SN, Base.LockWait, Base.LockWait);	
+	setEntityRecord(loanBase:GetRecord(getEntityRecord().SN));	
+	checkWasObjectLocked(getEntityRecord())
+	checkWasConnectingObjectLocked(organizationEntity.getEntityRecord())	
+end
+
+function deleteLinkPerson(personEntity)
+	local personBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstPerson());								
+	local loanBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstLoan());
+	checkIsObjectLocked(getEntityRecord())
+	checkIsConnectingObjectLocked(personEntity.getEntityRecord())
+
+	loanBase:DeleteLink(getEntityRecord().SN, 3, personBase, personEntity.getEntityRecord().SN, Base.LockWait, Base.LockWait);	
+	setEntityRecord(loanBase:GetRecord(getEntityRecord().SN));		
+	checkWasObjectLocked(getEntityRecord())
+	checkWasConnectingObjectLocked(personEntity.getEntityRecord())
+end
+
+function setBeanFromRecord(documentRecord)	
+	local documentBaseCode = getEntityBaseCode();
+	if documentRecord.Base.Code == documentBaseCode then				
+		setEntityRecord(documentRecord)
+		setDocumentName(					getClassManager().getClass("FieldsWorker").getField(documentBaseCode, documentRecord , 1 , "" , "", ""));
+		setDocumentDescription(				getClassManager().getClass("FieldsWorker").getField(documentBaseCode, documentRecord , 2 , 0 , "", ""));
+		setAccoutArrests(					getClassManager().getClass("FieldsWorker").getField(documentBaseCode, documentRecord , 5 , 0 , "", ""));
+		setIndemnityContract(				getClassManager().getClass("FieldsWorker").getField(documentBaseCode, documentRecord , 6 , 0 , "", ""));
+		setAccredetiveContract(				getClassManager().getClass("FieldsWorker").getField(documentBaseCode, documentRecord , 7 , 0 , "", ""));
+		setCreditStatus(					getClassManager().getClass("FieldsWorker").getField(documentBaseCode, documentRecord , 8 , "" , "", ""));
+		
+	end
+end
+
+--[[function setBeanFromView(view)	
+	setDocumentType(view.getDpdDocumentTypeSelectedCode());				
+	setDocumentName(view.getTxtDocumentNameText());		
+	setContent(view.getTxtContentText());	
+	setSource(view.getTxtSourceText());		
+	setExecutor(view.getTxtExecutorText());	
+	setCreateDate(view.getTxtCreateDateText());	
+	setRealizationType(view.getDpdRealizationTypeSelectedItem());	
+	setRealizationDate(view.getTxtRealizationDateText());	
+	setRealizationCharacter(view.getDpdRealizationCharacterSelectedCode());
+	local fileNames = {};
+	for key, picture in pairs(getPictures()) do
+		if (picture ~= nil)then							
+			view.getPctPictures():SaveToFile(picture, key, false)		
+			table.insert(fileNames,"@"..picture);			
+		end	
+	end
+	setPictures(fileNames);
+	fileNames = {};
+	for key, file in pairs(getFiles()) do
+		if (file ~= nil)then				
+			view.getPctDocuments():SaveToFile(file, key, false)					
+			table.insert(fileNames,"@"..file);	
+		end	
+	end	
+	setFiles(fileNames);
+end]]
+
+function saveBeanToDb()	
+	local saveResult = true;			
+	local documentBaseCode = getEntityBaseCode();	
+	local documentBase = CroApp.GetBank():GetBase(documentBaseCode);	
+	if (getEntityRecord() == nil) then		
+		setEntityRecord(CroApp.GetBank():GetBase(documentBaseCode):AddRecord())					
+	else
+		setEntityRecord(documentBase:GetRecord(getEntityRecord().SN));
+	end				
+	local documentRecord = getEntityRecord();					
+	if documentRecord.Base.Code == documentBaseCode then						
+		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 1, "", getDocumentName(), nil, nil, true);						
+		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 2, "", getDocumentDescription(), nil, nil, false);
+		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 5, "", getAccoutArrests(), nil, nil, false);		
+		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 6, "", getIndemnityContract(), nil, nil, false);		
+		
+		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 7, "", getAccredetiveContract(), nil, nil, false);
+		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 8, "", getCreditStatus(), nil, nil, false);						
+		setLinks();
+	else
+		saveResult = false;
+	end		
+	return saveResult;
+end
+
+-------------------------------------------------------------------------
+function clearEntity()
+	clearEntities()
+	setEntityRecord(nil)
+	setDocumentName(nil)
+	setDocumentDescription({})
+	setAccoutArrests({})	
+	setIndemnityContract({})	
+	setAccredetiveContract({})	
+	setCreditStatus(nil)	
+end

@@ -1,0 +1,557 @@
+local ClassManager = nil;
+local Entity = nil;
+local unloadController = nil;
+local formsController = nil;
+local validationController = nil;
+local constanta = nil;
+local objectList = nil;
+local childForms = {};
+local isNewObject = false;
+local isRefreshList = false;
+
+local lblDocumentType = nil;
+local dpdDocumentType = nil;
+local lblDocumentName = nil;
+local txtDocumentName = nil;
+local lblPictures = nil;
+local pctPictures = nil;
+local lblDocuments = nil;
+local pctDocuments = nil;
+local lblContent = nil;
+local txtContent = nil;
+local lblSource = nil;
+local txtSource = nil;
+local lblExecutor = nil;
+local txtExecutor = nil;
+local pnlButtons = nil;
+local btnSave = nil;
+local btnClose = nil;
+local txtInfoPanel = nil;
+local txtCreateDate = nil;
+local dpdRealizationType = nil;
+local lblCreateDate = nil;
+local lblRealizationType = nil;
+local txtRealizationDate = nil;
+local lblRealizationDate = nil;
+local pnlMenu = nil;
+local btnOrganizations = nil;
+local btnPeople = nil;
+local lblRealizationCharacter = nil;
+local dpdRealizationCharacter = nil;
+
+function getIsRefreshList()
+    return isRefreshList;
+end
+function setIsRefreshList(isRefreshListValue)
+    isRefreshList = isRefreshListValue;
+end
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function getObjectList()
+    return objectList;
+end
+function setObjectList(objectListValue)
+    objectList = objectListValue;
+end
+
+function getEntity()	
+    return Entity;
+end
+function setEntity(entityValue)
+    Entity = entityValue;
+end
+
+function getIsNewObject()
+    return isNewObject;
+end
+function setIsNewObject(isNewObjectValue)
+    isNewObject = isNewObjectValue;
+end
+
+function Форма_Open( form	)
+    setClassManager(Arg.ClassManager)
+    setControllersReferences()
+    return true;
+end
+
+function Форма_Load( form )
+    getClassManager().setClass(form, form)
+    setControls(form);	
+	setObjectList(Arg.FormModule)	
+	setIsRefreshList(Arg.isRefreshList);	
+	--form.X = getObjectList().getCurrentForm().X+getObjectList().getCurrentForm().Width	
+    if (Arg.Data ~= nil) then
+        for key,entity in pairs(Arg.Data) do
+            if (entity.getEntityBaseCode() == constanta.getCnstDocument()) then
+                Entity = entity;								
+				if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), Entity.getEntityRecord())) then									
+					setTxtInfoPanelText("Объект сейчас редактируется другим пользователем. Изменение невозможно");
+				end		
+				form.RecordNumber = Entity.getEntityRecord().SN;
+				pnlMenu.Enabled = not form.Locked
+				btnSave.Enabled = not form.Locked					
+            end
+        end
+    end
+    if (Entity == nil) then
+        Форма_UnloadForm( form);
+	else
+		setFormFromEntity(getEntity());
+		table.insert(childForms,form);
+		detectConnectedEntitiesNumber()
+		setIsNewObject(Arg.isNewObject);
+    end    
+end
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+	validationController = getClassManager().getClass("ValidationController");
+    constanta = getClassManager().getClass("Constanta");
+end
+
+function Форма_UnloadForm( form, mode )
+    unloadController.doUnload(getClassManager(), form, childForms);
+    getClassManager().setClass(form, nil)
+    return true;
+end
+
+function setControls(form)
+    lblDocumentType = form.lblDocumentType;
+    dpdDocumentType = form.dpdDocumentType;
+    lblDocumentName = form.lblDocumentName;
+    txtDocumentName = form.txtDocumentName;
+    lblPictures = form.lblPictures;
+    pctPictures = form.pctPictures;
+    lblDocuments = form.lblDocuments;
+    pctDocuments = form.pctDocuments;
+    lblContent = form.lblContent;
+    txtContent = form.txtContent;
+    lblSource = form.lblSource;
+    txtSource = form.txtSource;
+    lblExecutor = form.lblExecutor;
+    txtExecutor = form.txtExecutor;
+    pnlButtons = form.pnlButtons;
+    btnSave = form.btnSave;
+    btnClose = form.btnClose;
+    txtInfoPanel = form.txtInfoPanel;
+    txtCreateDate = form.txtCreateDate;
+    dpdRealizationType = form.dpdRealizationType;
+    lblCreateDate = form.lblCreateDate;
+    lblRealizationType = form.lblRealizationType;
+	txtRealizationDate = form.txtRealizationDate;
+    lblRealizationDate = form.lblRealizationDate;
+    pnlMenu = form.pnlMenu;
+    btnOrganizations = form.btnOrganizations;
+    btnPeople = form.btnPeople;
+	lblRealizationCharacter = form.lblRealizationCharacter;
+    dpdRealizationCharacter = form.dpdRealizationCharacter;
+    populateLists();
+	setTxtInfoPanelBackColor(constanta.getSystemBackColor());
+end
+
+function populateLists()
+
+end
+
+function setFormFromEntity(entity)
+    setDpdDocumentTypeSelectedItem(entity.getDocumentType());
+    setTxtDocumentNameText(entity.getDocumentName());
+    setTxtContentText(entity.getContent());
+    setTxtSourceText(entity.getSource());
+    setTxtExecutorText(entity.getExecutor());
+    setTxtCreateDateText(entity.getCreateDate());
+    setDpdRealizationTypeSelectedItem(entity.getRealizationType());
+	setTxtRealizationDateText(entity.getRealizationDate());	    
+	setDpdRealizationCharacterSelectedItem(entity.getRealizationCharacter());
+end
+function setLblDocumentTypeText( lblDocumentTypeValue )
+   lblDocumentType.Value = lblDocumentTypeValue
+end
+function getLblDocumentTypeText( )
+    return lblDocumentType.Value
+end
+
+function addDpdDocumentTypeItem( dpdDocumentTypeValue )
+   dpdDocumentType:Add(dpdDocumentTypeValue)
+end
+function addDpdDocumentTypeItems( dpdDocumentTypeValues )
+    if dpdDocumentTypeValues ~= nil then
+        for key, value in pairs (dpdDocumentTypeValues) do
+            addDpdDocumentTypeItem(value)
+        end
+    end
+end
+function clearDpdDocumentTypeItesm( )
+   dpdDocumentType:Clear(index)
+end
+function getDpdDocumentTypeSelectedItem( )
+    return dpdDocumentType.Value
+end
+function setDpdDocumentTypeSelectedItem( dpdDocumentTypeItemValue)
+    dpdDocumentType.Value = dpdDocumentTypeItemValue
+end
+function getDpdDocumentTypeSelectedIndex( )
+    return dpdDocumentType.SelectedIndex
+end
+function getDpdDocumentTypeSelectedCode( )
+    return dpdDocumentType.Value
+end
+function setDpdDocumentTypeSelectedIndex( dpdDocumentTypeIndexValue )
+    dpdDocumentType.SelectedIndex = dpdDocumentTypeIndexValue
+end
+
+function setLblDocumentNameText( lblDocumentNameValue )
+   lblDocumentName.Value = lblDocumentNameValue
+end
+function getLblDocumentNameText( )
+    return lblDocumentName.Value
+end
+
+function getTxtDocumentNameText( )
+    return txtDocumentName.Value
+end
+function setTxtDocumentNameText( txtDocumentNameValue )
+    txtDocumentName.Value = txtDocumentNameValue
+end
+
+function setLblPicturesText( lblPicturesValue )
+   lblPictures.Value = lblPicturesValue
+end
+function getLblPicturesText( )
+    return lblPictures.Value
+end
+
+function setLblDocumentsText( lblDocumentsValue )
+   lblDocuments.Value = lblDocumentsValue
+end
+function getLblDocumentsText( )
+    return lblDocuments.Value
+end
+
+function setLblContentText( lblContentValue )
+   lblContent.Value = lblContentValue
+end
+function getLblContentText( )
+    return lblContent.Value
+end
+
+function getTxtContentText( )
+    return txtContent.Value
+end
+function setTxtContentText( txtContentValue )
+    txtContent.Value = txtContentValue
+end
+
+function setLblSourceText( lblSourceValue )
+   lblSource.Value = lblSourceValue
+end
+function getLblSourceText( )
+    return lblSource.Value
+end
+
+function getTxtSourceText( )	
+    return txtSource.Value
+end
+function setTxtSourceText( txtSourceValue )
+    txtSource.Value = txtSourceValue
+end
+
+function setLblExecutorText( lblExecutorValue )
+   lblExecutor.Value = lblExecutorValue
+end
+function getLblExecutorText( )
+    return lblExecutor.Value
+end
+
+function getTxtExecutorText( )
+    return txtExecutor.Value
+end
+function setTxtExecutorText( txtExecutorValue )
+    txtExecutor.Value = txtExecutorValue
+end
+
+function setBtnSaveText( btnSaveValue )
+   btnSave.Text = btnSaveValue
+end
+function getBtnSaveText( )
+    return btnSave.Text
+end
+
+function btnSave_Click( control, isInternal )	
+	if validationController.doValidate(getClassManager(), btnSave) == true then	
+		setIsNewObject(false);		
+		Entity.setBeanFromView(btnSave.Form.Module);		
+		if (Entity.saveBeanToDb()  == true) then			
+			if (getIsRefreshList()) then				
+				getObjectList().refreshForm(Entity);
+			end			
+			setTxtInfoPanelText("Запись успешно сохранена в базу данных");			
+			if (not isInternal) then
+				Форма_UnloadForm( btnSave.Form);
+			end			
+		else
+			setTxtInfoPanelText("ВНИМАНИЕ!!! Запись не сохранена в базу данных");
+		end
+	else
+		setTxtInfoPanelText("Проверка данных не пройдена");
+	end
+end
+
+function getPctPictures( )	
+    return pctPictures
+end
+function getPctPicturesValue( )	
+    return pctPictures.Value
+end
+function setPctPicturesValue( pctPicturesValue )
+    pctPictures.Value = pctPicturesValue	
+end
+function setPctPicturesEnabled( isPctPicturesEnabled )
+   pctPictures.Enabled = isPctPicturesEnabled
+end
+
+function getPctDocuments( )	
+    return pctDocuments
+end
+function getPctDocumentsValue( )	
+    return pctDocuments.Value
+end
+function setPctDocumentsValue( pctDocumentsValue )
+    pctDocuments.Value = pctDocumentsValue	
+end
+function setPctDocumentsEnabled( isPctDocumentsEnabled )
+   pctDocuments.Enabled = isPctDocumentsEnabled
+end
+
+
+function setBtnCloseText( btnCloseValue )
+   btnClose.Text = btnCloseValue
+end
+function getBtnCloseText( )
+    return btnClose.Text
+end
+
+function btnClose_Click( control )
+    setFormFromEntity(getEntity());
+    Форма_UnloadForm( control.Form);
+end
+
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setTxtInfoPanelBackColor( txtInfoPanelBackColor )
+   txtInfoPanel.BackColor = txtInfoPanelBackColor
+end
+
+function txtDocumentName_FocusLeave( control )
+	--txtDocumentName.Value = string.ulower(txtDocumentName.Text)	 //Зеленко Роман -  убрать  функцию работы с заглавными буквами	
+end
+
+function setLblCreateDateText( lblCreateDateValue )
+   lblCreateDate.Value = lblCreateDateValue
+end
+function getLblCreateDateText( )
+    return lblCreateDate.Value
+end
+
+function getTxtCreateDateText( )
+    return txtCreateDate.Value
+end
+function setTxtCreateDateText( txtCreateDateValue )
+    txtCreateDate.Value = txtCreateDateValue
+end
+function setTxtCreateDateEnabled( isTxtCreateDateEnabled )
+   txtCreateDate.Enabled = isTxtCreateDateEnabled
+end
+
+function setLblRealizationTypeText( lblRealizationTypeValue )
+   lblRealizationType.Value = lblRealizationTypeValue
+end
+function getLblRealizationTypeText( )
+    return lblRealizationType.Value
+end
+
+function addDpdRealizationTypeItem( dpdRealizationTypeValue )
+   dpdRealizationType:Add(dpdRealizationTypeValue)
+end
+function addDpdRealizationTypeItems( dpdRealizationTypeValues )
+    if dpdRealizationTypeValues ~= nil then
+        for key, value in pairs (dpdRealizationTypeValues) do
+            addDpdRealizationTypeItem(value)
+        end
+    end
+end
+function clearDpdRealizationTypeItems( )
+   dpdRealizationType:Clear(index)
+end
+function getDpdRealizationTypeSelectedItem( )
+    return dpdRealizationType.Value
+end
+function setDpdRealizationTypeSelectedItem( dpdRealizationTypeItemValue)
+    dpdRealizationType.Value = dpdRealizationTypeItemValue
+end
+function getDpdRealizationTypeSelectedIndex( )
+    return dpdRealizationType.SelectedIndex
+end
+function getDpdRealizationTypeSelectedCode( )
+    return dpdRealizationType.Value
+end
+function setDpdRealizationTypeSelectedIndex( dpdRealizationTypeIndexValue )
+    dpdRealizationType.SelectedIndex = dpdRealizationTypeIndexValue
+end
+function setDpdRealizationTypeEnabled( isDpdRealizationTypeEnabled )
+   dpdRealizationType.Enabled = isDpdRealizationTypeEnabled
+end
+
+function getTxtRealizationDateText( )
+    return txtRealizationDate.Value
+end
+function setTxtRealizationDateText( txtRealizationDateValue )
+    txtRealizationDate.Value = txtRealizationDateValue
+end
+function setTxtRealizationDateEnabled( isTxtRealizationDateEnabled )
+   txtRealizationDate.Enabled = isTxtRealizationDateEnabled
+end
+
+function setLblRealizationDateText( lblRealizationDateValue )
+   lblRealizationDate.Value = lblRealizationDateValue
+end
+function getLblRealizationDateText( )
+    return lblRealizationDate.Value
+end
+
+function setBtnOrganizationsText( btnOrganizationsValue )
+   btnOrganizations.Text = btnOrganizationsValue
+end
+function getBtnOrganizationsText( )
+    return btnOrganizations.Text
+end
+function setBtnOrganizationsEnabled( isBtnOrganizationsEnabled )
+   btnOrganizations.Enabled = isBtnOrganizationsEnabled
+end
+
+function setBtnPeopleText( btnPeopleValue )
+   btnPeople.Text = btnPeopleValue
+end
+function getBtnPeopleText( )
+    return btnPeople.Text
+end
+function setBtnPeopleEnabled( isBtnPeopleEnabled )
+   btnPeople.Enabled = isBtnPeopleEnabled
+end
+
+function addDpdRealizationCharacterItem( dpdRealizationCharacterValue )
+   dpdRealizationCharacter:Add(dpdRealizationCharacterValue)
+end
+function addDpdRealizationCharacterItems( dpdRealizationCharacterValues )
+    if dpdRealizationCharacterValues ~= nil then
+        for key, value in pairs (dpdRealizationCharacterValues) do
+            addDpdRealizationCharacterItem(value)
+        end
+    end
+end
+function clearDpdRealizationCharacterItems( )
+   dpdRealizationCharacter:Clear(index)
+end
+function getDpdRealizationCharacterSelectedItem( )
+    return dpdRealizationCharacter.Text
+end
+function setDpdRealizationCharacterSelectedItem( dpdRealizationCharacterItemValue)
+    dpdRealizationCharacter.Value = dpdRealizationCharacterItemValue
+end
+function getDpdRealizationCharacterSelectedIndex( )
+    return dpdRealizationCharacter.SelectedIndex
+end
+function getDpdRealizationCharacterSelectedCode( )
+    return dpdRealizationCharacter.Value
+end
+function setDpdRealizationCharacterSelectedIndex( dpdRealizationCharacterIndexValue )
+    dpdRealizationCharacter.SelectedIndex = dpdRealizationCharacterIndexValue
+end
+function setDpdRealizationCharacterEnabled( isDpdRealizationCharacterEnabled )
+   dpdRealizationCharacter.Enabled = isDpdRealizationCharacterEnabled
+end
+-----------end autogenerated part--------------
+function Форма_BeforeSaveForm( event )
+	--event.PermitSave = false;
+end
+
+function pctPictures_DataChanged( control, data )
+	local filePath = "";
+	if (string.match(data, ".exe") == nil) then
+		if (string.len(data) > 0) then
+			filePath = CroApp.TempDir..data;												
+		end		
+	else		
+		MsgBox("Файлы типа EXE запрещено сохранять в базу данных.\n\rФайл будет удален.", IconError)		
+	end	
+	getEntity().addPictures(filePath)
+	return true;
+end
+
+function pctDocuments_DataChanged( control, data )
+local filePath = "";
+	if (string.match(data, ".exe") == nil) then
+		if (string.len(data) > 0) then
+			filePath = CroApp.TempDir..data;												
+		end		
+	else		
+		MsgBox("Файлы типа EXE запрещено сохранять в базу данных.\n\rФайл будет удален.", IconError)		
+	end	
+	getEntity().addFiles(filePath)	
+	return true;
+end
+
+function detectConnectedEntitiesNumber()			
+	local connectedPeopleRecordSet = getClassManager().getClass("DBWorker").getItemsForDocument(getClassManager(), 
+																							getClassManager().getClass("Constanta").getCnstPerson(), 
+																							getEntity().getEntityRecord());		
+	setBtnPeopleText(string.gsub(getBtnPeopleText()," %(%d+%)","").." ("..connectedPeopleRecordSet.Count..")")		
+	local connectedOrganizationsRecordSet = getClassManager().getClass("DBWorker").getItemsForDocument(getClassManager(), 
+																							getClassManager().getClass("Constanta").getCnstOrganization(),
+																							getEntity().getEntityRecord());		
+	setBtnOrganizationsText(string.gsub(getBtnOrganizationsText()," %(%d+%)","").." ("..connectedOrganizationsRecordSet.Count..")")	
+end
+
+function btnPeople_Click( control )
+	if doIsNecessaryToSave() then	
+		local connectedPeopleRecordSet = getClassManager().getClass("DBWorker").getItemsForDocument(getClassManager(), 
+																							getClassManager().getClass("Constanta").getCnstPerson(), 
+																							getEntity().getEntityRecord());		
+		table.insert(childForms,formsController.openNeccessaryForm(getClassManager(), control, connectedPeopleRecordSet, Entity));		
+	end
+end
+
+function btnOrganizations_Click( control )	
+	if doIsNecessaryToSave() then	
+		local connectedOrganizationsRecordSet = getClassManager().getClass("DBWorker").getItemsForDocument(getClassManager(), 
+																										getClassManager().getClass("Constanta").getCnstOrganization(),
+																										getEntity().getEntityRecord());		
+		table.insert(childForms,formsController.openNeccessaryForm(getClassManager(), control, connectedOrganizationsRecordSet, Entity));		
+	end
+end
+
+function doIsNecessaryToSave()	
+	local isSaved = true;
+	if validationController.doValidate(getClassManager(), btnSave) == true then
+		if (getIsNewObject()) then		
+			setIsNewObject(false);
+			btnSave_Click(btnSave, true);	
+			btnSave.Form:ReloadRecord();
+			btnSave.Form:Refresh();				
+		end
+	else	
+		isSaved = false;
+	end
+	return isSaved;
+end

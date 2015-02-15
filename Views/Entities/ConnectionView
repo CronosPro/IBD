@@ -1,0 +1,267 @@
+local ClassManager = nil;			
+local Entity = nil;
+local unloadController = nil;
+local formsController = nil;
+local validationController = nil;
+local constanta = nil;
+local childForms = {};
+local objectList = nil;
+
+function getObjectList()
+    return objectList;
+end
+function setObjectList(objectListValue)
+    objectList = objectListValue;
+end
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function Форма_Open( form	)	
+    setClassManager(Arg.ClassManager)
+    setControllersReferences()
+    return true;
+end
+
+function Форма_Load( form )
+    getClassManager().setClass(form, form)	
+    setControls(form);	
+    setObjectList(Arg.FormModule)
+	--form.X = getObjectList().getCurrentForm().X+getObjectList().getCurrentForm().Width
+	if (Arg.Data ~= nil) then
+        for key,entity in pairs(Arg.Data) do		
+            if (entity.getEntityBaseCode() == constanta.getCnstConnection()) then
+                Entity = entity;	
+				form.RecordNumber = Entity.getEntityRecord().SN;				
+            end
+        end
+    end
+    if (Entity == nil) then
+        Форма_UnloadForm( form);
+	else
+		setFormFromEntity(getClassManager(),entity);		
+		table.insert(childForms,form);
+    end    
+end
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+	validationController = getClassManager().getClass("ValidationController");
+    constanta = getClassManager().getClass("Constanta");
+end
+
+function Форма_UnloadForm( form, mode )
+    unloadController.doUnload(getClassManager(), form, childForms);
+    getClassManager().setClass(form, nil)
+    return true;
+end
+local lblCountryCode = nil;
+local dpdCountryCode = nil;
+local lblProviderCode = nil;
+local dpdProviderCode = nil;
+local lblPhoneNumber = nil;
+local txtPhoneNumber = nil;
+local lblNote = nil;
+local txtNote = nil;
+local btnClose = nil;
+local btnSave = nil;
+local txtInfoPanel = nil;
+local lblEmail = nil;
+local txtEmail = nil;
+local pnlButtons = nil;
+
+function setControls(form)
+    lblCountryCode = form.lblCountryCode;
+    dpdCountryCode = form.dpdCountryCode;
+    lblProviderCode = form.lblProviderCode;
+    dpdProviderCode = form.dpdProviderCode;
+    lblPhoneNumber = form.lblPhoneNumber;
+    txtPhoneNumber = form.txtPhoneNumber;
+    lblNote = form.lblNote;
+    txtNote = form.txtNote;
+    btnClose = form.btnClose;
+    btnSave = form.btnSave;
+    txtInfoPanel = form.txtInfoPanel;
+    lblEmail = form.lblEmail;
+    txtEmail = form.txtEmail;
+    pnlButtons = form.pnlButtons;
+    populateLists();
+	setTxtInfoPanelBackColor(constanta.getSystemBackColor());
+end
+
+function populateLists()
+
+end
+
+function setFormFromEntity(ClassManager, entity)
+    setDpdCountryCodeSelectedItem(entity.getCountryCode());
+    setDpdProviderCodeSelectedItem(entity.getProviderCode());
+    setTxtPhoneNumberText(entity.getPhoneNumber());
+    setTxtNoteText(entity.getNote());
+    setTxtEmailText(entity.getEmail());
+end
+function setLblCountryCodeText( lblCountryCodeValue )
+   lblCountryCode.Value = lblCountryCodeValue
+end
+function getLblCountryCodeText( )
+    return lblCountryCode.Value
+end
+
+function addDpdCountryCodeItem( dpdCountryCodeValue )
+   dpdCountryCode:Add(dpdCountryCodeValue)
+end
+function addDpdCountryCodeItems( dpdCountryCodeValues )
+    if dpdCountryCodeValues ~= nil then
+        for key, value in pairs (dpdCountryCodeValues) do
+            addDpdCountryCodeItem(value)
+        end
+    end
+end
+function clearDpdCountryCodeItesm( )
+   dpdCountryCode:Clear(index)
+end
+function getDpdCountryCodeSelectedItem( )
+    return dpdCountryCode.Text
+end
+function setDpdCountryCodeSelectedItem( dpdCountryCodeItemValue)
+    dpdCountryCode.Value = dpdCountryCodeItemValue
+end
+function getDpdCountryCodeSelectedIndex( )
+    return dpdCountryCode.SelectedIndex
+end
+function getDpdCountryCodeSelectedCode( )
+    return dpdCountryCode.Value
+end
+function setDpdCountryCodeSelectedIndex( dpdCountryCodeIndexValue )
+    dpdCountryCode.SelectedIndex = dpdCountryCodeIndexValue
+end
+
+function setLblProviderCodeText( lblProviderCodeValue )
+   lblProviderCode.Value = lblProviderCodeValue
+end
+function getLblProviderCodeText( )
+    return lblProviderCode.Value
+end
+
+function addDpdProviderCodeItem( dpdProviderCodeValue )
+   dpdProviderCode:Add(dpdProviderCodeValue)
+end
+function addDpdProviderCodeItems( dpdProviderCodeValues )
+    if dpdProviderCodeValues ~= nil then
+        for key, value in pairs (dpdProviderCodeValues) do
+            addDpdProviderCodeItem(value)
+        end
+    end
+end
+function clearDpdProviderCodeItesm( )
+   dpdProviderCode:Clear(index)
+end
+function getDpdProviderCodeSelectedItem( )
+    return dpdProviderCode.Text
+end
+function setDpdProviderCodeSelectedItem( dpdProviderCodeItemValue)
+    dpdProviderCode.Value = dpdProviderCodeItemValue
+end
+function getDpdProviderCodeSelectedIndex( )
+    return dpdProviderCode.SelectedIndex
+end
+function getDpdProviderCodeSelectedCode( )
+    return dpdProviderCode.Value
+end
+function setDpdProviderCodeSelectedIndex( dpdProviderCodeIndexValue )
+    dpdProviderCode.SelectedIndex = dpdProviderCodeIndexValue
+end
+
+function setLblPhoneNumberText( lblPhoneNumberValue )
+   lblPhoneNumber.Value = lblPhoneNumberValue
+end
+function getLblPhoneNumberText( )
+    return lblPhoneNumber.Value
+end
+
+function getTxtPhoneNumberText( )
+    return txtPhoneNumber.Value
+end
+function setTxtPhoneNumberText( txtPhoneNumberValue )
+    txtPhoneNumber.Value = txtPhoneNumberValue
+end
+
+function setLblNoteText( lblNoteValue )
+   lblNote.Value = lblNoteValue
+end
+function getLblNoteText( )
+    return lblNote.Value
+end
+
+function getTxtNoteText( )
+    return txtNote.Value
+end
+function setTxtNoteText( txtNoteValue )
+    txtNote.Value = txtNoteValue
+end
+
+function setBtnCloseText( btnCloseValue )
+   btnClose.Text = btnCloseValue
+end
+function getBtnCloseText( )
+    return btnClose.Text
+end
+
+function btnClose_Click( control )
+    setFormFromEntity(getClassManager, Entity);
+    Форма_UnloadForm( control.Form);
+end
+
+function setBtnSaveText( btnSaveValue )
+   btnSave.Text = btnSaveValue
+end
+function getBtnSaveText( )
+    return btnSave.Text
+end
+
+function btnSave_Click( control )
+	if validationController.doValidate(getClassManager(), btnSave) == true then
+		Entity.setBeanFromView(getClassManager(), btnSave.Form.Module);
+		if (Entity.saveBeanToDb(getClassManager()) == true) then
+			setTxtInfoPanelText("Запись успешно сохранена в базу данных");
+			Форма_UnloadForm( btnSave.Form);
+		else
+			setTxtInfoPanelText("ВНИМАНИЕ!!! Запись не сохранена в базу данных");
+		end
+	else
+		setTxtInfoPanelText("Проверка данных не пройдена");
+	end
+end
+
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setTxtInfoPanelText( txtInfoPanelText )	
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setLblEmailText( lblEmailValue )
+   lblEmail.Value = lblEmailValue
+end
+function getLblEmailText( )
+    return lblEmail.Value
+end
+function setTxtInfoPanelBackColor( txtInfoPanelBackColor )
+   txtInfoPanel.BackColor = txtInfoPanelBackColor
+end
+
+function getTxtEmailText( )
+    return txtEmail.Value
+end
+function setTxtEmailText( txtEmailValue )
+    txtEmail.Value = txtEmailValue
+end
+
+
+function Форма_BeforeSaveForm( event )
+	event.PermitSave = false;
+end

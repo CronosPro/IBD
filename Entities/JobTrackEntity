@@ -1,0 +1,391 @@
+local position = nil;
+local startDate = nil;
+local endDate = nil;
+local dismissalReason = nil;
+local notes = nil;
+local entityRecord = nil;
+local entityBaseCode = nil;
+local sortOfEmployee = nil;
+local organizationEntities = {}
+local personEntities = {}
+local classManager = nil;
+
+local personToConnect = {}
+local orgnizationToConnect = {}
+
+function getPersonToConnect()
+    return personToConnect;
+end
+function setPersonToConnect(personToConnectValue)
+    table.insert(personToConnect, personToConnectValue);
+end
+
+function getOrgnizationToConnect()
+    return orgnizationToConnect;
+end
+function setOrgnizationToConnect(orgnizationToConnectValue)
+    table.insert(orgnizationToConnect, orgnizationToConnectValue);
+end
+
+function getClassManager()
+    return classManager;
+end
+function setClassManager(classManagerValue)
+    classManager = classManagerValue;
+end
+
+function getEntityRecord()
+    return entityRecord;
+end
+function setEntityRecord(entityRecordValue)
+    entityRecord = entityRecordValue;	
+end
+function refreshEntityRecord()	
+	if (getEntityRecord().Base:GetRecord(getEntityRecord().SN) ~= nil) then
+		setEntityRecord(getEntityRecord().Base:GetRecord(getEntityRecord().SN));		
+	end
+end
+
+function getEntityBaseCode()
+    return entityBaseCode;
+end
+function setEntityBaseCode(entityBaseCodeValue)
+    entityBaseCode = entityBaseCodeValue;
+end
+
+function getOrganizationEntities()
+    return organizationEntities;
+end
+function addOrganizationEntity(newOrganizationEntity)
+    table.insert(organizationEntities,newOrganizationEntity);
+end
+function setOrganizationEntities(newOrganizationEntities)
+    organizationEntities = newOrganizationEntities;
+end
+
+function getPersonEntities()
+    return personEntities;
+end
+function addPersonEntity(newPersonEntity)
+    table.insert(personEntities,newPersonEntity);
+end
+function setPersonEntities(newPersonEntities)
+    personEntities = newPersonEntities;
+end
+
+function clearEntities()
+	setOrganizationEntities({})
+	setPersonEntities({})
+end
+
+function initLogger()
+	if logger == nil then
+		logger = getClassManager().getClass("Logger");	
+	end
+end
+--------------------------------------------------
+function setBeanFromLine(dataTable, configTable, mode, isCurrentEntityOnly) -- передаем таблицу с данными для загрузки и  таблицу с конфигурацией для загрузки
+	initLogger();
+	local messages = {};	
+	local configValues = "";
+	local tConfigValues = "";
+	local terminPosition = 0;
+	local fieldNumber = 0;
+	local extractedTermin = "";	
+	local isConnectedEntityNew = true;
+	local passedEntitiesCodes = {}
+	for index, tConfigValues in pairs(configTable) do		
+		local localVocKey = nil;					
+		logger.writeDebugMessage( getClassManager(),"Получена конфигурация: "..render(tConfigValues));
+		logger.writeDebugMessage( getClassManager(),"Получение номера аттрибута базы данных");
+		fieldNumber = tonumber(tConfigValues[3]);	
+		logger.writeDebugMessage(getClassManager(),"Получение позиции в строке загрузки");		
+		if (string.sub(tConfigValues[1],1,1) ~= "@") then
+			terminPosition = tonumber(tConfigValues[1]);					
+			logger.writeDebugMessage( getClassManager(),"Получение термина строки по позиции № "..terminPosition);
+			extractedTermin = dataTable[terminPosition];
+		else
+			extractedTermin = string.sub(tConfigValues[1],2);
+			localVocKey = tonumber(extractedTermin)
+		end		
+		logger.writeDebugMessage( getClassManager(), "Был получен термин для загрузки в поле "..fieldNumber);
+		if (extractedTermin ~= nil and string.len(extractedTermin)>0) then			
+			if (tConfigValues[2] == getEntityBaseCode()) then
+				if (fieldNumber == 1) then									
+					setStartDate(extractedTermin);	
+				elseif(fieldNumber == 2) then
+					setEndDate(extractedTermin);
+				elseif(fieldNumber == 3) then
+					setPosition(extractedTermin);
+				elseif(fieldNumber == 4) then
+					setDismissalReason(extractedTermin);
+				elseif(fieldNumber == 7) then
+					setNotes(extractedTermin);					
+				else					
+					local vocCode = getClassManager().getClass("FieldsWorker").getVocFieldBaseCode(getClassManager(),getEntityBaseCode(),fieldNumber)			
+					if (vocCode ~= nil) then						
+						if (localVocKey == nil) then
+							localVocKey, errorMessages = getClassManager().getClass("DBWorker").convertExternalVocTermin(getClassManager(), extractedTermin, vocCode);				
+							for _,message in pairs(errorMessages) do
+								table.insert(messages, message)
+							end
+						end	
+						if(fieldNumber == 11) then						
+							setSortOfEmployee(localVocKey);					
+						end	
+					else
+						logger.writeDebugMessage( getClassManager(), "Поле № "..fieldNumber.. " не обрабатывает программным объектом");
+					end
+				end
+			else			
+				isConnectedEntityNew = table.count(getClassManager().getClass("Service").getIndexesFromTable(passedEntitiesCodes, tConfigValues[2]))==0
+				if (not isCurrentEntityOnly) then
+					logger.writeDebugMessage( getClassManager(),"Термин принадлежит базе данных с мнемокодом "..tConfigValues[2]);			
+					logger.writeDebugMessage( getClassManager(),"Создание нового программного объекта")
+					local connectedEntity = getClassManager().newEntity(getClassManager(), tConfigValues[2], true, isConnectedEntityNew)			
+					if (isConnectedEntityNew) then
+						logger.writeDebugMessage( getClassManager(),"Добавление созданного объекта для установления связи")				
+						addConnectedEntity (connectedEntity);			
+					end
+					isConnectedEntityNew = false;				
+					logger.writeDebugMessage( getClassManager(),"Заполнение программного объекта на основе данных из файла загрузки и запись полученных сообщений");																								
+					local errorMessages = connectedEntity.setBeanFromLine(dataTable, {tConfigValues}, mode); 						
+					for _,message in pairs(errorMessages) do
+						table.insert(messages, message)
+					end	
+					logger.writeDebugMessage(getClassManager(),"Проверка режима работы системы: "..mode);	
+					if (mode == getClassManager().getClass("Constanta").getCnstDataLoaderLoadMode()) then
+						logger.writeDebugMessage(getClassManager(),"Сохранение программного объекта в базу данных с мнемокодом "..tConfigValues[2]);																													
+						connectedEntity.saveBeanToDb();						
+					end
+				end
+			end
+			table.insert(passedEntitiesCodes,tConfigValues[2]);
+		end
+	end	
+	return messages;
+end
+
+function addConnectedEntity (connectedEntity)
+	local connectedEntityCode = connectedEntity.getEntityBaseCode();
+	if (connectedEntityCode == getClassManager().getClass("Constanta").getCnstOrganization()) then
+		addOrganizationEntity(connectedEntity);	
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstPerson()) then
+		addPersonEntity(connectedEntity);	
+	end		
+end
+
+function getAttributeByFieldNumber(fieldNumber)
+	local attribute = nil;
+	local noAttributeLineDefined = false;
+	fieldNumber = tonumber(fieldNumber)	
+	if (fieldNumber == 1) then									
+		attribute = getStartDate();		
+	elseif(fieldNumber == 2) then
+		attribute = getEndDate();
+	elseif(fieldNumber == 3) then
+		attribute = getPosition();
+	elseif(fieldNumber == 4) then
+		attribute = getDismissalReason();
+	elseif(fieldNumber == 7) then
+		attribute = getNotes()
+	elseif(fieldNumber == 11) then
+		attribute = getSortOfEmployee()	
+	else
+		noAttributeLineDefined = true;
+	end		
+	--необходимо для логики выдачи сообщения про неопределенный номер поля в данном методе
+	if (noAttributeLineDefined == false and attribute == nil) then
+		attribute = "";		
+	end	
+	return attribute;
+end
+--------------------------------------------------
+function setLinks()	
+	local orgBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstOrganization());					
+	local jobTrackBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstJobTrack());													
+	local personBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstPerson());		
+	setJobTrackLinks(getOrganizationEntities(), 9);
+	setJobTrackLinks(getPersonEntities(), 10);
+	setJobTrackLinks(getOrgnizationToConnect(), 9);
+	setJobTrackLinks(getPersonToConnect(), 10);
+	refreshEntityRecord()
+end
+
+function setJobTrackLinks(entities, linkingField)		
+	for key, entity in pairs(entities) do		
+		if (entity.getEntityRecord() ~= nil) then				
+			getClassManager().getClass("DBWorker").processRecordLink(getClassManager(), getClassManager().getClass("Constanta").getCnstAddLink(), getEntityRecord(), linkingField, entity.getEntityRecord())									
+			refreshEntityRecord()
+		end
+	end	
+end
+
+function deleteLink(linkedRecord, linkingField)	
+	getClassManager().getClass("DBWorker").processRecordLink(getClassManager(), getClassManager().getClass("Constanta").getCnstAddLink(), getEntityRecord(), linkingField, linkedRecord)			
+	refreshEntityRecord()
+end
+
+function setBeanFromRecord(jobTrackRecord)	
+	local jobTrackBaseCode = getEntityBaseCode();
+	if jobTrackRecord.Base.Code == jobTrackBaseCode then		
+		setEntityRecord(jobTrackRecord)
+		setSortOfEmployee(	getClassManager().getClass("FieldsWorker").getField(jobTrackBaseCode, jobTrackRecord , 11, "" , "", ""));
+		setPosition(		getClassManager().getClass("FieldsWorker").getField(jobTrackBaseCode, jobTrackRecord , 3 , "" , "", ""));
+		setStartDate(		getClassManager().getClass("FieldsWorker").getField(jobTrackBaseCode, jobTrackRecord , 1 , "" , "", ""));
+		setEndDate(			getClassManager().getClass("FieldsWorker").getField(jobTrackBaseCode, jobTrackRecord , 2 , "" , "", ""));
+		setDismissalReason(	getClassManager().getClass("FieldsWorker").getField(jobTrackBaseCode, jobTrackRecord , 4 , "" , "", ""));
+		setNotes(			getClassManager().getClass("FieldsWorker").getField(jobTrackBaseCode, jobTrackRecord , 7 , "" , "", ""));				
+	end
+end
+
+
+function setEntityFromCopy (entityCopy)
+	setSortOfEmployee(entityCopy.getSortOfEmployee())
+	setPosition(entityCopy.getPosition());		
+	setStartDate(entityCopy.getStartDate());		
+	setEndDate(entityCopy.getEndDate());					    
+	setDismissalReason(entityCopy.getDismissalReason());		
+	setNotes(entityCopy.getNotes());
+end
+
+function updateEntity()
+	setBeanFromRecord(getClassManager(), getEntityRecord())	
+end
+
+function setBeanFromView(view)		
+	setSortOfEmployee(view.getDpdSortOfEmployeeSelectedCode())
+	setPosition(view.getTxtPositionText());		
+	setStartDate(view.getTxtStartDateText());		
+	setEndDate(view.getTxtEndDateText());					    	
+	setDismissalReason(view.getTxtDismissalReasonText());		
+	setNotes(view.getTxtNotesText());	
+end
+
+function saveBeanToDb()
+	local saveResult = true;		
+	local jobTrackBaseCode = getEntityBaseCode();			
+	if (getEntityRecord() == nil) then		
+		setEntityRecord(CroApp.GetBank():GetBase(jobTrackBaseCode):AddRecord())					
+	end	
+	local jobTrackRecord = getEntityRecord();				
+	if jobTrackRecord.Base.Code == jobTrackBaseCode then						
+		getClassManager().getClass("FieldsWorker").setField(jobTrackBaseCode, jobTrackRecord, 11, "", getSortOfEmployee(), nil, nil, true);						
+		getClassManager().getClass("FieldsWorker").setField(jobTrackBaseCode, jobTrackRecord, 3 , "", getPosition(), nil, nil, true);						
+		getClassManager().getClass("FieldsWorker").setField(jobTrackBaseCode, jobTrackRecord, 1 , "", getStartDate(), nil, nil, true);				
+		getClassManager().getClass("FieldsWorker").setField(jobTrackBaseCode, jobTrackRecord, 2 , "", getEndDate(), nil, nil, true);				
+		getClassManager().getClass("FieldsWorker").setField(jobTrackBaseCode, jobTrackRecord, 4 , "", getDismissalReason(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(jobTrackBaseCode, jobTrackRecord, 7 , "", getNotes(), nil, nil, false);							
+		setBeanFromRecord(jobTrackRecord)	
+		setLinks();				
+	else
+		saveResult = false;
+	end		
+	return saveResult;
+end
+
+function getPosition()
+    return position;
+end
+function setPosition(positionValue)
+    position = positionValue;
+end
+
+function getStartDate()
+    return startDate;
+end
+function setStartDate(startDateValue)
+    if (startDateValue == nil) then
+		startDate = "";
+	else	
+		startDate = startDateValue;
+	end
+end
+
+function getEndDate()
+    return endDate;
+end
+function setEndDate(endDateValue)
+    if (endDateValue == nil) then
+		endDate = "";
+	else	
+		endDate = endDateValue;
+	end	
+end
+
+function getDismissalReason()
+    return dismissalReason;
+end
+function setDismissalReason(dismissalReasonValue)
+    dismissalReason = dismissalReasonValue;
+end
+
+function getNotes()
+    return notes;
+end
+function setNotes(notesValue)
+    notes = notesValue;
+end
+
+function getSortOfEmployee()
+    return sortOfEmployee;
+end
+function getSortOfEmployeeDefinition()
+	if (getSortOfEmployee() ~= nil) then
+		local defIndexes = getClassManager().getClass("Service").getIndexesFromTable(
+							getClassManager().getClass("Constanta").getDpdSortOfEmployeeCodes(),getSortOfEmployee());	
+		return getClassManager().getClass("Service").getItemFromTableByIndex(getClassManager().getClass("Constanta").getDpdSortOfEmployeeDefinitions(),
+																			getClassManager().getClass("Service").getItemFromTableByIndex(defIndexes,1));
+	else
+		return ""
+	end
+end
+function setSortOfEmployee(sortOfEmployeeValue)
+    sortOfEmployee = sortOfEmployeeValue;
+end
+
+
+function toShortStringAsConnectedPerson()
+	local result = {};					
+	table.insert(result, getSortOfEmployeeDefinition(getClassManager()));	
+	table.insert(result, getPosition())
+	table.insert(result, getStartDate())		
+	table.insert(result, getEndDate())		
+	return table.concat(result," | ")
+end
+
+function toShortString(isWithConnected)
+	local result = {};						
+	local personRecord = nil;
+	table.insert(result, getSortOfEmployeeDefinition());		
+	table.insert(result, getPosition())		
+	table.insert(result, getStartDate())					
+	table.insert(result, getEndDate())			
+	if (isWithConnected) then		
+		for key, personEntity in pairs(getPersonEntities()) do 					
+			personRecord = CroApp.GetBank():GetBase(personEntity.getEntityBaseCode()):GetRecord(personEntity.getEntityRecord().SN);
+			if (personRecord ~= nil) then
+				personEntity.setBeanFromRecord(personRecord)
+				table.insert(result, personEntity.toShortString(false))	
+			else
+				MsgBox("Запись лица "..personEntity.toShortString(false).." вероятно была слита с другой записью\n\r",IconWarning);
+			end			
+		end		
+		for key, organizationEntity in pairs(getOrganizationEntities()) do 		
+			organizationEntity.setBeanFromRecord(CroApp.GetBank():GetBase(organizationEntity.getEntityBaseCode()):GetRecord(organizationEntity.getEntityRecord().SN))
+			table.insert(result, organizationEntity.toShortString(false))	
+		end
+	end			
+	return table.concat(result," | ")
+end
+
+function clearEntity()
+	clearEntities()
+	setEntityRecord(nil)
+	setSortOfEmployee(nil)
+	setPosition(nil)
+	setStartDate(nil)
+	setEndDate(nil)
+	setDismissalReason(nil)
+	setNotes(nil)	
+end

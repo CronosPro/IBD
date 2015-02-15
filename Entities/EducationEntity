@@ -1,0 +1,316 @@
+local entityRecord = nil;
+local entityBaseCode = nil;
+local degree = nil;
+local universityName = nil;
+local universityAddress = nil;
+local facultyName = nil;
+local specialization = nil;
+local graduationDate = nil;
+local note = nil;
+local classManager = nil;
+local personEntities = {};
+
+function initLogger()
+	if logger == nil then
+		logger = getClassManager().getClass("Logger");	
+	end
+end
+
+function getEntityRecord()
+    return entityRecord;
+end
+function setEntityRecord(entityRecordValue)
+    entityRecord = entityRecordValue;
+end
+
+function getEntityBaseCode()
+    return entityBaseCode;
+end
+function getEntityBaseCode()
+    return entityBaseCode;
+end
+function setEntityBaseCode(entityBaseCodeValue)
+    entityBaseCode = entityBaseCodeValue;
+end
+
+function getPersonEntities()
+    return personEntities;
+end
+function addPersonEntity(newPersonEntity)
+    table.insert(personEntities,newPersonEntity);
+end
+function setPersonEntities(newPersonEntities)
+    personEntities = newPersonEntities;
+end
+--------------------------------------------------
+function setBeanFromLine(dataTable, configTable, mode, isCurrentEntityOnly) -- передаем таблицу с данными для загрузки и  таблицу с конфигурацией для загрузки
+	initLogger();
+	local messages = {};	
+	local configValues = "";
+	local tConfigValues = "";
+	local terminPosition = 0;
+	local fieldNumber = 0;
+	local extractedTermin = "";	
+	local isConnectedEntityNew = true;
+	local passedEntitiesCodes = {}
+	for index, tConfigValues in ipairs(configTable) do		
+		local localVocKey = nil;				
+		logger.writeDebugMessage( getClassManager(),"Получена конфигурациz: "..render(tConfigValues));
+		logger.writeDebugMessage( getClassManager(),"Получение номера аттрибута базы данных");
+		fieldNumber = tonumber(tConfigValues[3]);	
+		logger.writeDebugMessage(getClassManager(),"Получение позиции в строке загрузки");		
+		if (string.sub(tConfigValues[1],1,1) ~= "@") then
+			terminPosition = tonumber(tConfigValues[1]);					
+			logger.writeDebugMessage( getClassManager(),"Получение термина строки по позиции № "..terminPosition);
+			extractedTermin = dataTable[terminPosition];
+		else
+			extractedTermin = string.sub(tConfigValues[1],2);
+			localVocKey = tonumber(extractedTermin)
+		end		
+		logger.writeDebugMessage( getClassManager(), "Был получен термин для загрузки в поле "..fieldNumber);
+		if (extractedTermin ~= nil and string.len(extractedTermin)>0) then			
+			if (tConfigValues[2] == getEntityBaseCode()) then
+				if(fieldNumber == 2) then
+					setUniversityName(extractedTermin);
+				elseif(fieldNumber == 3) then
+					setUniversityAddress(extractedTermin);
+				elseif(fieldNumber == 5) then
+					setFacultyName(extractedTermin);
+				elseif(fieldNumber == 6) then
+					setSpecialization(extractedTermin);		
+				elseif(fieldNumber == 4) then				
+					setGraduationDate({extractedTermin});		
+				elseif(fieldNumber == 11) then				
+					setNote(extractedTermin);	
+				else
+					local vocCode = getClassManager().getClass("FieldsWorker").getVocFieldBaseCode(getClassManager(),getEntityBaseCode(),fieldNumber)			
+					if (vocCode ~= nil) then						
+						if (localVocKey == nil) then
+							localVocKey, errorMessages = getClassManager().getClass("DBWorker").convertExternalVocTermin(getClassManager(), extractedTermin, vocCode);				
+							for _,message in pairs(errorMessages) do
+								table.insert(messages, message)
+							end
+						end	
+						if(fieldNumber == 1) then						
+							setDegree(localVocKey);					
+						end	
+					else
+						logger.writeDebugMessage( getClassManager(), "Поле № "..fieldNumber.. " не обрабатывает программным объектом");
+					end
+				end	
+			else					
+				isConnectedEntityNew = table.count(getClassManager().getClass("Service").getIndexesFromTable(passedEntitiesCodes, tConfigValues[2]))==0
+				if (not isCurrentEntityOnly) then
+					logger.writeDebugMessage( getClassManager(),"Термин принадлежит базе данных с мнемокодом "..tConfigValues[2]);			
+					logger.writeDebugMessage( getClassManager(),"Создание нового программного объекта")
+					local connectedEntity = getClassManager().newEntity(getClassManager(), tConfigValues[2], true, isConnectedEntityNew)			
+					if (isConnectedEntityNew) then
+						logger.writeDebugMessage( getClassManager(),"Добавление созданного объекта для установления связи")				
+						addConnectedEntity (connectedEntity);			
+					end
+					isConnectedEntityNew = false;				
+					logger.writeDebugMessage( getClassManager(),"Заполнение программного объекта на основе данных из файла загрузки и запись полученных сообщений");																								
+					local errorMessages = connectedEntity.setBeanFromLine(dataTable, {tConfigValues}, mode); 						
+					for _,message in pairs(errorMessages) do
+						table.insert(messages, message)
+					end	
+					logger.writeDebugMessage(getClassManager(),"Проверка режима работы системы: "..mode);	
+					if (mode == getClassManager().getClass("Constanta").getCnstDataLoaderLoadMode()) then
+						logger.writeDebugMessage(getClassManager(),"Сохранение программного объекта в базу данных с мнемокодом "..tConfigValues[2]);																													
+						connectedEntity.saveBeanToDb();						
+					end
+				end
+			end
+			table.insert(passedEntitiesCodes,tConfigValues[2]);
+		end
+	end	
+	return messages;
+end
+
+function addConnectedEntity (connectedEntity)
+	local connectedEntityCode = connectedEntity.getEntityBaseCode();
+	if (connectedEntityCode == getClassManager().getClass("Constanta").getCnstPerson()) then
+		addPersonEntity(connectedEntity);		
+	end		
+end
+
+function getAttributeByFieldNumber(fieldNumber)
+	local attribute = nil;
+	local noAttributeLineDefined = false;
+	fieldNumber = tonumber(fieldNumber)	
+	if (fieldNumber == 1) then									
+		attribute = getDegree();		
+	elseif(fieldNumber == 2) then
+		attribute = getUniversityName();
+	elseif(fieldNumber == 3) then
+		attribute = getUniversityAddress();
+	elseif(fieldNumber == 5) then
+		attribute = getFacultyName();
+	elseif(fieldNumber == 6) then
+		attribute = getSpecialization()
+	elseif(fieldNumber == 4) then
+		attribute = getGraduationDate()
+	elseif(fieldNumber == 11) then
+		attribute = getNote()		
+	else
+		noAttributeLineDefined = true;
+	end		
+	--необходимо для логики выдачи сообщения про неопределенный номер поля в данном методе
+	if (noAttributeLineDefined == false and attribute == nil) then
+		attribute = "";		
+	end	
+	return attribute;
+end
+--------------------------------------------------
+function clearEntities()	
+	setPersonEntities({});	
+end
+
+function setLinks()		
+	local educationBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstEducation());								
+	local personBase 	= CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstPerson());								
+	--persons linking	
+	for key, personEntity in pairs(getPersonEntities()) do						
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), getEntityRecord())) then
+			getEntityRecord():Unlock();
+		end
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), personEntity.getEntityRecord())) then
+			personEntity.getEntityRecord():Unlock();
+		end
+		educationBase:AddLink(getEntityRecord().SN,10,personBase,personEntity.getEntityRecord().SN, Base.LockWait, Base.LockWait);																	
+	end		
+	setEntityRecord(educationBase:GetRecord(getEntityRecord().SN));
+end
+
+function setBeanFromRecord(bankAccountRecord)	
+	local bankAccountBaseCode = getEntityBaseCode();
+	if bankAccountRecord.Base.Code == bankAccountBaseCode then				
+		setEntityRecord(bankAccountRecord)
+		setDegree(				getClassManager().getClass("FieldsWorker").getField(bankAccountBaseCode, bankAccountRecord , 1 , "" , "", ""));
+		setUniversityName(		getClassManager().getClass("FieldsWorker").getField(bankAccountBaseCode, bankAccountRecord , 2 , "" , "", ""));
+		setUniversityAddress(	getClassManager().getClass("FieldsWorker").getField(bankAccountBaseCode, bankAccountRecord , 3 , "" , "", ""));
+		setFacultyName(			getClassManager().getClass("FieldsWorker").getField(bankAccountBaseCode, bankAccountRecord , 5 , "" , "", ""));
+		setSpecialization(		getClassManager().getClass("FieldsWorker").getField(bankAccountBaseCode, bankAccountRecord , 6 , "" , "", ""));
+		setGraduationDate(		getClassManager().getClass("FieldsWorker").getField(bankAccountBaseCode, bankAccountRecord , 4 , "" , "", ""));			
+		setNote(				getClassManager().getClass("FieldsWorker").getField(bankAccountBaseCode, bankAccountRecord , 11, "" , "", ""));			
+	end
+end
+
+function setBeanFromView(view)	
+	setDegree(view.getDpdDegreeSelectedCode());				
+	setUniversityName(view.getTxtUniversityNameText());
+	setUniversityAddress(view.getTxtUniversityAddressText());		
+	setFacultyName(view.getTxtFacultyNameText());
+	setSpecialization(view.getTxtSpecializationText());		
+	setGraduationDate(view.getTxtGraduationDateText());
+	setNote(view.getTxtNoteText());
+end
+
+function saveBeanToDb()		
+	local saveResult = true;			
+	local educationBaseCode = getEntityBaseCode();	
+	if (getEntityRecord() == nil) then		
+		setEntityRecord(CroApp.GetBank():GetBase(educationBaseCode):AddRecord())					
+	end				
+	local educationRecord = getEntityRecord();					
+	if educationRecord.Base.Code == educationBaseCode then						
+		getClassManager().getClass("FieldsWorker").setField(educationBaseCode, educationRecord, 1 , "", getDegree(), nil, nil, true);						
+		getClassManager().getClass("FieldsWorker").setField(educationBaseCode, educationRecord, 2 , "", getUniversityName(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(educationBaseCode, educationRecord, 3 , "", getUniversityAddress(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(educationBaseCode, educationRecord, 5 , "", getFacultyName(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(educationBaseCode, educationRecord, 6 , "", getSpecialization(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(educationBaseCode, educationRecord, 4 , "", getGraduationDate(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(educationBaseCode, educationRecord, 11, "", getNote(), nil, nil, false);				
+		setLinks();
+	else
+		saveResult = false;
+	end		
+	return saveResult;
+end
+------------------------------------------------------
+function getDegree()
+    return degree;
+end
+function  getDegreeDefinition()
+    local defIndexes = getClassManager().getClass("Service").getIndexesFromTable(
+						getClassManager().getClass("Constanta").getDpdEducationDegreeCodes(),getDegree());	
+	return getClassManager().getClass("Service").getItemFromTableByIndex(getClassManager().getClass("Constanta").getDpdEducationDegreeDefinitions(),
+																		getClassManager().getClass("Service").getItemFromTableByIndex(defIndexes,1));
+end
+function setDegree(degreeValue)
+    degree = degreeValue;
+end
+
+function getUniversityName()
+    return universityName;
+end
+function setUniversityName(universityNameValue)
+    universityName = universityNameValue;
+end
+
+function getUniversityAddress()
+    return universityAddress;
+end
+function setUniversityAddress(universityAddressValue)
+    universityAddress = universityAddressValue;
+end
+
+function getFacultyName()
+    return facultyName;
+end
+function setFacultyName(facultyNameValue)
+    facultyName = facultyNameValue;
+end
+
+function getSpecialization()
+    return specialization;
+end
+function setSpecialization(specializationValue)
+    specialization = specializationValue;
+end
+
+function getGraduationDate()
+    return graduationDate;
+end
+function setGraduationDate(graduationDateValue)
+    graduationDate = graduationDateValue;
+end
+
+function getClassManager()
+    return classManager;
+end
+function setClassManager(classManagerValue)
+    classManager = classManagerValue;
+end
+
+function getNote()
+    return note;
+end
+function setNote(noteValue)
+    note = noteValue;
+end
+
+function toShortString(isWithConnectedItems)
+	local result = {};			
+	table.insert(result, getDegreeDefinition())		
+	table.insert(result, getUniversityName())		
+	table.insert(result, getGraduationDate())		
+	if (isWithConnectedItems) then
+		for key, personEntity in pairs(getPersonEntities()) do		
+			table.insert(result, personEntity.toShortString(false))
+		end
+	end	
+	return table.concat(result," | ")
+end
+
+function clearEntity()
+	clearEntities()	
+	setEntityRecord(nil)
+	setDegree(nil)
+	setUniversityName(nil)
+	setUniversityAddress(nil)
+	setFacultyName(nil)
+	setSpecialization(nil)
+	setGraduationDate(nil)
+	setNote(nil)	
+end

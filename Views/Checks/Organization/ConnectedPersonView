@@ -1,0 +1,726 @@
+local ClassManager = nil;
+local Entity = nil;
+local unloadController = nil;
+local formsController = nil;
+local validationController = nil;
+local requestController = nil;
+local constanta = nil;
+local service = nil;
+local childForms = {};
+local invokedClass = nll;
+local listPosition = nil;
+local formEntity = nil;
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function getInvokedClass()
+    return invokedClass;
+end
+function setInvokedClass(invokedClassValue)
+    invokedClass = invokedClassValue;
+end
+
+function Форма_Open( form	)
+    setClassManager(Arg.ClassManager)
+    setControllersReferences()
+    return true;
+end
+
+function getListPosition()
+    return listPosition;
+end
+function setListPosition(listPositionValue)
+    listPosition = listPositionValue;
+end
+
+function Форма_Load( form )
+    getClassManager().setClass(form, form)
+    setControls(form);
+	setInvokedClass(Arg.FormModule);
+    table.insert(childForms,form);
+    if (Arg.Data ~= nil) then
+        for key,entity in pairs(Arg.Data) do
+            Entity = entity;
+            setFormFromEntity(entity);
+        end
+    end	
+	form.rdbFounder.Check = true;
+	form.pnlEmployee.Enabled = false;
+	form.pnlFounder.BackColor = Color.Yellow
+end
+
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+    constanta = getClassManager().getClass("Constanta");
+	requestController = getClassManager().getClass("RequestController");
+	validationController = getClassManager().getClass("ValidationController");
+	service = getClassManager().getClass("Service");
+end
+
+function Форма_UnloadForm( form, mode )
+    unloadController.doUnload(getClassManager(), form, childForms);
+    getClassManager().setClass(form, nil)
+    return true;
+end
+
+local txtFullName = nil;
+local lblFullName = nil;
+local lblLastName = nil;
+local txtLastName = nil;
+local lblFirstName = nil;
+local txtFirstName = nil;
+local lblMiddleName = nil;
+local txtMiddleName = nil;
+local lblBirthday = nil;
+local txtBirthday = nil;
+local btnBirthday = nil;
+local lblFounderFrom = nil;
+local txtFounderFrom = nil;
+local btnFounderFromDate = nil;
+local lblFounderTo = nil;
+local txtFounderTo = nil;
+local btnFounderToDate = nil;
+local lblSortOfEmployee = nil;
+local dpdSortOfEmployee = nil;
+local lblEmployeePosition = nil;
+local txtEmployeePosition = nil;
+local lblStartJobDate = nil;
+local txtStartJobDate = nil;
+local btnStartJobDate = nil;
+local lblDismissJobDate = nil;
+local txtDismissJobDate = nil;
+local btnDismissJobDate = nil;
+local btnAddPerson = nil;
+local btnClose = nil;
+local rdbFounder = nil;
+local rdbEmployee = nil;
+local lblTypeOfCheck = nil;
+local dpdTypeOfCheck = nil;
+local pnlConnectedPersom = nil
+local frmParticipationType = nil;
+local frmViewBottom = nil;
+local lblSharePercent = nil;
+local txtSharePercent = nil;
+
+function setControls(form)
+	txtFullName = form.txtFullName;
+	lblFullName = form.lblFullName;
+    lblLastName = form.lblLastName;
+    txtLastName = form.txtLastName;
+    lblFirstName = form.lblFirstName;
+    txtFirstName = form.txtFirstName;
+    lblMiddleName = form.lblMiddleName;
+    txtMiddleName = form.txtMiddleName;
+    lblBirthday = form.lblBirthday;
+    txtBirthday = form.txtBirthday;
+    btnBirthday = form.btnBirthday;
+    lblFounderFrom = form.lblFounderFrom;
+    txtFounderFrom = form.txtFounderFrom;
+    btnFounderFromDate = form.btnFounderFromDate;
+    lblFounderTo = form.lblFounderTo;
+    txtFounderTo = form.txtFounderTo;
+    btnFounderToDate = form.btnFounderToDate;
+    lblSortOfEmployee = form.lblSortOfEmployee;
+    dpdSortOfEmployee = form.dpdSortOfEmployee;
+    lblEmployeePosition = form.lblEmployeePosition;
+    txtEmployeePosition = form.txtEmployeePosition;
+    lblStartJobDate = form.lblStartJobDate;
+    txtStartJobDate = form.txtStartJobDate;
+    btnStartJobDate = form.btnStartJobDate;
+    lblDismissJobDate = form.lblDismissJobDate;
+    txtDismissJobDate = form.txtDismissJobDate;
+    btnDismissJobDate = form.btnDismissJobDate;
+    btnAddPerson = form.btnAddPerson;
+    btnClose = form.btnClose;	
+	rdbFounder = form.rdbFounder;
+    rdbEmployee = form.rdbEmployee;
+	lblTypeOfCheck = form.lblTypeOfCheck;
+    dpdTypeOfCheck = form.dpdTypeOfCheck;
+	pnlConnectedPerson = form.pnlConnectedPerson
+	txtLastName.Focused = true;
+	frmParticipationType = form.frmParticipationType;
+	frmViewBottom = form.frmViewBottom;
+	lblSharePercent = form.lblSharePercent;
+    txtSharePercent = form.txtSharePercent;
+    populateLists();	
+end
+
+function populateLists()
+--заполнение списка категорий сотрудника лица	
+	addDpdTypeOfCheckItems(constanta.getDpdTypeOfCheckDefinitions());	
+	addDpdSortOfEmployeeItems(constanta.getDpdSortOfEmployeeDefinitions());
+end
+
+function setFormFromEntity(entity)	
+	formEntity = entity;	
+	setListPosition(entity.getListPosition());
+	--setTxtFullNameText(entity.getPersonEntity().getFullName());	
+	setTxtLastNameText(entity.getPersonEntity().getLastName());
+    setTxtFirstNameText(entity.getPersonEntity().getFirstName());
+    setTxtMiddleNameText(entity.getPersonEntity().getMiddleName());	
+	setTxtBirthdayText(entity.getPersonEntity().getBirthday());
+	
+	if (getFrmParticipationTypeVisible()) then				
+		if (entity.checkIsFounder()) then		
+			rdbFounder_Click( rdbFounder );
+			setTxtFounderFromText(entity.getFounderEntity().getParticipateFromDate());
+			setTxtFounderToText(entity.getFounderEntity().getParticipateToDate());
+			setTxtSharePercentText(entity.getFounderEntity().getSharePercent());			
+		elseif (entity.getJobTrackEntity() ~= nil) then		
+			rdbEmployee_Click( rdbEmployee );		
+			setDpdSortOfEmployeeSelectedItem(entity.getJobTrackEntity().getSortOfEmployeeDefinition(ClassManager));
+			setTxtEmployeePositionText(entity.getJobTrackEntity().getPosition());
+			setTxtStartJobDateText(entity.getJobTrackEntity().getStartDate());
+			setTxtDismissJobDateText(entity.getJobTrackEntity().getEndDate());
+		end					
+		dpdSortOfEmployee_SelectedIndexChanged( control, index )
+	end
+	if (entity.getIsExisted()) then
+		setPnlConnectedPersonEnable(false)
+		setControlFocused(dpdTypeOfCheck);
+	end
+	if (entity.getRequestJournalEntity() ~= nil) then
+		setDpdTypeOfCheckSelectedItem(entity.getRequestJournalEntity().getTypeOfCheckDefinition())
+	end
+	dpdTypeOfCheck_SelectedIndexChanged( control, index )		
+end
+
+function getTxtFullNameText()
+    return txtFullName.Text;
+end
+function setTxtFullNameText(txtFullNameValue)
+    txtFullName.Text = txtFullNameValue;
+end
+
+function getLblFullNameText()
+    return lblFullName.Text;
+end
+function setLblFullNameText(lblFullNameValue)
+    lblFullName.Text = lblFullNameValue;
+end
+
+function setLblLastNameText( lblLastNameValue )
+   lblLastName.Text = lblLastNameValue
+end
+function getLblLastNameText( )
+    return lblLastName.Text
+end
+
+function setTxtLastNameText( txtLastNameValue )
+    txtLastName.Text = txtLastNameValue
+end
+function getTxtLastNameText( )
+    return txtLastName.Text
+end
+
+function setLblFirstNameText( lblFirstNameValue )
+   lblFirstName.Text = lblFirstNameValue
+end
+function getLblFirstNameText( )
+    return lblFirstName.Text
+end
+
+function setTxtFirstNameText( txtFirstNameValue )
+    txtFirstName.Text = txtFirstNameValue
+end
+function getTxtFirstNameText( )
+    return txtFirstName.Text
+end
+
+function setLblMiddleNameText( lblMiddleNameValue )
+   lblMiddleName.Text = lblMiddleNameValue
+end
+function getLblMiddleNameText( )
+    return lblMiddleName.Text
+end
+
+function setTxtMiddleNameText( txtMiddleNameValue )
+    txtMiddleName.Text = txtMiddleNameValue
+end
+function getTxtMiddleNameText( )
+    return txtMiddleName.Text
+end
+
+function setLblBirthdayText( lblBirthdayValue )
+   lblBirthday.Text = lblBirthdayValue
+end
+function getLblBirthdayText( )
+    return lblBirthday.Text
+end
+
+function setTxtBirthdayText( txtBirthdayValue )
+    txtBirthday.Text = txtBirthdayValue
+end
+function getTxtBirthdayText( )
+    return txtBirthday.Text
+end
+
+function setBtnBirthdayText( btnBirthdayValue )
+   btnBirthday.Text = btnBirthdayValue
+end
+function getBtnBirthdayText( )
+    return btnBirthday.Text
+end
+
+function setLblFounderFromText( lblFounderFromValue )
+   lblFounderFrom.Text = lblFounderFromValue
+end
+function getLblFounderFromText( )
+    return lblFounderFrom.Text
+end
+
+function setTxtFounderFromText( txtFounderFromValue )
+    txtFounderFrom.Text = txtFounderFromValue
+end
+function getTxtFounderFromText( )
+    return txtFounderFrom.Text
+end
+
+function setBtnFounderFromDateText( btnFounderFromDateValue )
+   btnFounderFromDate.Text = btnFounderFromDateValue
+end
+function getBtnFounderFromDateText( )
+    return btnFounderFromDate.Text
+end
+
+function setLblFounderToText( lblFounderToValue )
+   lblFounderTo.Text = lblFounderToValue
+end
+function getLblFounderToText( )
+    return lblFounderTo.Text
+end
+
+function setTxtFounderToText( txtFounderToValue )
+    txtFounderTo.Text = txtFounderToValue
+end
+function getTxtFounderToText( )
+    return txtFounderTo.Text
+end
+
+function setBtnFounderToDateText( btnFounderToDateValue )
+   btnFounderToDate.Text = btnFounderToDateValue
+end
+function getBtnFounderToDateText( )
+    return btnFounderToDate.Text
+end
+
+function setLblSortOfEmployeeText( lblSortOfEmployeeValue )
+   lblSortOfEmployee.Text = lblSortOfEmployeeValue
+end
+function getLblSortOfEmployeeText( )
+    return lblSortOfEmployee.Text
+end
+
+function addDpdSortOfEmployeeItem( dpdSortOfEmployeeValue )
+   dpdSortOfEmployee:Add(dpdSortOfEmployeeValue)
+end
+function addDpdSortOfEmployeeItems( dpdSortOfEmployeeValues )
+    if dpdSortOfEmployeeValues ~= nil then
+        for key, value in pairs (dpdSortOfEmployeeValues) do
+            addDpdSortOfEmployeeItem(value)
+        end
+    end
+end
+function clearDpdSortOfEmployeeItesm( )
+   dpdSortOfEmployee:Clear(index)
+end
+function getDpdSortOfEmployeeSelectedItem( )
+    return dpdSortOfEmployee.SelectedItem
+end
+function setDpdSortOfEmployeeSelectedItem( dpdSortOfEmployeeItemValue)
+	clearDpdSortOfEmployeeItesm( )
+	addDpdSortOfEmployeeItems(constanta.getDpdSortOfEmployeeDefinitions());
+    dpdSortOfEmployee.SelectedItem = dpdSortOfEmployeeItemValue	
+end
+function getDpdSortOfEmployeeSelectedCode( )	
+	return service.getItemFromTableByIndex(constanta.getDpdSortOfEmployeeCodes(),getDpdSortOfEmployeeSelectedIndex())    
+end
+function getDpdSortOfEmployeeSelectedIndex( )
+    return dpdSortOfEmployee.SelectedIndex
+end
+function setDpdSortOfEmployeeSelectedIndex( dpdSortOfEmployeeIndexValue )
+    dpdSortOfEmployee.SelectedIndex = dpdSortOfEmployeeIndexValue
+end
+
+function setLblEmployeePositionText( lblEmployeePositionValue )
+   lblEmployeePosition.Text = lblEmployeePositionValue
+end
+function getLblEmployeePositionText( )
+    return lblEmployeePosition.Text
+end
+
+function setTxtEmployeePositionText( txtEmployeePositionValue )
+    txtEmployeePosition.Text = txtEmployeePositionValue
+end
+function getTxtEmployeePositionText( )
+    return txtEmployeePosition.Text
+end
+
+function setLblStartJobDateText( lblStartJobDateValue )
+   lblStartJobDate.Text = lblStartJobDateValue
+end
+function getLblStartJobDateText( )
+    return lblStartJobDate.Text
+end
+
+function setTxtStartJobDateText( txtStartJobDateValue )
+    txtStartJobDate.Text = txtStartJobDateValue
+end
+function getTxtStartJobDateText( )
+    return txtStartJobDate.Text
+end
+
+function setBtnStartJobDateText( btnStartJobDateValue )
+   btnStartJobDate.Text = btnStartJobDateValue
+end
+function getBtnStartJobDateText( )
+    return btnStartJobDate.Text
+end
+
+function setLblDismissJobDateText( lblDismissJobDateValue )
+   lblDismissJobDate.Text = lblDismissJobDateValue
+end
+function getLblDismissJobDateText( )
+    return lblDismissJobDate.Text
+end
+
+function setTxtDismissJobDateText( txtDismissJobDateValue )
+    txtDismissJobDate.Text = txtDismissJobDateValue
+end
+function getTxtDismissJobDateText( )
+    return txtDismissJobDate.Text
+end
+
+function setBtnDismissJobDateText( btnDismissJobDateValue )
+   btnDismissJobDate.Text = btnDismissJobDateValue
+end
+function getBtnDismissJobDateText( )
+    return btnDismissJobDate.Text
+end
+
+function setBtnAddPersonText( btnAddPersonValue )
+   btnAddPerson.Text = btnAddPersonValue
+end
+function getBtnAddPersonText( )
+    return btnAddPerson.Text
+end
+
+function setBtnCloseText( btnCloseValue )
+   btnClose.Text = btnCloseValue
+end
+function getBtnCloseText( )
+    return btnClose.Text
+end
+
+function isFounderChecked()
+	return rdbFounder.Check;
+end
+function checkIsFounder(isChecked)
+	rdbFounder.Check = isChecked;
+end
+
+function isEmployeeChecked()
+	return rdbEmployee.Check;
+end
+function checkIsEmployee(isChecked)
+	rdbEmployee.Check = isChecked;
+end
+
+function btnClose_Click( control )
+    Форма_UnloadForm( btnClose.Form);
+end
+
+function setLblTypeOfCheckText( lblTypeOfCheckValue )
+   lblTypeOfCheck.Text = lblTypeOfCheckValue
+end
+function getLblTypeOfCheckText( )
+    return lblTypeOfCheck.Text
+end
+
+function addDpdTypeOfCheckItem( dpdTypeOfCheckValue )
+   dpdTypeOfCheck:Add(dpdTypeOfCheckValue)
+end
+function addDpdTypeOfCheckItems( dpdTypeOfCheckValues )
+    if dpdTypeOfCheckValues ~= nil then
+        for key, value in pairs (dpdTypeOfCheckValues) do
+            addDpdTypeOfCheckItem(value)
+        end
+    end
+end
+function clearDpdTypeOfCheckItesm( )
+   dpdTypeOfCheck:Clear(index)
+end
+function getDpdTypeOfCheckSelectedItem( )	
+    return dpdTypeOfCheck.SelectedItem
+end
+function setDpdTypeOfCheckSelectedItem( dpdTypeOfCheckItemValue)
+	clearDpdTypeOfCheckItesm( );
+	addDpdTypeOfCheckItems(constanta.getDpdTypeOfCheckDefinitions());	
+    dpdTypeOfCheck.SelectedItem = dpdTypeOfCheckItemValue
+end
+function getDpdTypeOfCheckSelectedCode( )    
+	return service.getItemFromTable(constanta.getDpdTypeOfCheckCodes(),getDpdTypeOfCheckSelectedIndex())
+end
+function getDpdTypeOfCheckSelectedIndex( )
+    return dpdTypeOfCheck.SelectedIndex
+end
+function setDpdTypeOfCheckSelectedIndex( dpdTypeOfCheckIndexValue )
+    dpdTypeOfCheck.SelectedIndex = dpdTypeOfCheckIndexValue
+end
+
+function setPnlConnectedPersonEnable (isEnabledValue)	
+	pnlConnectedPerson.Enabled = isEnabledValue;
+end
+function isFrmParticipationTypeEnable ()	
+	return frmParticipationType.Enabled;
+end
+function setFrmParticipationTypeEnable (isEnabledValue)	
+	frmParticipationType.Enabled = isEnabledValue;
+end
+
+function setFrmParticipationTypeVisible (isVisibleValue)	
+	frmParticipationType.Visible = isEnabledValue;
+end
+function getFrmParticipationTypeVisible ()	
+	return frmParticipationType.Visible;
+end
+
+function setLblSharePercentText( lblSharePercentValue )
+   lblSharePercent.Text = lblSharePercentValue
+end
+function getLblSharePercentText( )
+    return lblSharePercent.Text
+end
+
+function getTxtSharePercentText( )
+    return txtSharePercent.Text
+end
+function setTxtSharePercentText( txtSharePercentValue )
+    txtSharePercent.Text = txtSharePercentValue
+end
+function setTxtSharePercentEnabled( isTxtSharePercentEnabled )
+   txtSharePercent.Enabled = isTxtSharePercentEnabled
+end
+------------------------------------------------------------
+function rdbFounder_Click( control )
+	control.Check = true;
+	control.Form.pnlEmployee.Enabled = false
+	control.Form.pnlFounder.Enabled = true
+	control.Form.pnlEmployee.BackColor = Color.Control
+	control.Form.pnlFounder.BackColor = Color.Yellow
+end
+
+function rdbEmployee_Click( control )
+	control.Check = true;
+	control.Form.pnlEmployee.Enabled = true
+	control.Form.pnlFounder.Enabled = false
+	control.Form.pnlEmployee.BackColor = Color.Yellow
+	control.Form.pnlFounder.BackColor = Color.Control
+end
+
+function btnBirthday_Click( control )
+	--CroApp.GetBank():GetBase("AU").RecordSet:GetRecord(3):EditValue(1)
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(),control,nil))
+end
+
+function btnStartJobDate_Click( control )
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(),control,nil))
+end
+
+function btnDismissJobDate_Click( control )
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(),control,nil))
+end
+
+function btnFounderFromDate_Click( control )	
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(),control,nil))
+end
+
+function btnFounderToDate_Click( control )
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(),control,nil))
+end
+
+function btnAddPerson_Click( control )
+	--проверка корректности заполнения формы	
+	local isSkipValidate = false;
+	local isJobTrackCorrect = true;
+	if (formEntity ~= nil) then
+		if formEntity.getIsExisted() then
+			isSkipValidate = true;
+		end
+	end
+	if isSkipValidate or validationController.doValidate(getClassManager(), control) == true then				
+		--передача объектов в форму проверки юридического лица
+		--создание экземпляра виртуального класса		
+		local connectedPersonEntity = nil;						
+		if (formEntity == nil) then 			
+			connectedPersonEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstConnectedPerson());						
+			local personEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstPerson());
+			--personEntity.setFullName(getTxtFullNameText());
+			personEntity.setLastName(getTxtLastNameText());
+			personEntity.setFirstName(getTxtFirstNameText());
+			personEntity.setMiddleName(getTxtMiddleNameText());
+			personEntity.setBirthday(getTxtBirthdayText());						
+			--добавление объекта Person
+			connectedPersonEntity.setPersonEntity(personEntity);			
+		else
+			connectedPersonEntity = formEntity;			
+		end		
+		--if (connectedPersonEntity.getPersonEntity() == nil) then
+			--построение экземпляра Person			
+			if (getFrmParticipationTypeVisible()) then				
+				connectedPersonEntity.setIsFounder(isFounderChecked());				
+				local founderEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstFoundersAndPartners());
+				local jobTrackEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstJobTrack());
+				if (connectedPersonEntity.checkIsFounder()) then			
+					--построение объекта FounderAndPartners			
+					founderEntity.setParticipationType(ClassManager.getClass("Service").getVocItem(ClassManager, 
+																									ClassManager.getClass("Constanta").getDpdOrgParticipationTypeCodes(), 
+																									ClassManager.getClass("Constanta").getDpdOrgParticipationTypeDefinitions(),
+																									"Code",
+																									"Учредитель"));		
+					founderEntity.setParticipateFromDate(getTxtFounderFromText());
+					founderEntity.setParticipateToDate(getTxtFounderToText());		
+					founderEntity.setSharePercent(getTxtSharePercentText());
+					connectedPersonEntity.setFounderEntity(founderEntity);	
+				else							
+					local errorMessagesTable = {};
+					if (isFrmParticipationTypeEnable()) then
+						if (string.len(string.trim(getTxtEmployeePositionText())) == 0) then				
+							table.insert(errorMessagesTable, "Необходимо заполнить поле "..getLblEmployeePositionText());
+						end		
+						if (getTxtStartJobDateText()== nil or string.len(string.trim(getTxtStartJobDateText()))~= 10) then				
+							table.insert(errorMessagesTable, "Необходимо заполнить поле "..getLblStartJobDateText());
+						end		
+					end
+					if (table.count(errorMessagesTable) > 0 ) then			
+						isJobTrackCorrect = false;
+						MsgBox("Произошли следующие ошибки: \n\r"..table.concat(errorMessagesTable,"\n\r"),BtnOk + IconError);
+					else
+						--построение объекта JobTrack			
+						jobTrackEntity.setSortOfEmployee(getDpdSortOfEmployeeSelectedCode());
+						jobTrackEntity.setPosition(getTxtEmployeePositionText());		
+						jobTrackEntity.setStartDate(getTxtStartJobDateText());
+						jobTrackEntity.setEndDate(getTxtDismissJobDateText());					
+						connectedPersonEntity.setJobTrackEntity(jobTrackEntity);
+					end
+				end												
+			end						
+		--end
+		if (isJobTrackCorrect) then
+			--заполнение журнала запросов				
+			local requestJournalEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstRequestJournal());				
+			requestJournalEntity.setTypeOfCheck(getDpdTypeOfCheckSelectedCode());			
+			connectedPersonEntity.setRequestJournalEntity(requestJournalEntity);				
+			--поместить на форму проверки организации		
+			if (getListPosition() ~= nil) then										
+				invokedClass.swapConnectedPeopleEntity(connectedPersonEntity,getListPosition())
+			else								
+				invokedClass.insertConnectedPeopleEntity(connectedPersonEntity,0);								
+			end				
+			btnClose_Click(btnClose);				
+		else
+			
+		end
+	end
+end
+function dpdTypeOfCheck_SelectedIndexChanged( control, index )
+	dpdTypeOfCheck.ToolTip = getDpdTypeOfCheckSelectedItem();
+end
+
+function dpdSortOfEmployee_SelectedIndexChanged( control, index )
+	dpdSortOfEmployee.ToolTip = getDpdSortOfEmployeeSelectedItem();
+end
+
+function btnTypeOfCheckVocEditor_Click( control )
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(),control,nil))
+end
+
+function btnSortOfEmployeeVocEditor_Click( control )
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(),control,nil))
+end
+
+function txtMiddleName_FocusLeave( control )	
+	txtMiddleName.Text = string.ulower(txtMiddleName.Text)
+end
+
+function txtLastName_FocusLeave( control )
+	txtLastName.Text = string.ulower(txtLastName.Text)
+end
+
+function txtFirstName_FocusLeave( control )
+	txtFirstName.Text = string.ulower(txtFirstName.Text)
+end
+
+function adjustFormViiew(form)
+	if (not getFrmParticipationTypeVisible()) then		
+		local deltaY = form.frmParticipationType.Height;		
+		form.frmViewBottom.Y = form.frmViewBottom.Y - deltaY;		
+		form.Height = form.Height - deltaY;
+	end
+end
+
+function setControlFocused (control)
+	control.Focused = true;
+end
+function isControlEnabled (control)
+	control.Enable = true;
+end
+
+function dpdTypeOfCheck_FocusLeave( control )
+	setDpdTypeOfCheckSelectedItem(dpdTypeOfCheck.Text);
+end
+
+function dpdSortOfEmployee_FocusLeave( control )
+	setDpdSortOfEmployeeSelectedItem(dpdSortOfEmployee.Text);
+end
+
+function dpdSortOfEmployee_KeyUp( event )
+	if (event.Key ~= 38 and event.Key ~= 40 and event.Key ~= 9 and event.Key ~= 13) then
+		local termin = dpdSortOfEmployee.Text			
+		requestController.doDropDownQuickSearch(dpdSortOfEmployee, constanta.getDpdSortOfEmployeeDefinitions(), termin)
+	end
+end
+
+function dpdTypeOfCheck_KeyUp( event )
+	if (event.Key ~= 38 and event.Key ~= 40 and event.Key ~= 9 and event.Key ~= 13) then
+		local termin = dpdTypeOfCheck.Text			
+		requestController.doDropDownQuickSearch(dpdTypeOfCheck, constanta.getDpdTypeOfCheckDefinitions(), termin)
+	end
+end
+
+function btnPopulateSearch_Click( control )	
+	if(string.len(getTxtFullNameText()) > 0)then
+		separatedFullNameTable = service.separatePersonInformation(getTxtFullNameText())										
+		setTxtLastNameText(separatedFullNameTable[1])
+		setTxtFirstNameText(separatedFullNameTable[2])
+		setTxtMiddleNameText(separatedFullNameTable[3])				
+	end	
+	if validationController.doValidate(getClassManager(), control) then
+		local personsRecordSet = requestController.populateSearch(getClassManager(), control);
+		if (personsRecordSet.Count > 0) then				
+			MsgBox("В базе данных присутствует информация по лицу.",BtnOk + IconInformation)			
+			table.insert(childForms,formsController.openNeccessaryForm(getClassManager(), control, personsRecordSet));	
+		else
+			MsgBox("Информации по данному лицу в базе данных не имеется.",BtnOk + IconWarning)			
+		end		
+	end
+end
+
+function setChosenRecord(form, personRec)
+	local personEntity = getClassManager().newEntity(getClassManager(), constanta.getCnstPerson())
+	personEntity.setBeanFromRecord(personRec);
+	local connectedPersonEntity = getClassManager().newEntity(getClassManager(), constanta.getCnstConnectedPerson())
+	connectedPersonEntity.setPersonEntity(personEntity)
+	setFormFromEntity(connectedPersonEntity);
+	setBtnAddPersonText("Сохранить");
+end
+function txtSharePercent_Click( control )
+	control:SetSelection()
+end

@@ -1,0 +1,1042 @@
+local ClassManager = nil;
+local Entity = nil;
+local currentForm = nil;
+local unloadController = nil;
+local formsController = nil;
+local validationController = nil;
+local requestController = nil;
+local service = nil;
+local constanta = nil;
+local mainObject = nil;
+local childForms = {}
+local objectList = nil;
+local isNewObject = false;
+local parentEntity = nil;
+
+local lblUnn = nil;
+local txtUnn = nil;
+local lblFullName = nil;
+local txtFullName = nil;
+local lblShortName = nil;
+local txtShortName = nil;
+local lblOfficialStatus = nil;
+local dpdOfficialStatus = nil;
+local lblEconomicStatus = nil;
+
+local dpdEconomicStatus = nil;
+
+local lblBusinessType = nil;
+local dpdBusinessType = nil;
+local lblPropertyForm = nil;
+local dpdPropertyForm = nil;
+local lblRegistrationOffice = nil;
+local dpdRegistrationOffice = nil;
+local lblRegistrationDate = nil;
+local txtRegistrationDate = nil;
+local lblEliminationDate = nil;
+local txtEliminationDate = nil;
+local lblBusinessDescription = nil;
+local txtBusinessDescription = nil;
+local btnSave = nil;
+local btnClose = nil;
+local txtInfoPanel = nil;
+local btnAddresses = nil;
+local btnPhones = nil;
+local btnEmployees = nil;
+local childViews = nil;
+local btnFoundersAndPartners = nil;
+local pctOrgLogo = nil;
+local pnlButttons = nil;
+local btnBankAccount = nil;
+local btnDocument = nil;
+local btnBranch = nil;
+local btnEstate = nil;
+local btnBelgamsGroup = nil;
+local btnRequests = nil;
+local btnPopulateSearch = nil;
+local pnlMenu = nil;
+
+function getParentEntity()
+    return parentEntity;
+end
+function setParentEntity(parentEntityValue)
+    parentEntity = parentEntityValue;
+end
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function getObjectList()
+    return objectList;
+end
+function setObjectList(objectListValue)
+    objectList = objectListValue;
+end
+
+function getEntity()	
+    return Entity;
+end
+function setEntity(entityValue)
+    Entity = entityValue;
+end
+
+function getIsNewObject()
+    return isNewObject;
+end
+function setIsNewObject(isNewObjectValue)
+    isNewObject = isNewObjectValue;
+end
+
+function getDpdEconomicStatusCodes()
+    return dpdEconomicStatusCodes;
+end
+function setDpdEconomicStatusCodes(dpdEconomicStatusCodesValue)
+    dpdEconomicStatusCodes = dpdEconomicStatusCodesValue;
+end
+
+function getDpdBusinessTypeCodes()
+    return dpdBusinessTypeCodes;
+end
+function setDpdBusinessTypeCodes(dpdBusinessTypeCodesValue)
+    dpdBusinessTypeCodes = dpdBusinessTypeCodesValue;
+end
+
+function getDpdPropertyFormCodes()
+    return dpdPropertyFormCodes;
+end
+function setDpdPropertyFormCodes(dpdPropertyFormCodesValue)
+    dpdPropertyFormCodes = dpdPropertyFormCodesValue;
+end
+
+function getDpdRegistrationOfficeCodes()
+    return dpdRegistrationOfficeCodes;
+end
+function setDpdRegistrationOfficeCodes(dpdRegistrationOfficeCodesValue)
+    dpdRegistrationOfficeCodes = dpdRegistrationOfficeCodesValue;
+end
+
+function getDpdOfficialStatusCodes()
+    return dpdOfficialStatusCodes;
+end
+function setDpdOfficialStatusCodes(dpdOfficialStatusCodesValue)
+    dpdOfficialStatusCodes = dpdOfficialStatusCodesValue;
+end
+
+function getMainObject()
+    return mainObject;
+end
+function setMainObject(mainObjectValue)
+    mainObject = mainObjectValue;
+end
+
+function getVocDefinitions()
+    return vocDefinitions;
+end
+function setVocDefinitions(vocDefinitionsValue)
+    vocDefinitions = vocDefinitionsValue;
+end
+
+function getCurrentForm()
+    return currentForm;
+end
+function setCurrentForm(currentFormValue)
+    currentForm = currentFormValue;
+end
+
+function setControllersReferences()
+	unloadController = getClassManager().getClass("UnloadController");
+	formsController = getClassManager().getClass("FormsController");
+	validationController = getClassManager().getClass("ValidationController");
+	constanta = getClassManager().getClass("Constanta");
+	requestController = getClassManager().getClass("RequestController");
+	service = getClassManager().getClass("Service");
+end
+
+function getChildViews()
+    return childViews;
+end
+function setChildViews(childViewsValue)
+    childViews = childViewsValue;
+end
+
+function Форма_Open( form	)	
+	setClassManager(Arg.ClassManager)	
+	setCurrentForm(form)	
+	setControllersReferences()		
+    return true;
+end
+
+function Форма_Load( form )		
+	getClassManager().setClass(form, form)	
+    setControls(form);		
+    setObjectList(Arg.FormModule);
+	setParentEntity(getObjectList().getMainObject());
+	--form.X = getObjectList().getCurrentForm().X+getObjectList().getCurrentForm().Width	
+	if (Arg.Data ~= nil) then				
+        for key,entity in pairs(Arg.Data) do														
+			if (entity.getEntityBaseCode() == constanta.getCnstOrganization()) then												
+				--setMainObject(entity);				
+				setEntity(entity);				
+				form.RecordNumber = entity.getEntityRecord().SN;								
+				pnlMenu.Enabled = not form.Locked
+				btnSave.Enabled = not form.Locked
+				if (form.Locked) then
+					setTxtInfoPanelText("Данный объект сейчас редактируется другим пользователем. Изменение невозможно");
+				end
+			end
+        end		
+    end	
+	if (getEntity() == nil) then
+		Форма_UnloadForm( form);
+	else	
+		setFormFromEntity(getEntity());				
+		table.insert(childForms,form)			
+		detectConnectedEntitiesNumber();		
+		setViewAsNewObject(Arg.viewAsNewObject);		
+		setIsNewObject(Arg.isNewObject);
+		
+	end		
+end
+
+function Форма_UnloadForm( form, mode )		
+	unloadController.doUnload(getClassManager(), form, childForms)	
+    getClassManager().setClass(form,nil)	
+	return true;
+end
+
+function setControls(form)
+    lblUnn = form.lblUnn;
+    txtUnn = form.txtUnn;
+    lblFullName = form.lblFullName;
+    txtFullName = form.txtFullName;
+    lblShortName = form.lblShortName;
+    txtShortName = form.txtShortName;
+    lblOfficialStatus = form.lblOfficialStatus;
+    dpdOfficialStatus = form.dpdOfficialStatus;
+    lblEconomicStatus = form.lblEconomicStatus;
+    dpdEconomicStatus = form.dpdEconomicStatus;
+    lblBusinessType = form.lblBusinessType;
+    dpdBusinessType = form.dpdBusinessType;
+    lblPropertyForm = form.lblPropertyForm;
+    dpdPropertyForm = form.dpdPropertyForm;
+    lblRegistrationOffice = form.lblRegistrationOffice;
+    dpdRegistrationOffice = form.dpdRegistrationOffice;
+    lblRegistrationDate = form.lblRegistrationDate;
+    txtRegistrationDate = form.txtRegistrationDate;
+    lblEliminationDate = form.lblEliminationDate;
+    txtEliminationDate = form.txtEliminationDate;
+    lblBusinessDescription = form.lblBusinessDescription;
+    txtBusinessDescription = form.txtBusinessDescription;	
+    btnSave = form.btnSave;	
+    btnClose = form.btnClose;
+    txtInfoPanel = form.txtInfoPanel;
+    btnAddresses = form.btnAddresses;
+    btnPhones = form.btnPhones;
+    btnEmployees = form.btnEmployees;    
+    btnFoundersAndPartners = form.btnFoundersAndPartners;
+	pctOrgLogo = form.pctOrgLogo;
+	pnlButttons = form.pnlButttons;
+    btnBankAccount = form.btnBankAccount;
+    btnDocument = form.btnDocument;
+	btnBranch = form.btnBranch;
+	btnEstate = form.btnEstate;
+    btnBelgamsGroup = form.btnBelgamsGroup;	
+	btnPopulateSearch = form.btnPopulateSearch;
+    pnlMenu = form.pnlMenu;
+	btnRequests = form.btnRequests;
+    populateLists();
+	setTxtInfoPanelBackColor(constanta.getSystemBackColor());
+end
+
+function populateLists()
+
+end
+
+function setFormFromEntity(entity)    		
+	getCurrentForm():ReloadRecord();	
+	setTxtUnnText(entity.getUnn())					
+    setTxtFullNameText(entity.getFullName());		
+    setTxtShortNameText(entity.getShortName());			
+	setTxtRegistrationDateText(entity.getRegistrationDate());				
+    setTxtEliminationDateText(entity.getEliminationDate());			    				
+	setTxtBusinessDescriptionText(entity.getBusinessDescription());					
+	setDpdOfficialStatusSelectedItem(entity.getOfficialStatus());							
+    setDpdEconomicStatusSelectedCodes(entity.getEconomicStatus());						
+    setDpdBusinessTypeSelectedItem(entity.getBusinessType());						
+    setDpdPropertyFormSelectedItem(entity.getPropertyForm())					
+	setDpdRegistrationOfficeSelectedItem(entity.getRegistrationOffice());	   										
+	--setPctOrgLogoValue(entity.getOrgLogoPicture())				
+end
+
+function setLblUnnText( lblUnnValue )
+   lblUnn.Value = lblUnnValue
+end
+function getLblUnnText( )
+    return lblUnn.Value
+end
+
+function getTxtUnnText( )
+    return txtUnn.Value
+end
+function setTxtUnnText( txtUnnValue )
+    txtUnn.Value = txtUnnValue
+end
+function setTxtUnnEnabled( isTxtUnnEnabled )
+   txtUnn.Enabled = isTxtUnnEnabled
+end
+
+function setLblFullNameText( lblFullNameValue )
+   lblFullName.Value = lblFullNameValue
+end
+function getLblFullNameText( )
+    return lblFullName.Value
+end
+
+function getTxtFullNameText( )
+    return txtFullName.Value
+end
+function setTxtFullNameText( txtFullNameValue )
+    txtFullName.Value = txtFullNameValue
+end
+function setTxtFullNameEnabled( isTxtFullNameEnabled )
+   txtFullName.Enabled = isTxtFullNameEnabled
+end
+
+function setLblShortNameText( lblShortNameValue )
+   lblShortName.Value = lblShortNameValue
+end
+function getLblShortNameText( )
+    return lblShortName.Value
+end
+
+function getTxtShortNameText( )
+    return txtShortName.Value
+end
+function setTxtShortNameText( txtShortNameValue )
+    txtShortName.Value = txtShortNameValue
+end
+function setTxtShortNameEnabled( isTxtShortNameEnabled )
+   txtShortName.Enabled = isTxtShortNameEnabled
+end
+
+function setLblOfficialStatusText( lblOfficialStatusValue )
+   lblOfficialStatus.Value = lblOfficialStatusValue
+end
+function getLblOfficialStatusText( )
+    return lblOfficialStatus.Value
+end
+
+function addDpdOfficialStatusItem( dpdOfficialStatusValue )
+   dpdOfficialStatus:Add(dpdOfficialStatusValue)
+end
+function addDpdOfficialStatusItems( dpdOfficialStatusValues )
+    if dpdOfficialStatusValues ~= nil then
+        for key, value in pairs (dpdOfficialStatusValues) do
+            addDpdOfficialStatusItem(value)
+        end
+    end
+end
+function clearDpdOfficialStatusItesm( )
+   dpdOfficialStatus:Clear(index)
+end
+function getDpdOfficialStatusSelectedItem( )
+    return dpdOfficialStatus.Text
+end
+function setDpdOfficialStatusSelectedItem( dpdOfficialStatusItemValue)
+    dpdOfficialStatus.Value = dpdOfficialStatusItemValue
+end
+function getDpdOfficialStatusSelectedIndex( )
+    return dpdOfficialStatus.SelectedIndex
+end
+function getDpdOfficialStatusSelectedCode( )
+    return dpdOfficialStatus.Value
+end
+function setDpdOfficialStatusSelectedIndex( dpdOfficialStatusIndexValue )
+    dpdOfficialStatus.SelectedIndex = dpdOfficialStatusIndexValue
+end
+function setDpdOfficialStatusEnabled( isDpdOfficialStatusEnabled )
+   dpdOfficialStatus.Enabled = isDpdOfficialStatusEnabled
+end
+
+function setLblEconomicStatusText( lblEconomicStatusValue )
+   lblEconomicStatus.Value = lblEconomicStatusValue
+end
+function getLblEconomicStatusText( )
+    return lblEconomicStatus.Value
+end
+
+function addDpdEconomicStatusItem( dpdEconomicStatusValue )
+   dpdEconomicStatus:Add(dpdEconomicStatusValue)
+end
+function addDpdEconomicStatusItems( dpdEconomicStatusValues )
+    if dpdEconomicStatusValues ~= nil then
+        for key, value in pairs (dpdEconomicStatusValues) do
+            addDpdEconomicStatusItem(value)
+        end
+    end
+end
+function clearDpdEconomicStatusItesm( )
+   dpdEconomicStatus:Clear(index)
+end
+function getDpdEconomicStatusSelectedItem( )
+    return dpdEconomicStatus.Text
+end
+function setDpdEconomicStatusSelectedItem( dpdEconomicStatusItemValue)
+    dpdEconomicStatus.Value = dpdEconomicStatusItemValue
+end
+function getDpdEconomicStatusSelectedIndex( )
+    return dpdEconomicStatus.SelectedIndex
+end
+function getDpdEconomicStatusSelectedCode( )
+    --return dpdEconomicStatus.Value	
+	local economicStatuses = {}	
+	for i=1,dpdEconomicStatus.ValuesCount do		
+		table.insert(economicStatuses,dpdEconomicStatus:GetValue(i))
+	end
+    return economicStatuses
+end
+function setDpdEconomicStatusSelectedIndex( dpdEconomicStatusIndexValue )
+    dpdEconomicStatus.SelectedIndex = dpdEconomicStatusIndexValue
+end
+function setDpdEconomicStatusSelectedCodes( dpdEconomicStatusValues )   
+	for key, descr in pairs(dpdEconomicStatusValues) do
+		dpdEconomicStatus:SetValue(descr, key)		
+	end	
+end
+function setDpdEconomicStatusEnabled( isDpdEconomicStatusEnabled )
+   dpdEconomicStatus.Enabled = isDpdEconomicStatusEnabled
+end
+
+function setLblBusinessTypeText( lblBusinessTypeValue )
+   lblBusinessType.Value = lblBusinessTypeValue
+end
+function getLblBusinessTypeText( )
+    return lblBusinessType.Value
+end
+
+function addDpdBusinessTypeItem( dpdBusinessTypeValue )
+   dpdBusinessType:Add(dpdBusinessTypeValue)
+end
+function addDpdBusinessTypeItems( dpdBusinessTypeValues )
+    if dpdBusinessTypeValues ~= nil then
+        for key, value in pairs (dpdBusinessTypeValues) do
+            addDpdBusinessTypeItem(value)
+        end
+    end
+end
+function clearDpdBusinessTypeItesm( )
+   dpdBusinessType:Clear(index)
+end
+function getDpdBusinessTypeSelectedItem( )
+    return dpdBusinessType.Text
+end
+function setDpdBusinessTypeSelectedItem( dpdBusinessTypeItemValue)
+    dpdBusinessType.Value = dpdBusinessTypeItemValue
+end
+function getDpdBusinessTypeSelectedIndex( )
+    return dpdBusinessType.SelectedIndex
+end
+function getDpdBusinessTypeSelectedCode( )
+    return dpdBusinessType.Value
+end
+function setDpdBusinessTypeSelectedIndex( dpdBusinessTypeIndexValue )
+    dpdBusinessType.SelectedIndex = dpdBusinessTypeIndexValue
+end
+function setDpdBusinessTypeEnabled( isDpdBusinessTypeEnabled )
+   dpdBusinessType.Enabled = isDpdBusinessTypeEnabled
+end
+
+function setLblPropertyFormText( lblPropertyFormValue )
+   lblPropertyForm.Value = lblPropertyFormValue
+end
+function getLblPropertyFormText( )
+    return lblPropertyForm.Value
+end
+
+function addDpdPropertyFormItem( dpdPropertyFormValue )
+   dpdPropertyForm:Add(dpdPropertyFormValue)
+end
+function addDpdPropertyFormItems( dpdPropertyFormValues )
+    if dpdPropertyFormValues ~= nil then
+        for key, value in pairs (dpdPropertyFormValues) do
+            addDpdPropertyFormItem(value)
+        end
+    end
+end
+function clearDpdPropertyFormItesm( )
+   dpdPropertyForm:Clear(index)
+end
+function getDpdPropertyFormSelectedItem( )
+    return dpdPropertyForm.Text
+end
+function setDpdPropertyFormSelectedItem( dpdPropertyFormItemValue)
+    dpdPropertyForm.Value = dpdPropertyFormItemValue
+end
+function getDpdPropertyFormSelectedIndex( )
+    return dpdPropertyForm.SelectedIndex
+end
+function getDpdPropertyFormSelectedCode( )
+    return dpdPropertyForm.Value
+end
+function setDpdPropertyFormSelectedIndex( dpdPropertyFormIndexValue )
+    dpdPropertyForm.SelectedIndex = dpdPropertyFormIndexValue
+end
+function setDpdPropertyFormEnabled( isDpdPropertyFormEnabled )
+   dpdPropertyForm.Enabled = isDpdPropertyFormEnabled
+end
+
+function setLblRegistrationOfficeText( lblRegistrationOfficeValue )
+   lblRegistrationOffice.Value = lblRegistrationOfficeValue
+end
+function getLblRegistrationOfficeText( )
+    return lblRegistrationOffice.Value
+end
+
+function addDpdRegistrationOfficeItem( dpdRegistrationOfficeValue )
+   dpdRegistrationOffice:Add(dpdRegistrationOfficeValue)
+end
+function addDpdRegistrationOfficeItems( dpdRegistrationOfficeValues )
+    if dpdRegistrationOfficeValues ~= nil then
+        for key, value in pairs (dpdRegistrationOfficeValues) do
+            addDpdRegistrationOfficeItem(value)
+        end
+    end
+end
+function clearDpdRegistrationOfficeItesm( )
+   dpdRegistrationOffice:Clear(index)
+end
+function getDpdRegistrationOfficeSelectedItem( )
+    return dpdRegistrationOffice.Text
+end
+function setDpdRegistrationOfficeSelectedItem( dpdRegistrationOfficeItemValue)
+    dpdRegistrationOffice.Value = dpdRegistrationOfficeItemValue
+end
+function getDpdRegistrationOfficeSelectedIndex( )
+    return dpdRegistrationOffice.SelectedIndex
+end
+function getDpdRegistrationOfficeSelectedCode( )
+    return dpdRegistrationOffice.Value
+end
+function setDpdRegistrationOfficeSelectedIndex( dpdRegistrationOfficeIndexValue )
+    dpdRegistrationOffice.SelectedIndex = dpdRegistrationOfficeIndexValue
+end
+function setDpdRegistrationOfficeEnabled( isDpdRegistrationOfficeEnabled )
+   dpdRegistrationOffice.Enabled = isDpdRegistrationOfficeEnabled
+end
+
+function setLblRegistrationDateText( lblRegistrationDateValue )
+   lblRegistrationDate.Value = lblRegistrationDateValue
+end
+function getLblRegistrationDateText( )
+    return lblRegistrationDate.Value
+end
+
+function getTxtRegistrationDateText( )
+    return txtRegistrationDate.Value
+end
+function setTxtRegistrationDateText( txtRegistrationDateValue )
+    txtRegistrationDate.Value = txtRegistrationDateValue
+end
+function setTxtRegistrationDateEnabled( isTxtRegistrationDateEnabled )
+   txtRegistrationDate.Enabled = isTxtRegistrationDateEnabled
+end
+
+function setLblEliminationDateText( lblEliminationDateValue )
+   lblEliminationDate.Value = lblEliminationDateValue
+end
+function getLblEliminationDateText( )
+    return lblEliminationDate.Value
+end
+
+function getTxtEliminationDateText( )
+    return txtEliminationDate.Value
+end
+function setTxtEliminationDateText( txtEliminationDateValue )
+    txtEliminationDate.Value = txtEliminationDateValue
+end
+function setTxtEliminationDateEnabled( isTxtEliminationDateEnabled )
+   txtEliminationDate.Enabled = isTxtEliminationDateEnabled
+end
+
+function setLblBusinessDescriptionText( lblBusinessDescriptionValue )
+   lblBusinessDescription.Value = lblBusinessDescriptionValue
+end
+function getLblBusinessDescriptionText( )
+    return lblBusinessDescription.Value
+end
+
+function getTxtBusinessDescriptionText( )
+    local addInfo = {}	
+	for i=1,txtBusinessDescription.ValuesCount do		
+		table.insert(addInfo,txtBusinessDescription:GetValue(i))
+	end
+    return addInfo
+end
+
+function setTxtBusinessDescriptionText( txtBusinessDescriptionValue )   
+	for key, descr in pairs(txtBusinessDescriptionValue) do
+		txtBusinessDescription:SetValue(descr, key)		
+	end	
+end
+function setTxtBusinessDescriptionEnabled( isTxtBusinessDescriptionEnabled )
+   txtBusinessDescription.Enabled = isTxtBusinessDescriptionEnabled
+end
+
+function setBtnSaveText( btnSaveValue )
+   btnSave.Text = btnSaveValue
+end
+function getBtnSaveText( )
+    return btnSave.Text
+end
+function setBtnSaveEnabled( isBtnSaveEnabled )
+   btnSave.Enabled = isBtnSaveEnabled
+end
+
+function btnSave_Click( control, isInternal )
+    setIsNewObject(false);
+	Entity.clearEntities();
+	Entity.setBeanFromView(btnSave.Form.Module);
+    if (Entity.saveBeanToDb() == true) then
+		getObjectList().refreshForm(getEntity());
+        setTxtInfoPanelText("Запись успешно сохранена в базу данных");
+		if( not isInternal) then
+			Форма_UnloadForm( btnSave.Form);
+		end
+    else
+        setTxtInfoPanelText("ВНИМАНИЕ!!! Запись не сохранена в базу данных");
+    end
+end
+
+function setBtnCloseText( btnCloseValue )
+   btnClose.Text = btnCloseValue
+end
+function getBtnCloseText( )
+    return btnClose.Text
+end
+function setBtnCloseEnabled( isBtnCloseEnabled )
+   btnClose.Enabled = isBtnCloseEnabled
+end
+
+function btnClose_Click( control )
+    setFormFromEntity(getEntity());
+    Форма_UnloadForm( btnClose.Form);
+end
+
+function setTxtInfoPanelText( txtInfoPanelValue )
+   txtInfoPanel.Text = txtInfoPanelValue
+end
+function getTxtInfoPanelText( )
+    return txtInfoPanel.Text
+end
+function setTxtInfoPanelEnabled( isTxtInfoPanelEnabled )
+   txtInfoPanel.Enabled = isTxtInfoPanelEnabled
+end
+function setTxtInfoPanelBackColor( txtInfoPanelBackColor )
+   txtInfoPanel.BackColor = txtInfoPanelBackColor
+end
+
+function setBtnAddressesText( btnAddressesValue )
+   btnAddresses.Text = btnAddressesValue
+end
+function getBtnAddressesText( )
+    return btnAddresses.Text
+end
+function setBtnAddressesEnabled( isBtnAddressesEnabled )
+   btnAddresses.Enabled = isBtnAddressesEnabled
+end
+
+function setBtnPhonesText( btnPhonesValue )
+   btnPhones.Text = btnPhonesValue
+end
+function getBtnPhonesText( )
+    return btnPhones.Text
+end
+function setBtnPhonesEnabled( isBtnPhonesEnabled )
+   btnPhones.Enabled = isBtnPhonesEnabled
+end
+
+function setBtnEmployeesText( btnEmployeesValue )
+   btnEmployees.Text = btnEmployeesValue
+end
+function getBtnEmployeesText( )
+    return btnEmployees.Text
+end
+function setBtnEmployeesEnabled( isBtnEmployeesEnabled )
+   btnEmployees.Enabled = isBtnEmployeesEnabled
+end
+
+function setBtnFoundersAndPartnersText( btnFoundersAndPartnersValue )
+   btnFoundersAndPartners.Text = btnFoundersAndPartnersValue
+end
+function getBtnFoundersAndPartnersText( )
+    return btnFoundersAndPartners.Text
+end
+function setBtnFoundersAndPartnersEnabled( isBtnFoundersAndPartnersEnabled )
+   btnFoundersAndPartners.Enabled = isBtnFoundersAndPartnersEnabled
+end
+
+function getPctOrgLogo( )	
+    return pctOrgLogo
+end
+function getPctOrgLogoValue( )	
+    return pctOrgLogo.Value
+end
+function setPctOrgLogoValue( pctOrgLogoValue )
+    pctOrgLogo.Value = pctOrgLogoValue	
+end
+function setPctOrgLogoEnabled( isPctOrgLogoEnabled )
+   pctOrgLogo.Enabled = isPctOrgLogoEnabled
+end
+
+function setBtnBankAccountText( btnBankAccountValue )
+   btnBankAccount.Text = btnBankAccountValue
+end
+function getBtnBankAccountText( )
+    return btnBankAccount.Text
+end
+function setBtnBankAccountEnabled( isBtnBankAccountEnabled )
+   btnBankAccount.Enabled = isBtnBankAccountEnabled
+end
+
+function setBtnDocumentText( btnDocumentValue )
+   btnDocument.Text = btnDocumentValue
+end
+function getBtnDocumentText( )
+    return btnDocument.Text
+end
+function setBtnDocumentEnabled( isBtnDocumentEnabled )
+   btnDocument.Enabled = isBtnDocumentEnabled
+end
+
+function setBtnPopulateSearchText( btnPopulateSearchValue )
+   btnPopulateSearch.Text = btnPopulateSearchValue
+end
+function getBtnPopulateSearchText( )
+    return btnPopulateSearch.Text
+end
+function setBtnPopulateSearchEnabled( isBtnPopulateSearchEnabled )
+   btnPopulateSearch.Enabled = isBtnPopulateSearchEnabled
+end
+
+function setBtnBranchText( btnBranchValue )
+   btnBranch.Text = btnBranchValue
+end
+function getBtnBranchText( )
+    return btnBranch.Text
+end
+function setBtnBranchEnabled( isBtnBranchEnabled )
+   btnBranch.Enabled = isBtnBranchEnabled
+end
+
+function setBtnEstateText( btnEstateValue )
+   btnEstate.Text = btnEstateValue
+end
+function getBtnEstateText( )
+    return btnEstate.Text
+end
+function setBtnEstateEnabled( isBtnEstateEnabled )
+   btnEstate.Enabled = isBtnEstateEnabled
+end
+
+function setBtnBelgamsGroupText( btnBelgamsGroupValue )
+   btnBelgamsGroup.Text = btnBelgamsGroupValue
+end
+function getBtnBelgamsGroupText( )
+    return btnBelgamsGroup.Text
+end
+function setBtnBelgamsGroupEnabled( isBtnBelgamsGroupEnabled )
+   btnBelgamsGroup.Enabled = isBtnBelgamsGroupEnabled
+end
+
+function setBtnRequestsText( btnRequestsValue )
+   btnRequests.Text = btnRequestsValue
+end
+function getBtnRequestsText( )
+    return btnRequests.Text
+end
+function setBtnRequestsEnabled( isBtnRequestsEnabled )
+   btnRequests.Enabled = isBtnRequestsEnabled
+end
+--------------------------------------------------------------------------------------
+function setViewAsNewObject(isNew)		
+	setBtnPopulateSearchVisibility(isNew);			
+	setTxtShortNameEnabled(not isNew);			
+	setDpdOfficialStatusEnabled(not isNew);			
+	setDpdEconomicStatusEnabled(not isNew);			
+	setDpdBusinessTypeEnabled(not isNew);			
+	setDpdPropertyFormEnabled(not isNew);			
+	setDpdRegistrationOfficeEnabled(not isNew);	
+	setTxtRegistrationDateEnabled(not isNew);	
+	setTxtEliminationDateEnabled(not isNew);	
+	setTxtBusinessDescriptionEnabled(not isNew);		
+	setPnlMenuEnabled(not isNew);	
+	setBtnSaveEnabled(not isNew);	
+	setIsNewObject(isNew);	
+end
+
+function btnRegistrationDate_Click( control )
+	formsController.openNeccessaryForm(getClassManager(),control,nil)
+end
+
+function btnEliminationDate_Click( control )
+	formsController.openNeccessaryForm(getClassManager(),control,nil)
+end
+
+function setBtnPopulateSearchText( btnPopulateSearchValue )
+   btnPopulateSearch.Text = btnPopulateSearchValue
+end
+function setBtnPopulateSearchVisibility( btnPopulateSearchVisible )
+   btnPopulateSearch.Visible = btnPopulateSearchVisible
+end
+function getBtnPopulateSearchText( )
+    return btnPopulateSearch.Text
+end
+
+function setPnlButtonsVisibility( pnlButtonsVisibilityValue )
+   pnlButtons.Visible = pnlButtonsVisibilityValue
+end
+function getPnlButtons( )
+    return pnlButtons
+end
+
+function setPnlMenuText( pnlMenuValue )
+   pnlMenu.Text = pnlMenuValue
+end
+function getPnlMenuText( )
+    return pnlMenu.Text
+end
+function setPnlMenuEnabled( isPnlMenuEnabled )
+   pnlMenu.Enabled = isPnlMenuEnabled
+end
+
+function btnEmployees_Click( control )	
+	doIsNecessaryToSave()	
+	local jobTrackRecordSet = getClassManager().getClass("DBWorker").getItemsForOrganization(getClassManager(),
+																						getClassManager().getClass("Constanta").getCnstJobTrack(), 
+																						Entity.getEntityRecord())		
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(), control, jobTrackRecordSet, Entity));			
+end
+
+function btnPhones_Click( control )	
+	doIsNecessaryToSave()	
+	local connectionTypeResordSet = getClassManager().getClass("DBWorker").getItemsForOrganization(getClassManager(), 
+																					getClassManager().getClass("Constanta").getCnstConnectionType(), 
+																					Entity.getEntityRecord())				
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(), control, connectionTypeResordSet, Entity));	
+end
+
+function btnAddresses_Click( control )	
+	doIsNecessaryToSave()	
+	local addressTypeResordSet = getClassManager().getClass("DBWorker").getItemsForOrganization(getClassManager(), 
+																						getClassManager().getClass("Constanta").getCnstAddressType(), 
+																						Entity.getEntityRecord())			
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(), control, addressTypeResordSet, Entity));	
+end
+
+function btnFoundersAndPartners_Click( control )	
+	doIsNecessaryToSave()		
+	local founderRecordSet = getClassManager().getClass("DBWorker").getItemsForOrganization(getClassManager(), 
+																					getClassManager().getClass("Constanta").getCnstFoundersAndPartners(), 
+																					Entity.getEntityRecord());					
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(), control, founderRecordSet, Entity));	
+end
+
+function pctOrgLogo_DataChanged( control, data )		
+	local filePath = "";
+	if (string.match(data, ".exe") == nil) then
+		if (string.len(data) > 0) then
+			filePath = CroApp.TempDir..data;												
+		end		
+	else		
+		MsgBox("Файлы типа EXE запрещено сохранять в базу данных.\n\rФайл будет удален.", IconError)		
+	end	
+	getEntity().setOrgLogoPicture(filePath)	
+	return true;
+end
+
+function btnBankAccount_Click( control )
+	doIsNecessaryToSave()	
+	local bankAccountResordSet = getClassManager().getClass("DBWorker").getItemsForOrganization(getClassManager(), 
+																							getClassManager().getClass("Constanta").getCnstBankAccount(), 
+																							Entity.getEntityRecord());	
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(), control, bankAccountResordSet, Entity));
+end
+
+function btnDocument_Click( control )
+	doIsNecessaryToSave()	
+	local documentResordSet = getClassManager().getClass("DBWorker").getItemsForOrganization(getClassManager(), 
+																							getClassManager().getClass("Constanta").getCnstDocument(), 
+																							Entity.getEntityRecord());	
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(), control, documentResordSet, Entity));		
+end
+
+function btnBranch_Click( control )
+	doIsNecessaryToSave()	
+	local branchResordSet = getClassManager().getClass("DBWorker").getItemsForOrganization(getClassManager(), 
+																							getClassManager().getClass("Constanta").getCnstBranch(), 
+																							Entity.getEntityRecord());	
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(), control, branchResordSet, Entity));		
+end	
+
+function btnEstate_Click( control )
+	doIsNecessaryToSave()		
+	local estateResordSet = getClassManager().getClass("DBWorker").getItemsForOrganization(getClassManager(), 
+																							getClassManager().getClass("Constanta").getCnstEstate(), 
+																							Entity.getEntityRecord());																								
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(), control, estateResordSet, Entity));		
+end
+
+function btnBelgamsGroup_Click( control )
+	doIsNecessaryToSave()	
+	local belgamsGroupResordSet = getClassManager().getClass("DBWorker").getItemsForOrganization(getClassManager(), 
+																							getClassManager().getClass("Constanta").getCnstBelgamsGroup(), 
+																							Entity.getEntityRecord());	
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(), control, belgamsGroupResordSet, Entity));	
+end
+
+function btnRequests_Click( control )
+	doIsNecessaryToSave()		
+	local requestsResordSet = getClassManager().getClass("DBWorker").getItemsForOrganization(getClassManager(), 
+																							getClassManager().getClass("Constanta").getCnstRequestJournal(), 
+																							Entity.getEntityRecord());																								
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(), control, requestsResordSet, Entity));	
+end
+
+--метод определения и вывода на текст кнопок количества связанных объектов
+function detectConnectedEntitiesNumber()	
+	local jobTrackRecordSet = getClassManager().getClass("DBWorker").getItemsForOrganization(getClassManager(), 
+																							getClassManager().getClass("Constanta").getCnstJobTrack(), 
+																							Entity.getEntityRecord());	
+	setBtnEmployeesText(string.gsub(getBtnEmployeesText()," %(%d+%)","").." ("..jobTrackRecordSet.Count..")")	
+	local connectionTypeResordSet = getClassManager().getClass("DBWorker").getItemsForOrganization(getClassManager(), 
+																							getClassManager().getClass("Constanta").getCnstConnectionType(), 
+																							Entity.getEntityRecord());	
+	setBtnPhonesText(string.gsub(getBtnPhonesText()," %(%d+%)","").." ("..connectionTypeResordSet.Count..")")
+	local addressTypeResordSet = getClassManager().getClass("DBWorker").getItemsForOrganization(getClassManager(), 
+																							getClassManager().getClass("Constanta").getCnstAddressType(),
+																							Entity.getEntityRecord());	
+	setBtnAddressesText(string.gsub(getBtnAddressesText()," %(%d+%)","").." ("..addressTypeResordSet.Count..")")
+	local founderRecordSet = getClassManager().getClass("DBWorker").getItemsForOrganization(getClassManager(), 
+																						getClassManager().getClass("Constanta").getCnstFoundersAndPartners(),
+																						Entity.getEntityRecord());	
+	setBtnFoundersAndPartnersText(string.gsub(getBtnFoundersAndPartnersText()," %(%d+%)","").." ("..founderRecordSet.Count..")")																
+	local bankAccountResordSet = getClassManager().getClass("DBWorker").getItemsForOrganization(getClassManager(), 
+																							getClassManager().getClass("Constanta").getCnstBankAccount(), 
+																							Entity.getEntityRecord());	
+	setBtnBankAccountText(string.gsub(getBtnBankAccountText()," %(%d+%)","").." ("..bankAccountResordSet.Count..")")	
+	local documentResordSet = getClassManager().getClass("DBWorker").getItemsForOrganization(getClassManager(), 
+																							getClassManager().getClass("Constanta").getCnstDocument(), 
+																							Entity.getEntityRecord());	
+	setBtnDocumentText(string.gsub(getBtnDocumentText()," %(%d+%)","").." ("..documentResordSet.Count..")")		
+	local branchResordSet = getClassManager().getClass("DBWorker").getItemsForOrganization(getClassManager(), 
+																							getClassManager().getClass("Constanta").getCnstBranch(), 
+																							Entity.getEntityRecord());																									
+	setBtnBranchText(string.gsub(getBtnBranchText()," %(%d+%)","").." ("..branchResordSet.Count..")")			
+	local estateResordSet = getClassManager().getClass("DBWorker").getItemsForOrganization(getClassManager(), 
+																							getClassManager().getClass("Constanta").getCnstEstate(), 
+																							Entity.getEntityRecord());																																															
+	setBtnEstateText(string.gsub(getBtnEstateText()," %(%d+%)","").." ("..estateResordSet.Count..")")			
+	local belgamsGroupResordSet = getClassManager().getClass("DBWorker").getItemsForOrganization(getClassManager(), 
+																							getClassManager().getClass("Constanta").getCnstBelgamsGroup(), 
+																							Entity.getEntityRecord());																																															
+	setBtnBelgamsGroupText(string.gsub(getBtnBelgamsGroupText()," %(%d+%)","").." ("..belgamsGroupResordSet.Count..")")		
+	local requestsResordSet = getClassManager().getClass("DBWorker").getItemsForOrganization(getClassManager(), 
+																							getClassManager().getClass("Constanta").getCnstRequestJournal(), 
+																							Entity.getEntityRecord());			
+	setBtnRequestsText(string.gsub(getBtnRequestsText()," %(%d+%)","").." ("..requestsResordSet.Count..")")																							
+end
+
+function txtFullName_FocusLeave( control )
+	--txtFullName.Value = string.ulower(txtFullName.Text)  //Зеленко Роман -  убрать  функцию работы с заглавными буквами			
+end
+
+function txtShortName_FocusLeave( control )
+	--txtShortName.Value = string.ulower(txtShortName.Text)	  //Зеленко Роман -  убрать  функцию работы с заглавными буквами	
+end
+
+function txtUnn_FocusLeave( control )
+	service.doTextBoxPatternCheck( txtUnn, "%a" )
+end
+
+function txtUnn_KeyUp( event )
+	service.doTextBoxLengthCheck( txtUnn, constanta.getUnpFieldLength() )
+end
+
+function btnPopulateSearch_Click( control )	
+	local organizationRec = nil;
+	if validationController.doValidate(getClassManager(), control) then		
+		local organizationRecordSet = requestController.populateSearch(getClassManager(), control);		
+		if (organizationRecordSet.Count > 0) then
+			--[[if (organizationRecordSet.Count == 1) then			
+				MsgBox("В базе данных присутствует информация по данной организации.",BtnOk + IconInformation)
+				organizationRec = organizationRecordSet:GetRecordByIndex(1);					
+				setChosenRecord(control.Form, organizationRec);
+			else--]]					
+				MsgBox("Найдены существующие объекты в количестве "..organizationRecordSet.Count .." штук.",BtnOk + IconInformation)	
+				table.insert(childForms,formsController.openNeccessaryForm(getClassManager(), control, organizationRecordSet, Entity));		
+			--end
+			for orgRec in organizationRecordSet.Records do
+				if (orgRec == nil) then
+					MsgBox("ВНИМАНИЕ!!!\n\rВ базе данных присутствуют фиктивные записи.\n\rПроинформируйте пожалуйста администратора",BtnOk + IconError);
+				end
+			end				
+		else
+			setChosenRecord(control.Form, organizationRec);	
+			setIsNewObject(true);	
+			setBtnPopulateSearchVisibility(true);			
+		end				
+	end
+end
+
+function setChosenRecord(form, organizationRec)
+	if (organizationRec ~= nil) then							
+		local lastEntity = getEntity();		
+		local organizationEntity = getClassManager().newEntity(getClassManager(),getClassManager().getClass("Constanta").getCnstOrganization());		
+		organizationEntity.setBeanFromRecord(organizationRec);		
+		if (getParentEntity().getEntityBaseCode() == constanta.getCnstOrganization()) then
+			organizationEntity.addBranchEntity(getParentEntity());							
+			getParentEntity().addBranchEntity(organizationEntity);										
+		elseif (getParentEntity().getEntityBaseCode() == constanta.getCnstDocument()) then
+			organizationEntity.addDocumentEntity(getParentEntity());										
+			getParentEntity().setOrganizationEntities({});
+			getParentEntity().addOrganizationEntity(organizationEntity);							
+			getObjectList().getMainFormModule().btnSave_Click(nil, true);
+		end
+		form:DeleteLink()		
+		form:RemoveRecord(lastEntity.getEntityRecord().SN)															
+		if (getParentEntity().getEntityBaseCode() == constanta.getCnstOrganization()) then
+			lastEntity.deleteLinkBranch(getEntity());		
+		elseif (getParentEntity().getEntityBaseCode() == constanta.getCnstDocument()) then			
+			lastEntity.deleteLinkDocument(lastEntity);						
+			getParentEntity().deleteLinkOrganization(lastEntity);						
+		end
+		organizationEntity.setLinks();		
+		getParentEntity().setLinks();		
+		getClassManager().getClass("DBWorker").unlockRecord(ClassManager, lastEntity.getEntityRecord())		
+		CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstOrganization()):DeleteRecord(lastEntity.getEntityRecord().SN)	
+		setEntity(organizationEntity);
+		Arg.Data = {organizationEntity};
+		Форма_Load( form )  		
+		getObjectList().refreshForm(getEntity());		
+	end
+	setViewAsNewObject(false);		
+	txtFullName.Focused = true;	
+end
+
+function doIsNecessaryToSave()		
+	if (getIsNewObject()) then				
+		setIsNewObject(false);
+		btnSave_Click(btnSave,true);				
+	end
+end
+
+function Форма_BeforeSaveForm( event )
+	--event.PermitSave = false;
+end
+function btnFullReport_Click( control )	
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(), control, nil, nil, getEntity()));	
+end

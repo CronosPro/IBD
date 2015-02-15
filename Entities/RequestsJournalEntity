@@ -1,0 +1,189 @@
+local typeOfAction = nil;
+local typeOfCheck = nil;
+local requestEmployee = nil;
+local requestDepartment = nil;
+local requestInitiatorPerson = nil;
+local requestInitiatorDepartment = nil;
+local performedByEmployee = nil;
+local performedOnDate = nil;
+local entityBaseCode = nil;
+local classManager = nil;
+local entityRecord = nil;
+local comment = nil;
+
+function getEntityBaseCode()
+    return entityBaseCode;
+end
+function setEntityBaseCode(entityBaseCodeValue)
+    entityBaseCode = entityBaseCodeValue;
+end
+
+function getClassManager()
+    return classManager;
+end
+function setClassManager(classManagerValue)
+    classManager = classManagerValue;
+end
+
+function getEntityRecord()
+    return entityRecord;
+end
+function setEntityRecord(entityRecordValue)
+    entityRecord = entityRecordValue;
+end
+
+function getTypeOfAction()
+    return typeOfAction;
+end
+function setTypeOfAction(typeOfActionValue)
+    typeOfAction = typeOfActionValue;
+end
+
+function getTypeOfCheck()	
+    return typeOfCheck;
+end
+function getTypeOfCheckDefinition()	
+	local typeOfCheckDefinition = "";
+	if (getTypeOfCheck() ~= nil) then 
+		typeOfCheckDefinition = getClassManager().getClass("Service").getVocItem(getClassManager(), 
+															getClassManager().getClass("Constanta").getDpdTypeOfCheckCodes(), 
+															getClassManager().getClass("Constanta").getDpdTypeOfCheckDefinitions(),
+															"Definition",
+															getTypeOfCheck());
+	end
+	return typeOfCheckDefinition;
+end
+function getTypeOfCheckCode()	
+	return getClassManager().getClass("Service").getVocItem(getClassManager(), 
+															getClassManager().getClass("Constanta").getDpdTypeOfCheckCodes(), 
+															getClassManager().getClass("Constanta").getDpdTypeOfCheckDefinitions(),
+															"Code",
+															getTypeOfCheck());
+end
+function setTypeOfCheck(typeOfCheckValue)
+    typeOfCheck = typeOfCheckValue;
+end
+
+function getPerformedByEmployee()
+    return performedByEmployee;
+end
+function setPerformedByEmployee(performedByEmployeeValue)
+    performedByEmployee = performedByEmployeeValue;
+end
+
+function getPerformedOnDate()
+    return performedOnDate;
+end
+function setPerformedOnDate(performedOnDateValue)
+    performedOnDate = performedOnDateValue;
+end
+
+function getRequestEmployee()
+    return requestEmployee;
+end
+function getRequestEmployeeDefinition()	
+	local requestEmployeeDefinition = "";
+	if (getRequestEmployee() ~= nil) then 
+		requestEmployeeDefinition = getClassManager().getClass("Service").getVocItem(getClassManager(), 
+															getClassManager().getClass("Constanta").getDpdEmployeeCodes(), 
+															getClassManager().getClass("Constanta").getDpdEmployeeDefinitions(),
+															"Definition",
+															getRequestEmployee());
+	end
+	return requestEmployeeDefinition;
+end
+function getRequestEmployeeCode()	
+	return getClassManager().getClass("Service").getVocItem(getClassManager(), 
+															getClassManager().getClass("Constanta").getDpdEmployeeCodes(), 
+															getClassManager().getClass("Constanta").getDpdEmployeeDefinitions(),
+															"Code",
+															getRequestEmployee());
+end
+function setRequestEmployee(requestEmployeeValue)
+    requestEmployee = requestEmployeeValue;
+end
+
+function getRequestDepartment()
+    return requestDepartment;
+end
+function getRequestDepartmentDefinition()	
+	local requestDepartmentDefinition = "";
+	if (getRequestDepartment() ~= nil) then 
+		requestDepartmentDefinition = getClassManager().getClass("Service").getVocItem(getClassManager(), 
+															getClassManager().getClass("Constanta").getDpdDepartmentCodes(), 
+															getClassManager().getClass("Constanta").getDpdDepartmentDefinitions(),
+															"Definition",
+															getRequestDepartment());
+	end
+	return requestDepartmentDefinition;
+end
+function getRequestDepartmentCode()	
+	return getClassManager().getClass("Service").getVocItem(getClassManager(), 
+															getClassManager().getClass("Constanta").getDpdDepartmentCodes(), 
+															getClassManager().getClass("Constanta").getDpdDepartmentDefinitions(),
+															"Code",
+															getRequestDepartment());
+end
+function setRequestDepartment(requestDepartmentValue)
+    requestDepartment = requestDepartmentValue;
+end
+
+function getComment()
+    return comment;
+end
+function setComment(commentValue)
+    comment = commentValue;
+end
+
+------------------------------------------------------------------
+function saveBeanToDb()
+	local saveResult = true;				
+	local requesJournalBaseCode = getEntityBaseCode();		
+	if (getEntityRecord() == nil) then				
+		setEntityRecord(CroApp.GetBank():GetBase(requesJournalBaseCode):AddRecord())							
+	end			
+	local requestJournalRecord = getEntityRecord();		
+	if requestJournalRecord.Base.Code == requesJournalBaseCode then			
+		getClassManager().getClass("FieldsWorker").setField(requesJournalBaseCode, requestJournalRecord, 1, "", getTypeOfCheck(), nil, nil, true);								
+		getClassManager().getClass("FieldsWorker").setField(requesJournalBaseCode, requestJournalRecord, 2, "", getRequestEmployee(), nil, nil, true);						
+		getClassManager().getClass("FieldsWorker").setField(requesJournalBaseCode, requestJournalRecord, 6, "", getRequestDepartment(), nil, nil, false);						
+		getClassManager().getClass("FieldsWorker").setField(requesJournalBaseCode, requestJournalRecord, 9, "", getComment(), nil, nil, false);						
+		--getClassManager().getClass("FieldsWorker").setField(requesJournalBaseCode, requestJournalRecord, 14, "", getTypeOfAction(), nil, nil, false);				
+	else
+		saveResult = false;
+	end	
+	return saveResult;
+end
+
+function setBeanFromRecord(requestJournalRecord)	
+	local requestJournalCode = getEntityBaseCode();
+	if requestJournalRecord.Base.Code == requestJournalCode then		
+		setEntityRecord(requestJournalRecord)
+		setTypeOfCheck(				getClassManager().getClass("FieldsWorker").getField(requestJournalCode, requestJournalRecord , 1 , "" , "", ""));
+		setRequestEmployee(			getClassManager().getClass("FieldsWorker").getField(requestJournalCode, requestJournalRecord , 2 , "" , "", ""));		
+		setRequestDepartment(		getClassManager().getClass("FieldsWorker").getField(requestJournalCode, requestJournalRecord , 6 , "" , "", ""));		
+		setPerformedOnDate(			getClassManager().getClass("FieldsWorker").getField(requestJournalCode, requestJournalRecord , 4, "" , "", ""));
+		setPerformedByEmployee(		getClassManager().getClass("FieldsWorker").getField(requestJournalCode, requestJournalRecord , 3, "" , "", ""));
+		setComment			(		getClassManager().getClass("FieldsWorker").getField(requestJournalCode, requestJournalRecord , 9, "" , "", ""));
+	end
+end
+
+function toShortString()
+	local result = {};		
+	table.insert(result, getTypeOfCheckDefinition())	
+	table.insert(result, getRequestEmployeeDefinition())
+	table.insert(result, getRequestDepartmentDefinition())	
+	table.insert(result, getPerformedByEmployee())	
+	table.insert(result, getPerformedOnDate())	
+	return table.concat(result," | ")
+end
+
+function clearEntity()
+	setEntityRecord(nil)
+	setTypeOfCheck(nil)
+	setRequestEmployee(nil)
+	setRequestDepartment(nil)
+	setPerformedOnDate(nil)
+	setPerformedByEmployee(nil)		
+	setComment(nil)		
+end

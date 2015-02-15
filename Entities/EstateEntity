@@ -1,0 +1,311 @@
+local estateSort = nil;
+local estateType = nil;
+local estateSort = nil;
+local squareMeters = nil;
+local notes = nil;
+local entityBaseCode = nil;
+local entityRecord = nil;
+local organizationEntities = {};
+local addressEntities = {};
+local classManager = nil;
+
+function initLogger()
+	if logger == nil then
+		logger = getClassManager().getClass("Logger");	
+	end
+end
+
+function getEstateSort()
+    return estateSort;
+end
+function setEstateSort(estateSortValue)
+    estateSort = estateSortValue;
+end
+
+function getEstateType()
+    return estateType;
+end
+function setEstateType(estateTypeValue)
+    estateType = estateTypeValue;
+end
+
+function getSquareMeters()
+    return squareMeters;
+end
+function setSquareMeters(squareMetersValue)
+    squareMeters = squareMetersValue;
+end
+
+function getNotes()
+    return notes;
+end
+function setNotes(notesValue)
+    notes = notesValue;
+end
+
+function getEntityBaseCode()
+    return entityBaseCode;
+end
+function setEntityBaseCode(entityBaseCodeValue)
+    entityBaseCode = entityBaseCodeValue;
+end
+
+function getEntityRecord()
+    return entityRecord;
+end
+function setEntityRecord(entityRecordValue)
+    entityRecord = entityRecordValue;
+end
+
+function getOrganizationEntities()
+    return organizationEntities;
+end
+function addOrganizationEntity(newOrganizationEntity)
+    table.insert(organizationEntities,newOrganizationEntity);
+end
+function setOrganizationEntities(newOrganizationEntities)
+    organizationEntities = newOrganizationEntities;
+end
+
+function getAddressEntities()
+    return addressEntities;
+end
+function addAddressEntity(newAddressEntity)
+    table.insert(addressEntities,newAddressEntity);
+end
+function setAddressEntities(newAddressEntities)
+    addressEntities = newAddressEntities;
+end
+
+function getClassManager()
+    return classManager;
+end
+function setClassManager(classManagerValue)
+    classManager = classManagerValue;
+end
+--------------------------------------------------
+function setBeanFromLine(dataTable, configTable, mode, isCurrentEntityOnly) -- передаем таблицу с данными для загрузки и  таблицу с конфигурацией для загрузки
+	initLogger();
+	local messages = {};	
+	local configValues = "";
+	local tConfigValues = "";
+	local terminPosition = 0;
+	local fieldNumber = 0;
+	local extractedTermin = "";	
+	local isConnectedEntityNew = true;
+	local passedEntitiesCodes = {}
+	for index, tConfigValues in ipairs(configTable) do		
+		local localVocKey = nil;				
+		logger.writeDebugMessage( getClassManager(),"Получена конфигурациz: "..render(tConfigValues));
+		logger.writeDebugMessage( getClassManager(),"Получение номера аттрибута базы данных");
+		fieldNumber = tonumber(tConfigValues[3]);	
+		logger.writeDebugMessage(getClassManager(),"Получение позиции в строке загрузки");		
+		if (string.sub(tConfigValues[1],1,1) ~= "@") then
+			terminPosition = tonumber(tConfigValues[1]);					
+			logger.writeDebugMessage( getClassManager(),"Получение термина строки по позиции № "..terminPosition);
+			extractedTermin = dataTable[terminPosition];
+		else
+			extractedTermin = string.sub(tConfigValues[1],2);
+			localVocKey = tonumber(extractedTermin)
+		end		
+		logger.writeDebugMessage( getClassManager(), "Был получен термин для загрузки в поле "..fieldNumber);
+		if (extractedTermin ~= nil and string.len(extractedTermin)>0) then			
+			if (tConfigValues[2] == getEntityBaseCode()) then
+				if(fieldNumber == 3) then
+					setSquareMeters(extractedTermin);
+				elseif(fieldNumber == 5) then
+					setNotes(extractedTermin);			
+				else
+					local vocCode = getClassManager().getClass("FieldsWorker").getVocFieldBaseCode(getClassManager(),getEntityBaseCode(),fieldNumber)			
+					if (vocCode ~= nil) then						
+						if (localVocKey == nil) then
+							localVocKey, errorMessages = getClassManager().getClass("DBWorker").convertExternalVocTermin(getClassManager(), extractedTermin, vocCode);				
+							for _,message in pairs(errorMessages) do
+								table.insert(messages, message)
+							end
+						end	
+						if(fieldNumber == 1) then					
+							setEstateSort(localVocKey);
+						elseif(fieldNumber == 2) then						
+							setEstateType(localVocKey);										
+						end	
+					else
+						logger.writeDebugMessage( getClassManager(), "Поле № "..fieldNumber.. " не обрабатывает программным объектом");
+					end
+				end	
+			else					
+				isConnectedEntityNew = table.count(getClassManager().getClass("Service").getIndexesFromTable(passedEntitiesCodes, tConfigValues[2]))==0
+				if (not isCurrentEntityOnly) then
+					logger.writeDebugMessage( getClassManager(),"Термин принадлежит базе данных с мнемокодом "..tConfigValues[2]);			
+					logger.writeDebugMessage( getClassManager(),"Создание нового программного объекта")
+					local connectedEntity = getClassManager().newEntity(getClassManager(), tConfigValues[2], true, isConnectedEntityNew)			
+					if (isConnectedEntityNew) then
+						logger.writeDebugMessage( getClassManager(),"Добавление созданного объекта для установления связи")				
+						addConnectedEntity (connectedEntity);			
+					end
+					isConnectedEntityNew = false;				
+					logger.writeDebugMessage( getClassManager(),"Заполнение программного объекта на основе данных из файла загрузки и запись полученных сообщений");																								
+					local errorMessages = connectedEntity.setBeanFromLine(dataTable, {tConfigValues}, mode); 						
+					for _,message in pairs(errorMessages) do
+						table.insert(messages, message)
+					end	
+					logger.writeDebugMessage(getClassManager(),"Проверка режима работы системы: "..mode);	
+					if (mode == getClassManager().getClass("Constanta").getCnstDataLoaderLoadMode()) then
+						logger.writeDebugMessage(getClassManager(),"Сохранение программного объекта в базу данных с мнемокодом "..tConfigValues[2]);																													
+						connectedEntity.saveBeanToDb();						
+					end
+				end
+			end
+			table.insert(passedEntitiesCodes,tConfigValues[2]);
+		end
+	end	
+	return messages;
+end
+
+function addConnectedEntity (connectedEntity)
+	local connectedEntityCode = connectedEntity.getEntityBaseCode();
+	if (connectedEntityCode == getClassManager().getClass("Constanta").getCnstOrganization()) then
+		addOrganizationEntity(connectedEntity);		
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstAddress()) then
+		addAddressEntity(connectedEntity);		
+	end		
+end
+
+function getAttributeByFieldNumber(fieldNumber)
+	local attribute = nil;
+	local noAttributeLineDefined = false;
+	fieldNumber = tonumber(fieldNumber)	
+	if (fieldNumber == 1) then									
+		attribute = getEstateSort();		
+	elseif(fieldNumber == 2) then
+		attribute = getEstateType();
+	elseif(fieldNumber == 3) then
+		attribute = getSquareMeters();
+	elseif(fieldNumber == 5) then
+		attribute = getNotes();	
+	else
+		noAttributeLineDefined = true;
+	end		
+	--необходимо для логики выдачи сообщения про неопределенный номер поля в данном методе
+	if (noAttributeLineDefined == false and attribute == nil) then
+		attribute = "";		
+	end	
+	return attribute;
+end
+--------------------------------------------------
+function clearEntities()	
+	setOrganizationEntities({});	
+	setAddressEntities({})
+end
+
+function setLinks()		
+	local estateBase 		= CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstEstate());									
+	local organizationBase 	= CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstOrganization());					
+	local addressBase 		= CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstAddress());					
+	--organizations linking	
+	for key, organizationEntity in pairs(getOrganizationEntities()) do						
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), getEntityRecord())) then
+			getEntityRecord():Unlock();
+		end
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), organizationEntity.getEntityRecord())) then
+			organizationEntity.getEntityRecord():Unlock();
+		end
+		estateBase:AddLink(getEntityRecord().SN,7,organizationBase,organizationEntity.getEntityRecord().SN, Base.LockWait, Base.LockWait);																	
+	end
+	for key, addressEntity in pairs(getAddressEntities()) do						
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), getEntityRecord())) then
+			getEntityRecord():Unlock();
+		end
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), addressEntity.getEntityRecord())) then
+			addressEntity.getEntityRecord():Unlock();
+		end
+		estateBase:AddLink(getEntityRecord().SN,4,addressBase,addressEntity.getEntityRecord().SN, Base.LockWait, Base.LockWait);																	
+	end
+	setEntityRecord(estateBase:GetRecord(getEntityRecord().SN));
+end
+
+function setBeanFromRecord(estateRecord)		
+	local estateBaseCode = getEntityBaseCode();	
+	if estateRecord.Base.Code == estateBaseCode then						
+		setEntityRecord(estateRecord)		
+		setEstateSort(	getClassManager().getClass("FieldsWorker").getField(estateBaseCode, estateRecord , 1 , "" , "", ""));		
+		setEstateType(	getClassManager().getClass("FieldsWorker").getField(estateBaseCode, estateRecord , 2 , "" , "", ""));		
+		setSquareMeters(getClassManager().getClass("FieldsWorker").getField(estateBaseCode, estateRecord , 3 , "" , "", ""));		
+		setNotes(		getClassManager().getClass("FieldsWorker").getField(estateBaseCode, estateRecord , 5 , "" , "", ""));			
+		local addressResordSet = getClassManager().getClass("DBWorker").getItemsForEstate(getClassManager(), 
+																							getClassManager().getClass("Constanta").getCnstAddress(), 
+																							getEntityRecord());				
+		for addressRec in addressResordSet.Records do			
+			local addressEntity = getClassManager().newEntity(getClassManager(), getClassManager().getClass("Constanta").getCnstAddress());			
+			addressEntity.setBeanFromRecord(addressRec);			
+			addAddressEntity(addressEntity);			
+		end
+	end
+end
+
+function setBeanFromView(view)	
+	setEstateSort(view.getDpdEstateSortSelectedCode());				
+	setEstateType(view.getDpdEstateTypeSelectedCode());	
+	setSquareMeters(view.getTxtSquareMetersText());
+	setNotes(view.getTxtNotesText());		
+end
+
+
+function saveBeanToDb()		
+	local saveResult = true;				
+	local estateBaseCode = getEntityBaseCode();		
+	if (getEntityRecord() == nil) then		
+		setEntityRecord(CroApp.GetBank():GetBase(estateBaseCode):AddRecord())					
+	end			
+	local estateRecord = getEntityRecord();						
+	if estateRecord.Base.Code == estateBaseCode then								
+		getClassManager().getClass("FieldsWorker").setField(estateBaseCode, estateRecord, 1, "", getEstateSort(), nil, nil, true);								
+		getClassManager().getClass("FieldsWorker").setField(estateBaseCode, estateRecord, 2, "", getEstateType(), nil, nil, true);				
+		getClassManager().getClass("FieldsWorker").setField(estateBaseCode, estateRecord, 3, "", getSquareMeters(), nil, nil, true);				
+		getClassManager().getClass("FieldsWorker").setField(estateBaseCode, estateRecord, 5, "", getNotes(), nil, nil, false);			
+		setLinks();		
+	else
+		saveResult = false;
+	end		
+	return saveResult;
+end
+
+function  getEstateTypeDefinition()
+    local defIndexes = getClassManager().getClass("Service").getIndexesFromTable(
+						getClassManager().getClass("Constanta").getDpdEstateTypeCodes(),getEstateType());	
+	return getClassManager().getClass("Service").getItemFromTableByIndex(getClassManager().getClass("Constanta").getDpdEstateTypeDefinitions(),
+																		getClassManager().getClass("Service").getItemFromTableByIndex(defIndexes,1));
+end
+
+function  getEstateSortDefinition()	
+    local defIndexes = getClassManager().getClass("Service").getIndexesFromTable(
+						getClassManager().getClass("Constanta").getDpdEstateSortCodes(),getEstateSort());							
+	return getClassManager().getClass("Service").getItemFromTableByIndex(getClassManager().getClass("Constanta").getDpdEstateSortDefinitions(),
+																		getClassManager().getClass("Service").getItemFromTableByIndex(defIndexes,1));																		
+end
+
+
+function toShortString(isWithConnectedItems)
+	local result = {};					
+	table.insert(result, getEstateSortDefinition())			
+	table.insert(result, getEstateTypeDefinition())				
+	table.insert(result, getSquareMeters().." кв.м.")					
+	if (isWithConnectedItems) then	
+		for key, organizationEntity in pairs(getOrganizationEntities()) do		
+			table.insert(result, organizationEntity.toShortString(false))
+		end		
+		for key, addressEntity in pairs(getAddressEntities()) do		
+			table.insert(result, addressEntity.toShortString(false))
+		end
+	end		
+	return table.concat(result," | ")
+end
+
+function clearEntity()
+	clearEntities()	
+	setEntityRecord(nil)		
+	setEstateSort(nil)		
+	setEstateType(nil)		
+	setSquareMeters(nil)		
+	setNotes(nil)		
+end

@@ -1,0 +1,353 @@
+local ClassManager = nil;
+local unloadController = nil;
+local formsController = nil;
+local logger = nil;
+local constanta = nil;
+
+function Форма_Open( form )	    
+	form.WindowState  = Form.Minimized 
+	setClassManager(Arg.ClassManager)		
+    return true;
+end
+
+function Форма_Load( form )
+	getClassManager().setClass(form, form)		
+	setControllersReferences();	
+    setControls(form);		
+end
+
+function txtDate_DataChanged( control, data )			
+	control.Form:CloseForm()
+	return true;
+end
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+	logger =  getClassManager().getClass("Logger");	
+    constanta = getClassManager().getClass("Constanta");
+end
+
+function Форма_UnloadForm( form, mode )	
+	local changedValue = nil;		
+	logger.writeDebugMessage( getClassManager(),"------------------------Метод Форма_UnloadForm() формы CalendarView------------------------")			
+	logger.writeDebugMessage( getClassManager(),"Определение возвращаемого значения")			
+	if string.len(getTxtDateText())>0 then
+		changedValue = getTxtDateText()		
+	elseif string.len(getDpdTypeOfCheckSelectedItem())>0 then		
+		changedValue = getDpdTypeOfCheckSelectedItem()
+	elseif string.len(getDpdSortOfEmployeeSelectedItem())>0 then		
+		changedValue = getDpdSortOfEmployeeSelectedItem()
+	elseif string.len(getDpdSortOfOrganizationSelectedItem())>0 then		
+		changedValue = getDpdSortOfOrganizationSelectedItem()
+	elseif string.len(getDpdOfficialStatusSelectedItem())>0 then		
+		changedValue = getDpdOfficialStatusSelectedItem()
+	elseif string.len(getDpdRelationTypeSelectedItem())>0 then						
+		changedValue = getDpdRelationTypeSelectedItem()		
+	elseif string.len(getDpdDepartmentSelectedItem())>0 then						
+		changedValue = getDpdDepartmentSelectedItem	()		
+	elseif string.len(getDpdEmployeeSelectedItem())>0 then						
+		changedValue = getDpdEmployeeSelectedItem	()
+	end
+	if (changedValue ~= nil) then
+		logger.writeDebugMessage( getClassManager(),"Возвращаемое значение \""..changedValue.."\"")	
+	else
+		logger.writeDebugMessage( getClassManager(),"Не определено возвращаемое значение")
+	end
+	logger.writeDebugMessage( getClassManager(),"Доставка значения на целевую форму")			
+	formsController.deliverValues( getClassManager(), Arg.Control, changedValue)				
+	logger.writeDebugMessage( getClassManager(),"Удаление записи из системной базы данных")
+	form:DeleteRecord(DCNo,DENone);		
+	
+	logger.writeDebugMessage( getClassManager(),"Уничтожение объекта формы в памяти")
+    getClassManager().setClass(form, nil)
+	
+	logger.writeDebugMessage( getClassManager(),"------------------------Метод Форма_UnloadForm() формы CalendarView завершил работу------------------------")
+    return true;
+end
+
+local txtDate = nil;
+local dpdTypeOfCheck = nil;
+local dpdSortOfEmployee = nil;
+local dpdOfficialStatus = nil;
+local dpdSortOfOrganization = nil;
+local dpdRelationType = nil;
+local dpdEmployee = nil
+local dpdDepartment = nil;
+local dpdEmployee = nil;
+
+function setControls(form)
+    txtDate = form.txtDate;
+    dpdTypeOfCheck = form.dpdTypeOfCheck;
+    dpdSortOfEmployee = form.dpdSortOfEmployee;
+    dpdOfficialStatus = form.dpdOfficialStatus;
+    dpdSortOfOrganization = form.dpdSortOfOrganization;
+	dpdRelationType = form.dpdRelationType;
+	dpdDepartment = form.dpdDepartment;
+    dpdEmployee = form.dpdEmployee;
+    populateLists();
+end
+
+function populateLists()
+
+end
+
+function setFormFromEntity(ClassManager, entity)
+    setTxtDateText(entity.getDate());
+    setDpdTypeOfCheckSelectedItem(entity.getTypeOfCheck());
+    setDpdSortOfEmployeeSelectedItem(entity.getSortOfEmployee());
+    setDpdOfficialStatusSelectedItem(entity.getOfficialStatus());
+    setDpdSortOfOrganizationSelectedItem(entity.getSortOfOrganization());
+	setDpdRelationTypeSelectedItem(entity.getRelationType());
+	setDpdDepartmentSelectedItem(entity.getDepartment());
+    setDpdEmployeeSelectedItem(entity.getEmployee());
+end
+function getTxtDateText( )
+    return txtDate.Value
+end
+function setTxtDateText( txtDateValue )
+    txtDate.Value = txtDateValue
+end
+function getTxtDate( )
+    return txtDate;
+end
+
+function addDpdTypeOfCheckItem( dpdTypeOfCheckValue )
+   dpdTypeOfCheck:Add(dpdTypeOfCheckValue)
+end
+function addDpdTypeOfCheckItems( dpdTypeOfCheckValues )
+    if dpdTypeOfCheckValues ~= nil then
+        for key, value in pairs (dpdTypeOfCheckValues) do
+            addDpdTypeOfCheckItem(value)
+        end
+    end
+end
+function clearDpdTypeOfCheckItesm( )
+   dpdTypeOfCheck:Clear(index)
+end
+function getDpdTypeOfCheckSelectedItem( )
+    return dpdTypeOfCheck.Text
+end
+function setDpdTypeOfCheckSelectedItem( dpdTypeOfCheckItemValue)
+    dpdTypeOfCheck.Value = dpdTypeOfCheckItemValue
+end
+function getDpdTypeOfCheckSelectedIndex( )
+    return dpdTypeOfCheck.SelectedIndex
+end
+function getDpdTypeOfCheckSelectedCode( )
+    return dpdTypeOfCheck.Value
+end
+function setDpdTypeOfCheckSelectedIndex( dpdTypeOfCheckIndexValue )
+    dpdTypeOfCheck.SelectedIndex = dpdTypeOfCheckIndexValue
+end
+function getDpdTypeOfCheck( )
+    return dpdTypeOfCheck
+end
+
+function addDpdSortOfEmployeeItem( dpdSortOfEmployeeValue )
+   dpdSortOfEmployee:Add(dpdSortOfEmployeeValue)
+end
+function addDpdSortOfEmployeeItems( dpdSortOfEmployeeValues )
+    if dpdSortOfEmployeeValues ~= nil then
+        for key, value in pairs (dpdSortOfEmployeeValues) do
+            addDpdSortOfEmployeeItem(value)
+        end
+    end
+end
+function clearDpdSortOfEmployeeItesm( )
+   dpdSortOfEmployee:Clear(index)
+end
+function getDpdSortOfEmployeeSelectedItem( )
+    return dpdSortOfEmployee.Text
+end
+function setDpdSortOfEmployeeSelectedItem( dpdSortOfEmployeeItemValue)
+    dpdSortOfEmployee.Value = dpdSortOfEmployeeItemValue
+end
+function getDpdSortOfEmployeeSelectedIndex( )
+    return dpdSortOfEmployee.SelectedIndex
+end
+function getDpdSortOfEmployeeSelectedCode( )
+    return dpdSortOfEmployee.Value
+end
+function setDpdSortOfEmployeeSelectedIndex( dpdSortOfEmployeeIndexValue )
+    dpdSortOfEmployee.SelectedIndex = dpdSortOfEmployeeIndexValue
+end
+function getDpdSortOfEmployee( )
+    return dpdSortOfEmployee
+end
+
+function addDpdOfficialStatusItem( dpdOfficialStatusValue )
+   dpdOfficialStatus:Add(dpdOfficialStatusValue)
+end
+function addDpdOfficialStatusItems( dpdOfficialStatusValues )
+    if dpdOfficialStatusValues ~= nil then
+        for key, value in pairs (dpdOfficialStatusValues) do
+            addDpdOfficialStatusItem(value)
+        end
+    end
+end
+function clearDpdOfficialStatusItesm( )
+   dpdOfficialStatus:Clear(index)
+end
+function getDpdOfficialStatusSelectedItem( )
+    return dpdOfficialStatus.Text
+end
+function setDpdOfficialStatusSelectedItem( dpdOfficialStatusItemValue)
+    dpdOfficialStatus.Value = dpdOfficialStatusItemValue
+end
+function getDpdOfficialStatusSelectedIndex( )
+    return dpdOfficialStatus.SelectedIndex
+end
+function getDpdOfficialStatusSelectedCode( )
+    return dpdOfficialStatus.Value
+end
+function setDpdOfficialStatusSelectedIndex( dpdOfficialStatusIndexValue )
+    dpdOfficialStatus.SelectedIndex = dpdOfficialStatusIndexValue
+end
+function getDpdOfficialStatus( )
+    return dpdOfficialStatus
+end
+
+function addDpdSortOfOrganizationItem( dpdSortOfOrganizationValue )
+   dpdSortOfOrganization:Add(dpdSortOfOrganizationValue)
+end
+function addDpdSortOfOrganizationItems( dpdSortOfOrganizationValues )
+    if dpdSortOfOrganizationValues ~= nil then
+        for key, value in pairs (dpdSortOfOrganizationValues) do
+            addDpdSortOfOrganizationItem(value)
+        end
+    end
+end
+function clearDpdSortOfOrganizationItesm( )
+   dpdSortOfOrganization:Clear(index)
+end
+function getDpdSortOfOrganizationSelectedItem( )
+    return dpdSortOfOrganization.Text
+end
+function setDpdSortOfOrganizationSelectedItem( dpdSortOfOrganizationItemValue)
+    dpdSortOfOrganization.Value = dpdSortOfOrganizationItemValue
+end
+function getDpdSortOfOrganizationSelectedIndex( )
+    return dpdSortOfOrganization.SelectedIndex
+end
+function getDpdSortOfOrganizationSelectedCode( )
+    return dpdSortOfOrganization.Value
+end
+function setDpdSortOfOrganizationSelectedIndex( dpdSortOfOrganizationIndexValue )
+    dpdSortOfOrganization.SelectedIndex = dpdSortOfOrganizationIndexValue
+end
+function getDpdSortOfOrganization( )
+    return dpdSortOfOrganization
+end
+
+function setFormFromEntity(entity)
+    setDpdRelationTypeSelectedItem(entity.getRelationType());
+end
+function addDpdRelationTypeItem( dpdRelationTypeValue )
+   dpdRelationType:Add(dpdRelationTypeValue)
+end
+function addDpdRelationTypeItems( dpdRelationTypeValues )
+    if dpdRelationTypeValues ~= nil then
+        for key, value in pairs (dpdRelationTypeValues) do
+            addDpdRelationTypeItem(value)
+        end
+    end
+end
+function clearDpdRelationTypeItesm( )
+   dpdRelationType:Clear(index)
+end
+function getDpdRelationTypeSelectedItem( )
+    return dpdRelationType.Text
+end
+function setDpdRelationTypeSelectedItem( dpdRelationTypeItemValue)
+    dpdRelationType.Value = dpdRelationTypeItemValue
+end
+function getDpdRelationTypeSelectedIndex( )
+    return dpdRelationType.SelectedIndex
+end
+function getDpdRelationTypeSelectedCode( )
+    return dpdRelationType.Value
+end
+function setDpdRelationTypeSelectedIndex( dpdRelationTypeIndexValue )
+    dpdRelationType.SelectedIndex = dpdRelationTypeIndexValue
+end
+function getDpdRelationType()
+    return dpdRelationType
+end
+
+function addDpdDepartmentItem( dpdDepartmentValue )
+   dpdDepartment:Add(dpdDepartmentValue)
+end
+function addDpdDepartmentItems( dpdDepartmentValues )
+    if dpdDepartmentValues ~= nil then
+        for key, value in pairs (dpdDepartmentValues) do
+            addDpdDepartmentItem(value)
+        end
+    end
+end
+function clearDpdDepartmentItems( )
+   dpdDepartment:Clear(index)
+end
+function getDpdDepartmentSelectedItem( )
+    return dpdDepartment.Text
+end
+function setDpdDepartmentSelectedItem( dpdDepartmentItemValue)
+    dpdDepartment.Value = dpdDepartmentItemValue
+end
+function getDpdDepartmentSelectedIndex( )
+    return dpdDepartment.SelectedIndex
+end
+function getDpdDepartmentSelectedCode( )
+    return dpdDepartment.Value
+end
+function setDpdDepartmentSelectedIndex( dpdDepartmentIndexValue )
+    dpdDepartment.SelectedIndex = dpdDepartmentIndexValue
+end
+function setDpdDepartmentEnabled( isDpdDepartmentEnabled )
+   dpdDepartment.Enabled = isDpdDepartmentEnabled
+end		 
+function getDpdDepartment()
+    return dpdDepartment
+end
+
+function addDpdEmployeeItem( dpdEmployeeValue )
+   dpdEmployee:Add(dpdEmployeeValue)
+end
+function addDpdEmployeeItems( dpdEmployeeValues )
+    if dpdEmployeeValues ~= nil then
+        for key, value in pairs (dpdEmployeeValues) do
+            addDpdEmployeeItem(value)
+        end
+    end
+end
+function clearDpdEmployeeItems( )
+   dpdEmployee:Clear(index)
+end
+function getDpdEmployeeSelectedItem( )
+    return dpdEmployee.Text
+end
+function setDpdEmployeeSelectedItem( dpdEmployeeItemValue)
+    dpdEmployee.Value = dpdEmployeeItemValue
+end
+function getDpdEmployeeSelectedIndex( )
+    return dpdEmployee.SelectedIndex
+end
+function getDpdEmployeeSelectedCode( )
+    return dpdEmployee.Value
+end
+function setDpdEmployeeSelectedIndex( dpdEmployeeIndexValue )
+    dpdEmployee.SelectedIndex = dpdEmployeeIndexValue
+end
+function setDpdEmployeeEnabled( isDpdEmployeeEnabled )
+   dpdEmployee.Enabled = isDpdEmployeeEnabled
+end
+function getDpdEmployee( )
+    return dpdEmployee
+end

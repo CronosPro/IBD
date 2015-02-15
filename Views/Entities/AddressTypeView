@@ -1,0 +1,228 @@
+local ClassManager = nil;
+local Entity = nil;
+local unloadController = nil;
+local formsController = nil;
+local constanta = nil;
+local objectList = nil
+local childForms = {};
+local isNewObject = false;
+
+local lblAddressType = nil;
+local dpdAddressType = nil;
+local btnSave = nil;
+local btnClose = nil;
+local txtInfoPanel = nil;
+local lnkAddress = nil;
+local lblNote = nil;
+local txtNote = nil;
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function getObjectList()
+    return objectList;
+end
+function setObjectList(objectListValue)
+    objectList = objectListValue;
+end
+
+function getEntity()	
+    return Entity;
+end
+function setEntity(entityValue)
+    Entity = entityValue;	
+end
+
+function getIsNewObject()
+    return isNewObject;
+end
+function setIsNewObject(isNewObjectValue)
+    isNewObject = isNewObjectValue;
+	if (lnkAddress ~= nil) then		
+		lnkAddress.setIsNewObject(isNewObjectValue)	
+	end
+end
+
+function Форма_Open( form	)	    
+	setClassManager(Arg.ClassManager)		
+    setControllersReferences()		
+    return true;
+end
+
+function Форма_Load( form )		    
+	getClassManager().setClass(form, form)		    
+	setObjectList(Arg.FormModule);
+	--form.X = getObjectList().getCurrentForm().X+getObjectList().getCurrentForm().Width    	
+	if (Arg.Data ~= nil) then		
+		local addressEntities = {};	
+        for key,entity in pairs(Arg.Data) do
+			if (entity.getEntityBaseCode() == constanta.getCnstAddressType()) then
+                Entity = entity;				
+				form.RecordNumber = Entity.getEntityRecord().SN;		                
+			elseif (entity.getEntityBaseCode() == constanta.getCnstAddress()) then
+				table.insert(addressEntities, entity);
+            end
+        end		
+		Entity.setAddressEntities(addressEntities)
+    end		
+    if (Entity == nil) then
+        Форма_UnloadForm( form);
+	else		
+		setControls(form);		
+		setFormFromEntity(getEntity());
+		table.insert(childForms,form);
+		setIsNewObject(Arg.isNewObject);
+    end    		
+end
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+    constanta = getClassManager().getClass("Constanta");
+end
+
+function Форма_UnloadForm( form, mode )
+    unloadController.doUnload(getClassManager(), form, childForms);
+    getClassManager().setClass(form, nil)
+    return true;
+end
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+    constanta = getClassManager().getClass("Constanta");
+end
+
+function Форма_UnloadForm( form, mode )
+    unloadController.doUnload(getClassManager(), form, childForms);
+    getClassManager().setClass(form, nil)
+    return true;
+end
+
+function setControls(form)	
+    lblAddressType = form.lblAddressType;	
+    dpdAddressType = form.dpdAddressType;	
+    btnSave = form.btnSave;	
+    btnClose = form.btnClose;	
+    txtInfoPanel = form.txtInfoPanel;	
+    lnkAddress = form.lnkAddress.Controls["Область данных"].Form.Module;	
+    lnkAddress.setArg(Arg);
+    lnkAddress.Форма_Open(form.lnkAddress.Controls["Область данных"].Form)	
+    lnkAddress.Форма_Load(form.lnkAddress.Controls["Область данных"].Form)	
+	lnkAddress.setIsNewObject(getIsNewObject())	
+    lnkAddress.setPnlButtonsVisibility(false);	
+    lblNote = form.lblNote;	
+    txtNote = form.txtNote;	
+    populateLists();	
+	setTxtInfoPanelBackColor(constanta.getSystemBackColor());
+end
+
+function populateLists()
+
+end
+
+function setFormFromEntity(entity)
+    setDpdAddressTypeSelectedItem(entity.getAddressType());
+    setTxtNoteText(entity.getNote());
+end
+function setLblAddressTypeText( lblAddressTypeValue )
+   lblAddressType.Value = lblAddressTypeValue
+end
+function getLblAddressTypeText( )
+    return lblAddressType.Value
+end
+
+function addDpdAddressTypeItem( dpdAddressTypeValue )
+   dpdAddressType:Add(dpdAddressTypeValue)
+end
+function addDpdAddressTypeItems( dpdAddressTypeValues )
+    if dpdAddressTypeValues ~= nil then
+        for key, value in pairs (dpdAddressTypeValues) do
+            addDpdAddressTypeItem(value)
+        end
+    end
+end
+function clearDpdAddressTypeItesm( )
+   dpdAddressType:Clear(index)
+end
+function getDpdAddressTypeSelectedItem( )
+    return dpdAddressType.Text
+end
+function setDpdAddressTypeSelectedItem( dpdAddressTypeItemValue)
+    dpdAddressType.Value = dpdAddressTypeItemValue
+end
+function getDpdAddressTypeSelectedIndex( )
+    return dpdAddressType.SelectedIndex
+end
+function getDpdAddressTypeSelectedCode( )
+    return dpdAddressType.Value
+end
+function setDpdAddressTypeSelectedIndex( dpdAddressTypeIndexValue )
+    dpdAddressType.SelectedIndex = dpdAddressTypeIndexValue
+end
+
+function setBtnSaveText( btnSaveValue )
+   btnSave.Text = btnSaveValue
+end
+function getBtnSaveText( )
+    return btnSave.Text
+end
+
+function btnSave_Click( control )	
+    setIsNewObject(false);	
+	Entity.setBeanFromView(btnSave.Form.Module);	
+    if (Entity.saveBeanToDb(getClassManager())) then						
+		lnkAddress.btnSave_Click();				
+		getObjectList().refreshForm(Entity);				
+        setTxtInfoPanelText("Запись успешно сохранена в базу данных");
+		Форма_UnloadForm( btnSave.Form);
+    else		
+        setTxtInfoPanelText("ВНИМАНИЕ!!! Запись не сохранена в базу данных");
+    end	
+end
+
+function setBtnCloseText( btnCloseValue )
+   btnClose.Text = btnCloseValue
+end
+function getBtnCloseText( )
+    return btnClose.Text
+end
+
+function btnClose_Click( control )    
+	lnkAddress.btnClose_Click( control );		
+	setFormFromEntity(getEntity());	
+    Форма_UnloadForm( control.Form);
+end
+
+function setTxtInfoPanelText( txtInfoPanelValue )	
+    txtInfoPanel.Text = txtInfoPanelValue
+end
+function getTxtInfoPanelText( )
+    return txtInfoPanel.Text
+end
+function setTxtInfoPanelBackColor( txtInfoPanelBackColor )
+   txtInfoPanel.BackColor = txtInfoPanelBackColor
+end
+
+function setLblNoteText( lblNoteValue )
+   lblNote.Value = lblNoteValue
+end
+function getLblNoteText( )
+    return lblNote.Value
+end
+
+function setTxtNoteText( txtNoteValue )
+    txtNote.Value = txtNoteValue
+end
+function getTxtNoteText( )
+    return txtNote.Value
+end
+
+function Форма_BeforeSaveForm( event )
+	--event.PermitSave = false;
+end
+

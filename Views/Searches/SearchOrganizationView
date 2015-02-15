@@ -1,0 +1,129 @@
+local ClassManager = nil;
+local Entity = nil;
+local unloadController = nil;
+local formsController = nil;
+local validationController = nil;
+local requestController = nil;
+local service = nil;
+local constanta = nil;
+local childForms = {};
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function Форма_Open( form	)
+    setClassManager(Arg.ClassManager)
+    setControllersReferences()
+    return true;
+end
+
+
+function Форма_Load( form )
+    setControls(form);	
+	getClassManager().setClass(form, form);		
+	table.insert(childForms,form);		
+end
+
+
+function setControllersReferences()
+	unloadController = getClassManager().getClass("UnloadController");
+	formsController = getClassManager().getClass("FormsController");
+	validationController = getClassManager().getClass("ValidationController");
+	requestController = getClassManager().getClass("RequestController");
+	constanta = getClassManager().getClass("Constanta");
+	service =  getClassManager().getClass("Service");
+end
+
+function Форма_UnloadForm( form, mode )
+    unloadController.doUnload(getClassManager(), form, childForms);
+    getClassManager().setClass(form, nil)
+    return true;
+end
+
+
+local lblCompanyName = nil;
+local txtCompanyName = nil;
+local lblCompanyUnn = nil;
+local txtCompanyUnn = nil;
+local btnClose = nil;
+local btnSearch = nil;
+
+
+function setControls(form)
+    lblCompanyName = form.lblCompanyName;
+    txtCompanyName = form.txtCompanyName;
+    lblCompanyUnn = form.lblCompanyUnn;
+    txtCompanyUnn = form.txtCompanyUnn;
+    btnClose = form.btnClose;
+    btnSearch = form.btnSearch;
+    populateLists();
+end
+
+function populateLists()
+
+end
+
+function setLblCompanyNameText( lblCompanyNameValue )
+   lblCompanyName.Text = lblCompanyNameValue
+end
+function getLblCompanyNameText( )
+    return lblCompanyName.Text
+end
+
+function setTxtCompanyNameText( txtCompanyNameValue )
+    txtCompanyName.Text = txtCompanyNameValue
+end
+function getTxtCompanyNameText( )
+    return txtCompanyName.Text
+end
+
+function setLblCompanyUnnText( lblCompanyUnnValue )
+   lblCompanyUnn.Text = lblCompanyUnnValue
+end
+function getLblCompanyUnnText( )
+    return lblCompanyUnn.Text
+end
+
+function setTxtCompanyUnnText( txtCompanyUnnValue )
+    txtCompanyUnn.Text = txtCompanyUnnValue
+end
+function getTxtCompanyUnnText( )
+    return txtCompanyUnn.Text
+end
+
+function setBtnCloseText( btnCloseValue )
+   btnClose.Text = btnCloseValue
+end
+function getBtnCloseText( )
+    return btnClose.Text
+end
+
+function btnClose_Click( control )
+    Форма_UnloadForm( control.Form);
+end
+
+
+function setBtnSearchText( btnSearchValue )
+   btnSearch.Text = btnSearchValue
+end
+function getBtnSearchText( )
+    return btnSearch.Text
+end
+
+function txtCompanyUnn_FocusLeave( control )	
+	service.doTextBoxPatternCheck( txtCompanyUnn, "%a" )	
+end
+
+
+function txtCompanyUnn_KeyUp( event )	
+	service.doTextBoxLengthCheck( txtCompanyUnn, constanta.getUnpFieldLength() )		
+end
+
+function btnSearch_Click( control )		
+	table.insert(childForms,getClassManager().getClass("FormsController").openNeccessaryForm(getClassManager(), control,requestController.doRequest(getClassManager(), control)));			
+end
+

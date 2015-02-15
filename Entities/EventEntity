@@ -1,0 +1,92 @@
+local eventStartDate = nil;
+local eventTimeStart = nil;
+local eventType = nil;
+local eventShortDescription = nil;
+local eventPlace = nil;
+local eventEndDate = nil;
+local notes = nil;
+local orgUnn = nil;
+local personId = nil;
+local classManager = nil;
+
+function getClassManager()
+    return classManager;
+end
+function setClassManager(classManagerValue)
+    classManager = classManagerValue;
+end
+
+function getEventStartDate()
+    return eventStartDate;
+end
+function setEventStartDate(eventStartDateValue)
+    eventStartDate = eventStartDateValue;
+end
+
+function getEventTimeStart()
+    return eventTimeStart;
+end
+function setEventTimeStart(eventTimeStartValue)
+    eventTimeStart = eventTimeStartValue;
+end
+
+function getEventType()
+    return eventType;
+end
+function setEventType(eventTypeValue)
+    eventType = eventTypeValue;
+end
+
+function getEventShortDescription()
+    return eventShortDescription;
+end
+function setEventShortDescription(eventShortDescriptionValue)
+    eventShortDescription = eventShortDescriptionValue;
+end
+
+function getEventPlace()
+    return eventPlace;
+end
+function setEventPlace(eventPlaceValue)
+    eventPlace = eventPlaceValue;
+end
+
+function getEventEndDate()
+    return eventEndDate;
+end
+function setEventEndDate(eventEndDateValue)
+    eventEndDate = eventEndDateValue;
+end
+
+function getNotes()
+    return notes;
+end
+function setNotes(notesValue)
+    notes = notesValue;
+end
+
+function getOrgUnn()
+    return orgUnn;
+end
+function setOrgUnn(orgUnnValue)
+    orgUnn = orgUnnValue;
+end
+
+function getPersonId()
+    return personId;
+end
+function setPersonId(personIdValue)
+    personId = personIdValue;
+end
+
+function clearEntity()
+	setPersonId(nil)
+	setOrgUnn(nil)
+	setNotes(nil)
+	setEventEndDate(nil)
+	setEventPlace(nil)
+	setEventShortDescription(nil)
+	setEventType(nil)
+	setEventTimeStart(nil)
+	setEventStartDate(nil)
+end

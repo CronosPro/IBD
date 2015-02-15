@@ -1,0 +1,804 @@
+function Форма_Open( form )
+	return true;
+end
+
+function getControlFormText(control)
+	return control.Form.NameInList
+end
+function getControlName(control)
+	return control.Name
+end
+function getControlFormModule(control)
+	return control.Form.Module;
+end
+
+--метод получения строки запроса для конкретных элементов управления на конкретных формах
+function doRequest(ClassManager, control, childForms)
+	local request = nil
+	local baseCode = nil;	
+	local isSuccess = true;
+	local recordSet = nil;	
+	if getControlFormText(control) == "CheckOrganizationView" then -- форма проверки юридического лица			
+		if getControlName(control) == "btnSearch" then --проверка организации	
+			recordSet = doCheckLegalPerson(ClassManager, control)			
+		else --несуществующий метод
+			request = getStringRequestBySearching(ClassManager, control)
+			if request == nil or request == "" then
+				MsgBox("Ошибка запроса! Нет запроса, связанного с элементом управления")
+				isSuccess = false
+			end
+		end		
+	elseif getControlFormText(control) == "CheckApplicantView" then -- форма Проверки кандидата на работу
+		if getControlName(control) == "btnSearch" then --поиск организаций		
+			recordSet = doCheckApplicant(ClassManager, control)	
+		end
+	elseif getControlFormText(control) == "SearchOrganizationView" then -- форма Поиска огранизация
+		if getControlName(control) == "btnSearch" then --поиск организаций		
+			recordSet = doSearchOrganization(ClassManager, control)			
+			if (recordSet ~= nil) then				
+				if (recordSet.Count > 0) then
+					--MsgBox("Всего найдено организаций: "..recordSet.Count ,BtnOk + IconInformation);
+				else
+					MsgBox("По Вашему запросу организаций не найдено.",BtnOk + IconWarning)
+				end			
+			end
+		end
+	elseif getControlFormText(control) == "SearchPersonView" then -- форма Поиска лица
+		if getControlName(control) == "btnSearch" then --поиск kbw	
+			local fullName = getControlFormModule(control).getTxtFullNameText();
+			local lastName = getControlFormModule(control).getTxtLastNameText();			
+			local firstName = getControlFormModule(control).getTxtFirstNameText();									
+			local middleName = getControlFormModule(control).getTxtMiddleNameText();									
+			local birthday = getControlFormModule(control).getTxtBirthdayText();			
+			
+			local personRequestTable = {};	
+			if (string.len(string.trim(fullName))>0) then
+				table.insert(personRequestTable, " 56 РВ '"..string.upper(fullName).."'");
+			end				
+			if (string.len(string.trim(lastName))>0) then
+				table.insert(personRequestTable, " 1 РВ '"..string.upper(lastName).."'");
+			end			
+			if (string.len(string.trim(firstName))>0) then
+				table.insert(personRequestTable, " 17 РВ '"..string.upper(firstName).."'");
+			end			
+			if (string.len(string.trim(middleName))>0) then
+				table.insert(personRequestTable, " 18 РВ '"..string.upper(middleName).."'");
+			end			
+			if (string.len(string.trim(birthday))>0) then
+				table.insert(personRequestTable, " 2 РВ "..birthday);
+			end					
+			local personRequest = "ОТ ЛЦ01 "..table.concat(personRequestTable, " И ");						
+			local bank = CroApp.GetBank();		
+			recordSet, errStr = bank:StringRequest(personRequest)							
+			if (recordSet ~= nil) then								
+				if (recordSet.Count > 0) then
+					--MsgBox("Всего найдено лиц: "..recordSet.Count ,BtnOk + IconInformation);
+				else
+					MsgBox("По Вашему запросу лиц не найдено.",BtnOk + IconWarning)
+				end
+			else
+				MsgBox("Произошла ошибка при поиске объектов базы ЛИЦО!\n\rТекст запроса:\r\n"..personRequest.."\n\r"..errStr,BtnOk + IconErr)	
+			end
+		end		
+	elseif getControlFormText(control) == "FoundersAndPartnersView" or getControlFormText(control) == "OrganizationView" then -- форма Учредители и партнеры, Организация 
+		if getControlName(control) == "btnSave" or getControlName(control) == "btnClose" then --сохранение записи								
+			local baseCode = getControlFormModule(control).getEntity().getEntityBaseCode();	
+			local base = CroApp.GetBank():GetBase(baseCode) 			
+			local gvars = {} -- таблица значений глобальных переменных запроса			
+			gvars["SYSNUMBER"] = getControlFormModule(control).getEntity().getEntityRecord().SN;  -- глобальная переменная "SYSNUMBER" получает значение системного номера						
+			local templateRequestNumber = nil;
+			if ( getControlFormText(control) == "FoundersAndPartnersView") then
+				templateRequestNumber = 14				
+			elseif (getControlFormText(control) == "OrganizationView") then 
+				templateRequestNumber = 15;				
+			end			
+			if (templateRequestNumber ~= nil) then								
+				if (ClassManager.getClass("DBWorker").isRecordLocked(ClassManager, getControlFormModule(control).getEntity().getEntityRecord())) then
+					getControlFormModule(control).getEntity().getEntityRecord():Unlock();
+				end				
+				local records, result = base:TemplateRequest(templateRequestNumber, false, gvars );  -- выполняем запрос по образцу							
+			end
+		end
+	else --несуществующий метод
+		MsgBox("Ошибка запроса! Нет запроса, связанного с формой",BtnOk + IconErr)
+		isSuccess = false
+	end		
+	if (isSuccess == true and request ~= nil) then			
+		--local base = CroApp.GetBank():GetBase(baseCode)		
+		--recordSet = base:StringRequest(request)									
+	end		
+	return recordSet;	
+end
+
+function  doSearchOrganization(ClassManager, control)			
+	local controlForm = getControlFormModule(control);		
+	local companyUnn = controlForm.getTxtCompanyUnnText();	
+	local companyName = controlForm.getTxtCompanyNameText();	
+	local requestTable = {}
+	if (string.len(string.trim(companyUnn)) > 0) then
+		table.insert(requestTable, "1 РВ "..companyUnn);
+	end	
+	if (string.len(companyName) > 0) then
+		table.insert(requestTable, "2 РВ '"..companyName.."'");
+	end	
+	local companyRequest = "ОТ РГ01 "..table.concat(requestTable, " И ")	
+	local bank = CroApp.GetBank();	
+	local orgRecordSet, errStr = bank:StringRequest(companyRequest)	
+	if (orgRecordSet == nil) then
+		orgRecordSet = RecordSet.new({},CroApp.GetBank():GetBase(ClassManager.getClass("Constanta").getCnstOrganization()))
+		MsgBox("Произошла ошибка при поиске объектов базы ОРГАНИЗАЦИЯ!\n\rТекст запроса:\r\n"..orgRequest.."\n\r"..errStr,BtnOk + IconWarning)			
+	end	
+	return orgRecordSet;
+end
+
+--метод проведения автоматизированной проверки кандидата на работу
+function doCheckApplicant(ClassManager, control)	
+	local requestParts = {};
+	local errorMessages = {};
+	local personRequest = nil;
+	local isBreakChecking = false;
+	local bank = CroApp.GetBank();			
+	local basePerson = bank:GetBase(ClassManager.getClass("Constanta").getCnstPerson());
+	local newCheckedPeople = RecordSet.new({}, basePerson) 
+	local formModule = getControlFormModule(control);	
+	local actionEntity = ClassManager.newEntity(ClassManager, ClassManager.getClass("Constanta").getCnstActionJournal());							
+	actionEntity.setTypeOfAction("Проверка кандидата на работу");			
+	actionEntity.setTypeOfCheck(formModule.getDpdTypeOfCheckSelectedCode());					
+	actionEntity.setRequestDepartment(getControlFormModule(control).getDpdRequestDepartmentSelectedCode());					
+	actionEntity.setRequestEmployee(getControlFormModule(control).getDpdRequestEmployeeSelectedCode());	
+	--создание Entity объекта для Person
+	local personEntity = formModule.getEntity();
+	personEntity.addActionJournalEntity(actionEntity);			
+	if (not personEntity.getIsExisted()) then			
+		requestParts = {};					
+		table.insert(requestParts,"1 РВ '"..string.upper(personEntity.getLastName()).."'");									
+		table.insert(requestParts,"17 РВ '"..string.upper(personEntity.getFirstName()).."'");						
+		table.insert(requestParts,"18 РВ '"..string.upper(personEntity.getMiddleName()).."'");						
+		table.insert(requestParts,"2 РВ "..string.swap(personEntity.getBirthday(),",","."));					
+		personRequest = "ОТ ЛЦ01 "..table.concat(requestParts, " И ");				
+		requestedByPerson, errStr = bank:StringRequest(personRequest)													
+		if (requestedByPerson == nil) then													
+			table.insert(errorMessages, "Произошла ошибка при поиске объектов базы ЛИЦО!\n\rТекст запроса:\r\n"..personRequest.."\n\r"..errStr);			
+		else				
+			local numberOfRetrievedRecords = requestedByPerson.Count;
+			if (numberOfRetrievedRecords > 1) then
+				numberOfRetrievedRecords = 1;
+				table.insert(errorMessages, "\n\rНайдено более одного лица '"..personEntity.toShortString(false));		
+			end			
+			if (numberOfRetrievedRecords == 0) then
+				personEntity.saveBeanToDb();				
+			elseif (numberOfRetrievedRecords == 1) then
+				personEntity.setIsExisted(true);
+				personEntity.setBeanFromRecord(requestedByPerson:GetRecordByIndex(1));								
+			end					
+		end		
+	end				
+	newCheckedPeople:Add(personEntity.getEntityRecord().SN);	
+	local personRelationsEntities = formModule.getPersonRelationsEntities();		
+	for key, relationEntity in pairs (personRelationsEntities) do											
+		if (relationEntity.getIsNew()) then				
+			personEntity.addPersonRelationsEntity(relationEntity);				
+			relationEntity.saveBeanToDb();								
+		end				
+		local connectedPersonEntities = relationEntity.getConnectedPersonEntities();				
+		for key, connectedPersonEntity in pairs (connectedPersonEntities) do										
+			if (connectedPersonEntity.getRequestJournalEntity() ~= nil) then																
+				connectedPersonEntity.getRequestJournalEntity().setRequestEmployee(actionEntity.getRequestEmployee());					
+				connectedPersonEntity.getRequestJournalEntity().setRequestDepartment(actionEntity.getRequestDepartment());													
+				connectedPersonEntity.getRequestJournalEntity().saveBeanToDb();								
+				connectedPersonEntity.getPersonEntity().addActionJournalEntity(connectedPersonEntity.getRequestJournalEntity());								
+				if (connectedPersonEntity.getPersonEntity().getIsExisted()) then										
+					connectedPersonEntity.getPersonEntity().setLinks();					
+				else															
+					requestParts = {};					
+					table.insert(requestParts,"1 РВ '"..string.upper(connectedPersonEntity.getPersonEntity().getLastName()).."'");			
+					table.insert(requestParts,"17 РВ '"..string.upper(connectedPersonEntity.getPersonEntity().getFirstName()).."'");				
+					table.insert(requestParts,"18 РВ '"..string.upper(connectedPersonEntity.getPersonEntity().getMiddleName()).."'");				
+					table.insert(requestParts,"2 РВ "..string.swap(connectedPersonEntity.getPersonEntity().getBirthday(),",","."));						
+					personRequest = "ОТ ЛЦ01 "..table.concat(requestParts, " И ");					
+					local requestedByRelatedPerson, errStr = bank:StringRequest(personRequest)																					
+					if (requestedByRelatedPerson == nil) then													
+						table.insert(errorMessages, "Произошла ошибка при поиске объектов базы ЛИЦО!\n\rТекст запроса:\r\n"..personRequest.."\n\r"..errStr);						
+					else												
+						local numberOfRetrievedRecords = requestedByRelatedPerson.Count;						
+						if (numberOfRetrievedRecords > 1) then															
+							numberOfRetrievedRecords = 1;							
+							table.insert(errorMessages, "\n\rНайдено более одного лица '"..personEntity.toShortString(false));								
+						end
+						if (numberOfRetrievedRecords== 1) then						
+							connectedPersonEntity.getPersonEntity().setBeanFromRecord(requestedByRelatedPerson:GetRecordByIndex(1));							
+							connectedPersonEntity.getPersonEntity().addPersonRelationsEntity(relationEntity);							
+							connectedPersonEntity.getPersonEntity().setLinks();																					
+						elseif (numberOfRetrievedRecords == 0) then																	
+							connectedPersonEntity.getPersonEntity().addPersonRelationsEntity(relationEntity);						
+							connectedPersonEntity.getPersonEntity().saveBeanToDb();									
+						end												
+					end							
+				end											
+				newCheckedPeople:Add(connectedPersonEntity.getPersonEntity().getEntityRecord().SN);				
+			end
+		end						
+	end		
+	actionEntity.saveBeanToDb();		
+	personEntity.setLinks();	
+	if (table.count(errorMessages) > 0) then	
+		MsgBox("Процедура проверки завершена со следующими ошибками:\n\r"..table.concat(errorMessages, "\n\r\n\r"),BtnOk + IconWarning);			
+	end		
+	return newCheckedPeople;
+end
+
+--метод проведения автоматизированной проверки юридического лица
+function doCheckLegalPerson(ClassManager, control)
+	local errorMessages = {}
+	local requestParts = {}
+	local orgRequest = nil;
+	local connectedPersonRequest = nil;
+	local messages = {};	
+	local bank = CroApp.GetBank();				
+	local personRecordSet = RecordSet.new({}, CroApp.GetBank():GetBase(ClassManager.getClass("Constanta").getCnstPerson()));
+	--создание Entity для Журнала действий			
+	local actionEntity = ClassManager.newEntity(ClassManager, ClassManager.getClass("Constanta").getCnstActionJournal());						
+	actionEntity.setTypeOfAction("Проверка юридического лица");		
+	actionEntity.setTypeOfCheck(getControlFormModule(control).getDpdTypeOfCheckSelectedCode());				
+	actionEntity.setRequestDepartment(getControlFormModule(control).getDpdRequestDepartmentSelectedCode());					
+	actionEntity.setRequestEmployee(getControlFormModule(control).getDpdRequestEmployeeSelectedCode());				
+	actionEntity.saveBeanToDb();				
+	--проверка есть ли Entity Organization и создание Entity объекта для  Organization
+	local controlForm = getControlFormModule(control);		
+	local orgEntity = controlForm.getMainOrganizationEntity();
+	local orgRecordSet = RecordSet.new({}, CroApp.GetBank():GetBase(ClassManager.getClass("Constanta").getCnstOrganization()));
+	local isNecessaryToSelect = false;
+	if (orgEntity == nil) then		
+		isNecessaryToSelect = true			
+		orgEntity = ClassManager.newEntity(ClassManager, ClassManager.getClass("Constanta").getCnstOrganization());						
+	else
+		orgRecordSet:Add(orgEntity.getEntityRecord().SN)
+		orgEntity.setUnn(controlForm.getTxtCompanyUnnText());
+		orgEntity.setFullName(controlForm.getTxtCompanyNameText());				
+	end
+	orgEntity.addActionJournalEntity(actionEntity);			  					
+	if string.len(controlForm.getTxtCompanyUnnText())>0 then				
+		orgEntity.setUnn(controlForm.getTxtCompanyUnnText());
+		table.insert(requestParts,"1 РВ "..controlForm.getTxtCompanyUnnText())				
+	end			
+	if string.len(controlForm.getTxtCompanyNameText())>0 then
+		orgEntity.setFullName(controlForm.getTxtCompanyNameText());
+		table.insert(requestParts,"2 РВ '"..controlForm.getTxtCompanyNameText().."'");
+	end		
+	orgRequest = "ОТ РГ01 "..table.concat(requestParts, " И ")			
+	if isNecessaryToSelect then
+		orgRecordSet, errStr = bank:StringRequest(orgRequest)
+	end
+	local connectedPersonRequest = "";
+	if (orgRecordSet == nil) then				
+		table.insert(errorMessages, "Произошла ошибка при поиске объектов базы ОРГАНИЗАЦИЯ!\n\rТекст запроса:\r\n"..orgRequest.."\n\r"..errStr);					
+	else				
+		orgEntity.saveBeanToDb();
+		if (orgRecordSet.Count == 1) then												
+			--orgEntity.setBeanFromRecord(orgRecordSet:GetRecordByIndex (1))
+			--orgEntity.setLinks();						
+			if (controlForm.getConnectedPeopleEntities() ~= nil) then				
+				local connectedPeople = controlForm.getConnectedPeopleEntities();			
+				--поиск лиц в соответствии с их статусами				
+				for entityKey, connectedPersonEntity in pairs(connectedPeople) do																						
+					local isPersonProcessed = false;
+					local personEntity = connectedPersonEntity.getPersonEntity();
+					if (not connectedPersonEntity.getIsExisted()) then																		
+						requestParts = {};									
+						table.insert(requestParts,orgRequest)																					
+						if (connectedPersonEntity.checkIsFounder()) then					
+							connectedPersonRequest = "33 УП02 УП02 1 РВ 1 И 9 ЛЦ03 ЛЦ03";
+						else					
+							connectedPersonRequest = "27 ТД02 ТД02 10 ЛЦ03 ЛЦ03";
+						end												
+						table.insert(requestParts,connectedPersonRequest);
+						table.insert(requestParts,"1 РВ '"..string.upper(personEntity.getLastName()).."'");							
+						table.insert(requestParts,"17 РВ '"..string.upper(personEntity.getFirstName()).."'");				
+						table.insert(requestParts,"18 РВ '"..string.upper(personEntity.getMiddleName()).."'");				
+						table.insert(requestParts,"2 РВ "..string.swap(personEntity.getBirthday(),",","."));											
+						connectedPersonRequest = string.swap(table.concat(requestParts, " И "), "ЛЦ03 И", "ЛЦ03");										
+						local requestedByOrgRecords, errStr = bank:StringRequest(connectedPersonRequest)															
+						if (requestedByOrgRecords == nil) then													
+							table.insert(errorMessages, "Произошла ошибка при поиске объектов базы ЛИЦО!\n\rТекст запроса:\r\n"..connectedPersonRequest.."\n\r"..errStr);										
+						else										
+							if (requestedByOrgRecords.Count == 0) then																
+								--проверка, есть ли лицо в базе данных
+								requestParts = {};	
+								table.insert(requestParts,"1 РВ '"..string.upper(personEntity.getLastName()).."'");							
+								table.insert(requestParts,"17 РВ '"..string.upper(personEntity.getFirstName()).."'");				
+								table.insert(requestParts,"18 РВ '"..string.upper(personEntity.getMiddleName()).."'");				
+								table.insert(requestParts,"2 РВ "..string.swap(personEntity.getBirthday(),",","."));									
+								connectedPersonRequest = "ОТ ЛЦ01 "..table.concat(requestParts, " И ");								
+								local requestedByOrgRecords, errStr = bank:StringRequest(connectedPersonRequest)	
+								if (requestedByOrgRecords == nil) then													
+									table.insert(errorMessages, "Произошла ошибка при поиске объектов базы ЛИЦО!\n\rТекст запроса:\r\n"..connectedPersonRequest.."\n\r"..errStr);
+								else																			
+									if (requestedByOrgRecords.Count == 1) then											
+										local personRecord = requestedByOrgRecords:GetRecordByIndex(1)																						
+										personEntity.setBeanFromRecord(personRecord)																										
+									else																	
+										personEntity.saveBeanToDb();																								
+										table.insert(messages,"Создана запись БД ЛИЦО");									
+									end									
+									isPersonProcessed = true;
+								end
+							elseif(requestedByOrgRecords.Count == 1) then												
+								local personRecord = requestedByOrgRecords:GetRecordByIndex(1)												
+								personEntity.setBeanFromRecord(personRecord)															
+								isPersonProcessed = false;
+							else
+								table.insert(errorMessages, "Найдено более одного лица '"..personEntity.toSgortString(false).."'.\n\rНевозможно идентифицировать запись.\n\rНеобходимо удалить двойника!");								
+							end														
+						end											
+					end					
+					createConnectionForConnectedPerson(ClassManager, orgEntity, connectedPersonEntity, messages,isPersonProcessed)							
+					if (connectedPersonEntity.getRequestJournalEntity() ~= nil) then		
+						personRecordSet:Add(personEntity.getEntityRecord().SN);	
+						isPersonProcessed = false;
+					end									
+				end					
+			end			
+			if (controlForm.getConnectedOrganizationsEntities() ~= nil) then				
+				local connectedOrganizations = controlForm.getConnectedOrganizationsEntities();			
+				--поиск связанных организаций 				
+				for entityKey, connectedOrganizationEntity in pairs(connectedOrganizations) do												
+					local isOrganizationProcessed = false;
+					local organizationsEntity = connectedOrganizationEntity.getOrganizationEntity();			
+					if (not connectedOrganizationEntity.getIsExisted()) then						
+						local founderAndPartnerEntity = connectedOrganizationEntity.getFoundersAndPartnersEntity();	
+						requestParts = {};
+						table.insert(requestParts,orgRequest);
+						connectedOrganizationRequest = "33 УП02 УП02 1 РВ "..string.upper(founderAndPartnerEntity.getParticipationType()).." И 2 РГ03 РГ03";
+						table.insert(requestParts,connectedOrganizationRequest);
+						table.insert(requestParts,"2 РВ '"..string.upper(organizationsEntity.getFullName()).."'");		
+						if (string.len(organizationsEntity.getUnn())>0) then
+							table.insert(requestParts,"1 РВ '"..string.upper(organizationsEntity.getUnn()).."'");	
+						end
+						if (organizationsEntity.getOfficialStatus() ~= nil) then
+							table.insert(requestParts,"38 РВ '"..string.upper(organizationsEntity.getOfficialStatus()).."'");						
+						end					
+						connectedOrganizationRequest = string.swap(table.concat(requestParts, " И "), "РГ03 И", "РГ03");																		
+						local requestedByOrgRecords, errStr = bank:StringRequest(connectedOrganizationRequest)																
+						if (requestedByOrgRecords == nil) then		
+							table.insert(errorMessages, "Произошла ошибка при поиске объектов базы ОРГАНИЗАЦИЯ!\n\rТекст запроса:\r\n"..connectedOrganizationRequest.."\n\r"..errStr);							
+						else																						
+							if (requestedByOrgRecords.Count == 0) then					
+								--проверка, есть ли организация в базе данных
+								requestParts = {};								
+								table.insert(requestParts,"2 РВ '"..string.upper(organizationsEntity.getFullName()).."'");														
+								if (string.len(organizationsEntity.getUnn())>0) then
+									table.insert(requestParts,"1 РВ '"..string.upper(organizationsEntity.getUnn()).."'");								
+								end
+								if (organizationsEntity.getOfficialStatus() ~= nil) then
+									table.insert(requestParts,"38 РВ '"..string.upper(organizationsEntity.getOfficialStatus()).."'");
+								end							
+								connectedOrganizationRequest = "ОТ РГ01 "..table.concat(requestParts, " И ");														
+								local requestedByOrgRecords, errStr = bank:StringRequest(connectedOrganizationRequest)															
+								if (requestedByOrgRecords == nil) then						
+									table.insert(errorMessages, "Произошла ошибка при поиске объектов базы ОРГАНИЗАЦИЯ!\n\rТекст запроса:\r\n"..connectedOrganizationRequest.."\n\r"..errStr);									
+								else																		
+									if (requestedByOrgRecords.Count == 1) then																																						
+										organizationsEntity.setBeanFromRecord(requestedByOrgRecords:GetRecordByIndex(1))																									
+										--orgRecordSet:Add(organizationsEntity.getEntityRecord().SN);																	
+										isOrganizationProcessed = true;								
+									elseif (requestedByOrgRecords.Count == 0) then																										
+										organizationsEntity.saveBeanToDb();
+										--orgRecordSet:Add(organizationsEntity.getEntityRecord().SN);													
+										table.insert(messages,"Создана запись БД ОРГАНИЗАЦИЯ");								
+										isOrganizationProcessed = true;									
+									end	
+								end													
+							elseif(requestedByOrgRecords.Count == 1) then																			
+								organizationsEntity.setBeanFromRecord(requestedByOrgRecords:GetRecordByIndex(1))										
+							else
+								table.insert(errorMessages, "Найдено более одной организации c УНП "..organizationsEntity.getUnn()..". Невозможно идентифицировать запись.\n\rНеобходимо удалить двойника!!!");								
+							end														
+						end						
+					end								
+					createConnectionForConnectedOrganization(ClassManager, orgEntity, connectedOrganizationEntity, messages, isOrganizationProcessed)							
+					if (connectedOrganizationEntity.getRequestJournalEntity() ~= nil) then		
+						isPersonProcessed = false;
+						orgRecordSet:Add(organizationsEntity.getEntityRecord().SN);						
+					end									
+				end
+			end			
+		elseif (orgRecordSet.Count == 0) then					
+			--orgEntity.saveBeanToDb();												
+			--добавление записи в RecordSet			
+			orgRecordSet:Add(orgEntity.getEntityRecord().SN);
+			table.insert(messages,"Создана запись БД ОРГАНИЗАЦИЯ");		
+			--проверка наличия указанных лиц в БД		
+			if (controlForm.getConnectedPeopleEntities() ~= nil) then			
+				local connectedPeople = controlForm.getConnectedPeopleEntities();				
+				--поиск лиц в соответствии с их статусами			
+				for entityKey, connectedPersonEntity in pairs(connectedPeople) do							
+					local isPersonProcessed = false;
+					local personEntity = connectedPersonEntity.getPersonEntity();																									
+					if (not connectedPersonEntity.getIsExisted()) then						
+						requestParts = {};							
+						table.insert(requestParts,"1 РВ '"..string.upper(personEntity.getLastName()).."'");											
+						table.insert(requestParts,"17 РВ '"..string.upper(personEntity.getFirstName()).."'");								
+						table.insert(requestParts,"18 РВ '"..string.upper(personEntity.getMiddleName()).."'");								
+						table.insert(requestParts,"2 РВ "..string.swap(personEntity.getBirthday(),",","."));												
+						connectedPersonRequest = "ОТ ЛЦ01 "..table.concat(requestParts, " И ");									
+						local requestedByOrgRecords, errStr = bank:StringRequest(connectedPersonRequest)								
+						if (requestedByOrgRecords == nil) then						
+							table.insert(errorMessages, "Произошла ошибка при поиске объектов базы ЛИЦО!\n\rТекст запроса:\r\n"..connectedPersonRequest.."\n\r"..errStr);																			
+						else								
+							personEntity.addActionJournalEntity(actionForPersonEntity);						
+							if (requestedByOrgRecords.Count == 0) then								
+								personEntity.saveBeanToDb();										
+								table.insert(messages,"Создана запись БД ЛИЦО");																	
+								isPersonProcessed = true;
+							elseif(requestedByOrgRecords.Count == 1) then												
+								local personRecord = requestedByOrgRecords:GetRecordByIndex(1)												
+								personEntity.setBeanFromRecord(personRecord)			
+								isPersonProcessed = true;
+							else
+								table.insert(errorMessages, "Найдено более одного лица '"..personEntity.toShortString().."'.\n\rНевозможно идентифицировать запись.\n\rНеобходимо удалить двойника!");
+							end														
+						end
+					end
+					personRecordSet:Add(personEntity.getEntityRecord().SN);	
+					connectedPersonEntity.getRequestJournalEntity().setRequestDepartment(getControlFormModule(control).getDpdRequestDepartmentSelectedCode());					
+					connectedPersonEntity.getRequestJournalEntity().setRequestEmployee(getControlFormModule(control).getDpdRequestEmployeeSelectedCode());						
+					createConnectionForConnectedPerson(ClassManager, orgEntity, connectedPersonEntity, messages, isPersonProcessed)										
+				end					
+			end			
+			if (controlForm.getConnectedOrganizationsEntities() ~= nil) then				
+				local connectedOrganizations = controlForm.getConnectedOrganizationsEntities();			
+				--поиск связанных организаций 				
+				for entityKey, connectedOrganizationEntity in pairs(connectedOrganizations) do											
+					local isOrganizationProcessed = false;
+					if (not connectedOrganizationEntity.getIsExisted()) then
+						local organizationsEntity = connectedOrganizationEntity.getOrganizationEntity();																			
+						requestParts = {};										
+						table.insert(requestParts,"2 РВ '"..string.upper(organizationsEntity.getFullName()).."'");							
+						if (string.len(organizationsEntity.getUnn())>0) then
+							table.insert(requestParts,"1 РВ '"..string.upper(organizationsEntity.getUnn()).."'");	
+						end
+						if (organizationsEntity.getOfficialStatus() ~= nil) then
+							table.insert(requestParts,"38 РВ '"..string.upper(organizationsEntity.getOfficialStatus()).."'");						
+						end
+						connectedOrganizationRequest = "ОТ РГ01 "..table.concat(requestParts," И ");	
+						local requestedByOrgRecords, errStr = bank:StringRequest(connectedOrganizationRequest)						
+						if (requestedByOrgRecords == nil) then						
+							table.insert(errorMessages, "Произошла ошибка при поиске объектов базы ОРГАНИЗАЦИЯ!\n\rТекст запроса:\r\n"..connectedOrganizationRequest.."\n\r"..errStr);							
+						else														
+							if (requestedByOrgRecords.Count == 0) then					
+								--создание записи Organization															
+								organizationsEntity.saveBeanToDb();														
+								orgRecordSet:Add(organizationsEntity.getEntityRecord().SN);							
+								table.insert(messages,"Создана запись БД ОРГАНИЗАЦИЯ");
+								isOrganizationProcessed = true;
+							elseif(requestedByOrgRecords.Count == 1) then					
+								local organizationRecord = requestedByOrgRecords:GetRecordByIndex(1)					
+								organizationsEntity.setBeanFromRecord(organizationRecord)										
+								orgRecordSet:Add(organizationsEntity.getEntityRecord().SN);																
+								isOrganizationProcessed = true;
+							else
+								table.insert(errorMessages, "Найдено более одной организации для УНП "..organizationsEntity.getUnn()..". Невозможно идентифицировать запись.\n\rНеобходимо удалить двойника!!!");							
+							end														
+						end
+					end
+					createConnectionForConnectedOrganization(ClassManager, orgEntity, connectedOrganizationEntity, messages, isOrganizationProcessed)												
+				end			
+			end
+		else
+			table.insert(errorMessages, "Найдено более одной организации для УНП "..controlForm.getTxtCompanyUnnText()..". Невозможно идентифицировать запись.\n\rНеобходимо удалить двойника!!!");							
+		end
+		if (table.count(messages) > 0) then
+			--MsgBox("ВНИМАНИЕ!!!\n\rАвтоматически выполнены следующие действия:\n\r"..table.concat(messages,";\n\r"))
+		end
+		if (table.count(errorMessages) > 0) then	
+			MsgBox("Процедура проверки завершена со следующими ошибками:\n\r"..table.concat(errorMessages, "\n\r\n\r"),BtnOk + IconWarning);			
+		end	
+	end
+	local recordSets = {}
+	table.insert(recordSets, orgRecordSet);
+	table.insert(recordSets, personRecordSet);
+	return recordSets;
+end
+
+function createConnectionForConnectedPerson(ClassManager, orgEntity, connectedPersonEntity, messages, isMakeConnection)
+	--создание соответствующей связи			
+	local personEntity = connectedPersonEntity.getPersonEntity()		
+	local personParentEntity = nil;		
+	if (connectedPersonEntity.checkIsFounder()) then				
+		local founderEntity = connectedPersonEntity.getFounderEntity();						
+		if (isMakeConnection) then					
+			founderEntity.addPersonEntity(personEntity)			
+			founderEntity.saveBeanToDb();						
+			orgEntity.addFoundersAndPartnersEntity(founderEntity);							
+			table.insert(messages,"Создана запись БД УЧРЕДИТЕЛИ И ПАРТНЕРЫ");		
+			table.insert(messages,"Установлена связь между записями БД ОРГАНИЗАЦИЯ - УЧРЕДИТЕЛИ И ПАРТНЕРЫ - ЛИЦО");						
+		end
+		personParentEntity = founderEntity;
+	else	
+		--создание записи в базе Трудовая деятельность				
+		local jobTrackEntity = connectedPersonEntity.getJobTrackEntity();												
+		if (isMakeConnection) then					
+			jobTrackEntity.addPersonEntity(personEntity);
+			jobTrackEntity.addOrganizationEntity(orgEntity);			
+			jobTrackEntity.saveBeanToDb();					
+			orgEntity.addJobTrackEntity(jobTrackEntity);			
+			table.insert(messages,"Создана запись БД ТРУДОВАЯ ДЕЯТЕЛЬНОСТЬ");
+			table.insert(messages,"Установлена связь между записями БД ОРГАНИЗАЦИЯ - ТРУДОВАЯ ДЕЯТЕЛЬНОСТЬ _ ЛИЦО");		
+		end
+		personParentEntity = jobTrackEntity;		
+	end				
+	orgEntity.setLinks();	
+	if (connectedPersonEntity.getRequestJournalEntity() ~= nil) then		
+		connectedPersonEntity.getRequestJournalEntity().setTypeOfAction("Проверка связанного лица для проверяемого юридического лица");						
+		connectedPersonEntity.getRequestJournalEntity().setEntityRecord(nil);
+		for index, requestJournalEnttity in pairs (orgEntity.getActionJournalEntities()) do
+			connectedPersonEntity.getRequestJournalEntity().setRequestDepartment(requestJournalEnttity.getRequestDepartment());					
+			connectedPersonEntity.getRequestJournalEntity().setRequestEmployee(requestJournalEnttity.getRequestEmployee());						
+		end
+		connectedPersonEntity.getRequestJournalEntity().saveBeanToDb();				
+		personEntity.addActionJournalEntity(connectedPersonEntity.getRequestJournalEntity());			
+		personEntity.setLinks();		
+	end		
+end
+
+function createConnectionForConnectedOrganization(ClassManager, orgEntity, connectedOrganizationEntity, messages, isMakeConnection)
+	--создание соответствующей связи		
+	local organizationEntity = connectedOrganizationEntity.getOrganizationEntity()			
+	local founderEntity = connectedOrganizationEntity.getFoundersAndPartnersEntity()		
+	if (isMakeConnection) then
+		if (connectedOrganizationEntity.getIsControlled()) then
+			orgEntity.setFounderConnectionField(32);			
+			founderEntity.setOrgConnectionField(8);
+		end		
+		if (connectedOrganizationEntity.getIsControlling()) then
+			orgEntity.setFounderConnectionField(33);			
+			founderEntity.setOrgConnectionField(2);
+		end				
+		founderEntity.setOrganizationEntities({});	
+		founderEntity.addOrganizationEntity(organizationEntity);				
+		founderEntity.saveBeanToDb();								
+		orgEntity.setFoundersAndPartnersEntities({});				
+		orgEntity.addFoundersAndPartnersEntity(founderEntity);				
+		orgEntity.setLinks();	
+		table.insert(messages,"Создана запись БД УЧРЕДИТЕЛИ И ПАРТНЕРЫ");		
+		table.insert(messages,"Установлена управляющая связь между записями БД ОРГАНИЗАЦИЯ - УЧРЕДИТЕЛИ И ПАРТНЕРЫ");										
+	end			
+	if (connectedOrganizationEntity.getRequestJournalEntity() ~= nil) then			
+		connectedOrganizationEntity.getRequestJournalEntity().setTypeOfAction("Проверка связанной орагнизации для проверяемого юридического лица");						
+		connectedOrganizationEntity.getRequestJournalEntity().setEntityRecord(nil);		
+		for index, requestJournalEnttity in pairs (orgEntity.getActionJournalEntities()) do
+			connectedOrganizationEntity.getRequestJournalEntity().setRequestDepartment(requestJournalEnttity.getRequestDepartment());					
+			connectedOrganizationEntity.getRequestJournalEntity().setRequestEmployee(requestJournalEnttity.getRequestEmployee());						
+		end
+		connectedOrganizationEntity.getRequestJournalEntity().saveBeanToDb();				
+		organizationEntity.addActionJournalEntity(connectedOrganizationEntity.getRequestJournalEntity())		
+		organizationEntity.setLinks();				
+	end	
+end
+
+function getStringRequestBySearching(ClassManager, control)
+	local request = nil
+	if control.Name == "butSearchFIO" then		
+		request = "ОТ KR01 24 РВ "..string.trim(control.Form.Module.getLastName(control.Form))
+		if string.trim(control.Form.Module.getFirstName(control.Form)) ~= "" then
+			request = request.." И 25 РВ "..string.trim(control.Form.Module.getFirstName(control.Form))
+		end
+		if string.trim(control.Form.Module.getMiddleName(control.Form)) ~= "" then
+			request = request.." И 26 РВ "..string.trim(control.Form.Module.getMiddleName(control.Form))
+		end
+	elseif control.Name == "butSearchContract" then
+		request = "ОТ KR01 1 РВ "..string.trim(control.Form.Module.getDogovorNumber(control.Form))
+	end	
+	return request
+end 
+
+function populateSearch(ClassManager, control)							
+	local foundRecords;
+	if getControlFormText(control) == "CheckOrganizationView" or getControlFormText(control) == "ConnectedOrganizationView" then		
+		local orgUnn = getControlFormModule(control).getTxtCompanyUnnText();
+		local orgName = getControlFormModule(control).getTxtCompanyNameText();
+		foundRecords = doSearchExistingOrganizations(ClassManager, orgUnn, orgName, "OR")	
+	elseif getControlFormText(control) == "CheckApplicantView" or getControlFormText(control) == "ConnectedPersonView" or getControlFormText(control) == "ApplicantRelationsView" then
+		local lastName = getControlFormModule(control).getTxtLastNameText();									
+		local firstName = getControlFormModule(control).getTxtFirstNameText();									
+		local middleName = getControlFormModule(control).getTxtMiddleNameText();									
+		local birthday = " И 2 РВ "..getControlFormModule(control).getTxtBirthdayText();					
+		if birthday == " И 2 РВ " then
+			birthday = ""
+		end
+		local personRequest = "ОТ ЛЦ01 1 РВ '"..lastName.."' И 17 РВ '"..firstName.."' И 18 РВ '"..middleName.."'"..birthday		
+		local bank = CroApp.GetBank();				
+		foundRecords, errStr = bank:StringRequest(personRequest)			
+		if (foundRecords == nil) then												
+			MsgBox("Произошла ошибка при поиске объектов базы ЛИЦО!\n\rТекст запроса:\r\n"..personRequest.."\n\r"..errStr,BtnOk + IconErr)	
+		end	
+	else					
+		if (getControlFormModule(control).getEntity().getEntityBaseCode() == ClassManager.getClass("Constanta").getCnstOrganization()) then
+			local orgUnn = getControlFormModule(control).getTxtUnnText();
+			local orgName = getControlFormModule(control).getTxtFullNameText();
+			foundRecords = doSearchExistingOrganizations(ClassManager, orgUnn, orgName, "AND");
+		elseif (getControlFormModule(control).getEntity().getEntityBaseCode() == ClassManager.getClass("Constanta").getCnstPerson()) then			
+			local lastName = getControlFormModule(control).getTxtLastNameText();						
+			local firstName = getControlFormModule(control).getTxtFirstNameText();						
+			local middleName = getControlFormModule(control).getTxtMiddleNameText();						
+			local birthday = getControlFormModule(control).getTxtBirthdayText();					
+			local personRequest = "ОТ ЛЦ01 1 РВ '"..lastName.."' И 17 РВ '"..firstName.."' И 18 РВ '"..middleName.."'";						
+			if(string.len(string.trim(birthday)) > 0) then
+				personRequest = personRequest.." И 2 РВ "..birthday;						
+			end
+			foundRecords = doSearchExistingPersons(ClassManager, personRequest)				
+		end		
+	end	
+	return foundRecords;
+end
+
+function doSearchExistingOrganizations(ClassManager, orgUnn, orgName, searchOperator)	
+	local bank = CroApp.GetBank();				
+	local requestString = "ОТ РГ01";	
+	local orgRecordSetFound = RecordSet.new({},CroApp.GetBank():GetBase(ClassManager.getClass("Constanta").getCnstOrganization()))
+	local isRequest = false;
+	if (searchOperator == "OR") then
+		orgRecordSetFound = doSearchExistingOrganizationsByUnn(ClassManager, orgUnn)	
+		if (orgRecordSetFound.Count == 0) then
+			orgRecordSetFound = doSearchExistingOrganizationsByName(ClassManager, orgName);			
+		end	
+		if (orgRecordSetFound.Count == 0) then
+			if (string.len(orgUnn) > 0) then
+				requestString = requestString.." 1 РВ "..orgUnn
+				isRequest = true;
+			end
+			if (string.len(orgName) > 0) then		
+				if (string.len(requestString) > 7) then
+					requestString = requestString.." И";
+				end
+				requestString = requestString.." 2 РВ '"..orgName.."'";						
+				isRequest = true;
+			end
+		end
+	elseif (searchOperator == "AND") then
+		if (string.len(orgUnn) == 0) then
+			orgRecordSetFound = doSearchExistingOrganizationsByName(ClassManager, orgName);
+		else
+			if (string.len(orgName) > 0) then	
+				requestString = requestString.." 1 РВ "..orgUnn.." И 2 РВ '"..orgName.."'";
+				isRequest = true;
+			else
+				orgRecordSetFound = doSearchExistingOrganizationsByUnn(ClassManager, orgUnn)					
+			end	
+		end
+	end	
+	if (isRequest) then
+		local orgRecordSet, errStr = bank:StringRequest(requestString)
+		if (orgRecordSet == nil) then					
+			MsgBox("Произошла ошибка при поиске объектов базы ОРГАНИЗАЦИЯ!\n\rТекст запроса:\r\n"..orgRequest.."\n\r"..errStr,BtnOk + IconErr)
+		else
+			if (orgRecordSet.Count > 0) then						
+				orgRecordSetFound = orgRecordSet;					
+			end
+		end
+	end
+	if (orgRecordSetFound.Count == 0) then
+		MsgBox("Информации по данной организации в базе данных не имеется",BtnOk + IconWarning);			
+	end
+	return orgRecordSetFound;
+end
+	
+function doSearchExistingOrganizationsByUnn(ClassManager, orgUnn)	
+	local orgRecordSetFound = RecordSet.new({},CroApp.GetBank():GetBase(ClassManager.getClass("Constanta").getCnstOrganization()))
+	local requestString = "ОТ РГ01"
+	local bank = CroApp.GetBank();				
+	if (orgUnn ~=  nil) then
+		orgUnn = string.trim(orgUnn);
+		if (string.len(orgUnn) > 0) then				
+			requestString = requestString.." 1 РВ "..orgUnn
+			local orgRecordSet, errStr = bank:StringRequest(requestString)
+			if (orgRecordSet == nil) then					
+				MsgBox("Произошла ошибка при поиске объектов базы ОРГАНИЗАЦИЯ!\n\rТекст запроса:\r\n"..orgRequest.."\n\r"..errStr,BtnOk + IconErr)	
+			else
+				if (orgRecordSet.Count > 0) then						
+					orgRecordSetFound = orgRecordSet;					
+				end
+			end
+		end
+	end	
+	return orgRecordSetFound;
+end
+
+function doSearchExistingOrganizationsByName(ClassManager, orgName)		
+	local orgRecordSetFound = RecordSet.new({},CroApp.GetBank():GetBase(ClassManager.getClass("Constanta").getCnstOrganization()));
+	local requestString = "ОТ РГ01";
+	local bank = CroApp.GetBank();					
+	if (string.len(orgName) > 0) then			
+		requestString = requestString.." 2 РВ '"..orgName.."'";					
+		local orgRecordSet, errStr = bank:StringRequest(requestString)
+		if (orgRecordSet == nil) then						
+			MsgBox("Произошла ошибка при поиске объектов базы ОРГАНИЗАЦИЯ!\n\rТекст запроса:\r\n"..orgRequest.."\n\r"..err,StrBtnOk + IconErr)	
+		else
+			if (orgRecordSet.Count > 0) then							
+				orgRecordSetFound = orgRecordSet;									
+			end					
+		end
+	end	
+	return orgRecordSetFound;
+end
+
+function doSearchExistingPersons(ClassManager, personRequest)		
+	local bank = CroApp.GetBank();		
+	local personRecord = nil;	
+	local personRecordSet, errStr = bank:StringRequest(personRequest)	
+	if (personRecordSet == nil) then	
+		personRecordSet = RecordSet.new({}, bank:GetBase(ClassManager.getClass("Constanta").getCnstPerson()));
+		MsgBox("Произошла ошибка при поиске объектов базы ЛИЦО!\n\rТекст запроса:\r\n"..personRequest.."\n\r"..errStr,BtnOk + IconErr)	
+	else
+		if (personRecordSet.Count == 1) then									
+			--MsgBox("В базе данных присутствует информация по данному лицу.",BtnOk + IconInformation)
+			personRecord = personRecordSet:GetRecordByIndex(1);				
+		elseif (personRecordSet.Count > 1) then										
+			--MsgBox("Найдены существующие объекты в количестве "..personRecordSet.Count .." штук.\n\rЭто дубликаты.\n\rПроинформируйте пожалуйста администратора",BtnOk + IconWarning)
+			for personRec in personRecordSet.Records do			
+				if (personRec ~= nil) then
+					personRecord = personRec
+					break;
+				end
+			end
+		elseif (personRecordSet.Count == 0) then
+			MsgBox("Информации по данному лицу в базе данных не имеется",BtnOk + IconWarning)
+		end					
+	end
+	--return personRecord;
+	return personRecordSet;
+end
+
+function doDropDownQuickSearch(dropDownControl, definitions, termin)	
+	dropDownControl:Clear()
+	if (string.len(termin) == 0) then		
+		if definitions ~= nil then
+			for key, value in pairs (definitions) do
+				dropDownControl:Add(value);
+			end
+		end	
+	elseif (string.len(termin) > 3) then						
+		local definitionsNew = {}
+		table.sort(definitions);
+		local isMet = false
+		for key, term in pairs(definitions) do 			
+			--if (string.len(term) >= string.len(termin) and string.lower(string.sub(term, 0, string.len(termin))) == string.lower(termin)) then
+			if (string.match(string.lower(term), string.lower(termin)) ~= nil) then
+				table.insert(definitionsNew, term);
+				isMet = true;			
+			end
+		end	
+		for key, value in pairs (definitionsNew) do
+			dropDownControl:Add(value);
+		end
+		dropDownControl.DroppedDown = true;
+	end
+end
+
+function doRequestLocalVocTerminByExternal(ClassManager, externalTermin, localVocCode)
+	local detectedRecord = nil;
+	local bank = CroApp.GetBank();			
+	local messages = {};
+	if (bank:GetBase(ClassManager.getClass("Constanta").getCnstExternalVocs()) ~= nil) then
+		local requestString = "ОТ "..ClassManager.getClass("Constanta").getCnstExternalVocs().."01 1 РВ '"..externalTermin.."' И 2 РВ '"..localVocCode.."'"	;
+		local vocTerminsRecordSet, errStr = bank:StringRequest(requestString);		
+		if (vocTerminsRecordSet.Count == 1) then
+			detectedRecord = vocTerminsRecordSet:GetRecordByIndex(1)		
+		elseif (vocTerminsRecordSet.Count == 0) then
+			table.insert(messages, "Для кода/понятия '"..externalTermin.."' словаря внешней системы отсутствует соответствие коду локального словаря с мнемокодом '"..localVocCode.."'. В таблице трансляции внешних словарей будет определено новое соответствие. Необходимо будет установить код понялтия словаря Cronos.")
+		elseif (vocTerminsRecordSet.Count > 1) then
+			table.insert(messages, "Для кода/понятия '"..externalTermin.."'' словаря внешней системы определено более 1 соответствия коду локального словаря с мнемокодом '"..localVocCode.."'. Выбрано первое соответствие. Необходимо держать только одно соответствие в таблице трансляции внешних словарей.")
+			detectedRecord = vocTerminsRecordSet:GetRecordByIndex(1)		
+		end	
+	else
+		table.insert(messages, "В банке данных отсутствует база данных с мнемокодом '"..ClassManager.getClass("Constanta").getCnstExternalVocs().."', содержащая информацию соответствия кодов словрей внешних систем к словарям текущней системы Cronos.")
+	end
+	return detectedRecord, messages;
+end
+
+function doSearchExistinfEntity(ClassManager, requestString)
+	local bank = CroApp.GetBank();	
+	local existedEntities, errStr = bank:StringRequest(requestString);
+	
+	return existedEntities
+end

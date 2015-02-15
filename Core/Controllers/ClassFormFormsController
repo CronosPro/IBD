@@ -1,0 +1,46 @@
+function Форма_Open( form )
+	return true;
+end
+local sortingField = nil
+local direction = nil
+
+function setSortingField(field)
+	sortingField = field
+end
+
+function getSortingField()
+	return sortingField
+end
+
+function setDirection(sortDirection)
+	direction = sortDirection
+end
+
+function getDirection()
+	return direction
+end
+
+function setSortingProperties(field, direction)
+	setSortingField(field)
+	setDirection(direction)
+end
+
+function doSorting(ClassManager, recordSet)
+	if getDirection() == "desc" then
+		recordSet:Sort({field = getSortingField(), descent = true})			
+	elseif getDirection() == "asc" then
+		recordSet:Sort({field = getSortingField(), descent = false})		
+	end
+	
+	--проверка результатов
+	--[[local dopList = CroApp:GetBank():OpenForm(8)
+	for record in recordSet.Records do
+		dopList.Module.setItem(dopList, ClassManager.getClass("FieldsWorker").getField("PR", record, 44, "", "")..ClassManager.getClass("FieldsWorker").getField("PR", record, 1, "", ""))
+	end--]]
+	return recordSet
+end
+
+function clearSorting()
+	setSortingField(nil)
+	setDirection(nil)
+end

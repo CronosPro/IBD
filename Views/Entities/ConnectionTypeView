@@ -1,0 +1,221 @@
+local ClassManager = nil;
+local Entity = nil;
+local unloadController = nil;
+local formsController = nil;
+local validationController = nil;
+local constanta = nil;
+local childForms = {};
+local objectList = nil
+local isNewObject = false;
+
+local lblConnectionType = nil;
+local dpdConnectionType = nil;
+local lblNote = nil;
+local txtNote = nil;
+local lnkConnection = nil;
+local txtInfoPanel = nil;
+local btnClose = nil;
+local btnSave = nil;
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function getObjectList()
+    return objectList;
+end
+function setObjectList(objectListValue)
+    objectList = objectListValue;
+end
+
+function getEntity()	
+    return Entity;
+end
+function setEntity(entityValue)
+    Entity = entityValue;
+end
+
+function getIsNewObject()
+    return isNewObject;
+end
+function setIsNewObject(isNewObjectValue)
+    isNewObject = isNewObjectValue;	    
+	if (lnkConnection ~= nil) then		
+		lnkConnection.setIsNewObject(isNewObjectValue)	
+	end
+end
+
+function Форма_Open( form	)		
+    setClassManager(Arg.ClassManager)
+    setControllersReferences()
+    return true;
+end
+
+function Форма_Load( form )	
+    getClassManager().setClass(form, form)	    
+	setObjectList(Arg.FormModule);
+	--form.X = getObjectList().getCurrentForm().X+getObjectList().getCurrentForm().Width
+    if (Arg.Data ~= nil) then
+        local connectionEntities = {};		
+		for key,entity in pairs(Arg.Data) do           			
+			if (entity.getEntityBaseCode() == constanta.getCnstConnectionType()) then
+                Entity = entity;			
+				form.RecordNumber = Entity.getEntityRecord().SN;								
+			elseif (entity.getEntityBaseCode() == constanta.getCnstConnection()) then
+				table.insert(connectionEntities, entity);				
+            end			
+        end
+		Entity.setConnectionEntities(connectionEntities)
+    end	
+    if (Entity == nil) then
+        Форма_UnloadForm( form);
+	else
+		setControls(form);	
+		setFormFromEntity(getEntity());	
+		table.insert(childForms,form);
+		setIsNewObject(Arg.isNewObject);
+    end	    
+end
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+	validationController = getClassManager().getClass("ValidationController");
+    constanta = getClassManager().getClass("Constanta");
+end
+
+function Форма_UnloadForm( form, mode )	
+    unloadController.doUnload(getClassManager(), form, childForms);	
+    getClassManager().setClass(form, nil)	
+    return true;
+end
+
+function setControls(form)
+    lblConnectionType = form.lblConnectionType;
+    dpdConnectionType = form.dpdConnectionType;
+    lblNote = form.lblNote;
+    txtNote = form.txtNote;	
+    lnkConnection = form.lnkConnection.Controls["Область данных"].Form.Module;	
+    lnkConnection.setArg(Arg);	
+    lnkConnection.Форма_Open(form.lnkConnection.Controls["Область данных"].Form)	
+    lnkConnection.Форма_Load(form.lnkConnection.Controls["Область данных"].Form)    	
+	lnkConnection.setPnlButtonsVisibility(false);				
+	lnkConnection.setIsNewObject(getIsNewObject())	
+    txtInfoPanel = form.txtInfoPanel;	
+    btnClose = form.btnClose;	
+    btnSave = form.btnSave;
+    populateLists();
+	setTxtInfoPanelBackColor(constanta.getSystemBackColor());
+end
+
+function populateLists()
+
+end
+
+function setFormFromEntity(entity)		
+    setDpdConnectionTypeSelectedItem(entity.getConnectionType());	
+    setTxtNoteText(entity.getNote());	
+end
+function setLblConnectionTypeText( lblConnectionTypeValue )
+   lblConnectionType.Value = lblConnectionTypeValue
+end
+function getLblConnectionTypeText( )
+    return lblConnectionType.Value
+end
+
+function addDpdConnectionTypeItem( dpdConnectionTypeValue )
+   dpdConnectionType:Add(dpdConnectionTypeValue)
+end
+function addDpdConnectionTypeItems( dpdConnectionTypeValues )
+    if dpdConnectionTypeValues ~= nil then
+        for key, value in pairs (dpdConnectionTypeValues) do
+            addDpdConnectionTypeItem(value)
+        end
+    end
+end
+function clearDpdConnectionTypeItesm( )
+   dpdConnectionType:Clear(index)
+end
+function getDpdConnectionTypeSelectedItem( )
+    return dpdConnectionType.Text
+end
+function setDpdConnectionTypeSelectedItem( dpdConnectionTypeItemValue)		
+    dpdConnectionType.Value = dpdConnectionTypeItemValue	
+end
+function getDpdConnectionTypeSelectedIndex( )
+    return dpdConnectionType.SelectedIndex
+end
+function getDpdConnectionTypeSelectedCode( )
+    return dpdConnectionType.Value
+end
+function setDpdConnectionTypeSelectedIndex( dpdConnectionTypeIndexValue )
+    dpdConnectionType.SelectedIndex = dpdConnectionTypeIndexValue
+end
+
+function setLblNoteText( lblNoteValue )
+   lblNote.Value = lblNoteValue
+end
+function getLblNoteText( )
+    return lblNote.Value
+end
+
+function getTxtNoteText( )
+    return txtNote.Value
+end
+function setTxtNoteText( txtNoteValue )
+    txtNote.Value = txtNoteValue
+end
+
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setBtnCloseText( btnCloseValue )
+   btnClose.Text = btnCloseValue
+end
+function getBtnCloseText( )
+    return btnClose.Text
+end
+function setTxtInfoPanelBackColor( txtInfoPanelBackColor )
+   txtInfoPanel.BackColor = txtInfoPanelBackColor
+end
+
+function btnClose_Click( control )    	
+	setFormFromEntity(getEntity());	
+	lnkConnection.btnClose_Click( control );					
+	Форма_UnloadForm( btnClose.Form);			
+end
+
+function setBtnSaveText( btnSaveValue )
+   btnSave.Text = btnSaveValue
+end
+function getBtnSaveText( )
+    return btnSave.Text
+end
+
+function btnSave_Click( control)	
+	local isSaved = true;
+	if validationController.doValidate(getClassManager(), btnSave) == true then
+		setIsNewObject(false);
+		Entity.setBeanFromView(btnSave.Form.Module);		
+		if (Entity.saveBeanToDb() == true) then			
+			isSaved = lnkConnection.btnSave_Click();
+			getObjectList().refreshForm(Entity);		
+			setTxtInfoPanelText("Запись успешно сохранена в базу данных");						
+		else
+			setTxtInfoPanelText("ВНИМАНИЕ!!! Запись не сохранена в базу данных");
+		end	
+	else	
+		isSaved = false;		
+	end
+	if (isSaved) then
+		Форма_UnloadForm( btnSave.Form);
+	else
+		setTxtInfoPanelText("Проверка данных не пройдена");
+	end
+end

@@ -1,0 +1,373 @@
+---------Получение ссылок на класс-формы----------------
+local ClassManager = nil
+local unloadController = nil;
+local formsController = nil;
+local validationController = nil;
+local requestController = nil;
+local constanta = nil;
+local service = nil;
+local childForms = {}
+
+local txtPath = nil;
+local btnChooseFolder = nil;
+local btnChooseFolder = nil;
+local lblInfo = nil;
+local lstDataLoadResults = nil;
+local pnlDataLoadLogFile = nil;
+local txtDataLoadLogFilePath = nil;
+local btnOpenDataLoadLogFile = nil;
+local btnDataTestAndDescover = nil;
+local chkIsDetectDelta = nil;
+local btnLoadData = nil;
+local btnConfigurate = nil;
+local currentForm = nil;
+local lstDeltaFiles = nil;
+-----------------------------------------------------
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+-----------------------------------------------------
+function setCurrentForm(currentFormNew)
+    currentForm = currentFormNew;
+end
+function getCurrentForm()
+    return currentForm;
+end
+-----------------------------------------------------
+function btnChooseFolder_Click( control )
+	local folderPath = BrowseForFolder("Укажите папку для загрузки файлов",CroApp.WorkingFolder,BifNewDialogStyle);
+	control.Form.txtPath.Text = folderPath;	
+	constanta.setLogFilePath(folderPath);
+	local isDirectorySelected = folderPath~=nil and string.len(folderPath)>0
+	setBtnDataTestAndDescoverEnabled(isDirectorySelected)
+	setBtnConfigurateEnabled(isDirectorySelected)
+	clearLstDeltaFilesItems();
+	setBtnLoadDataEnabled(false)
+	clearLstDataLoadResultsItems()		
+	--определение количество загружаемых файлов для для включения/отключения режима определения дельты
+	local files =  IO.Folder.Files (folderPath.."\\*.*");				
+	local counter = 0
+	for file in files do		
+		if getClassManager().getClass("DataLoader").validateLoadFileFormat(getClassManager(), file.Name) then
+			counter = counter + 1
+		end
+	end	
+	setChkIsDetectDeltaEnabled(counter > 1)
+	getClassManager().getClass("DataLoader").initializeDataLaderParameters(getClassManager(), true)
+end
+
+function btnLoadData_Click( control )	
+	if (getTxtPathText() ~= nil and string.len(getTxtPathText()) > 0) then
+		clearLstDataLoadResultsItems()
+		table.insert(childForms,getClassManager().getClass("FormsController").openNeccessaryForm(getClassManager(), control));		
+		showDataLoadResults();	
+	else
+		MsgBox("Перед запуском процедуры загрузки данных необходимо определить путь к директории, в которой находятся файлы с информацией для загрузки!",IconError)
+	end	
+end
+function Форма_Open(form)
+	setCurrentForm(form);
+    setClassManager(Arg.ClassManager);
+    setControllersReferences();
+    return true;
+end
+
+function Форма_Load( form )
+    getClassManager().setClass(form, form);
+	setControls(form);	
+	setFormBackColor(constanta.getSystemBackColor());	
+	table.insert(childForms,form); 
+end
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+	validationController = getClassManager().getClass("ValidationController");
+	requestController = getClassManager().getClass("RequestController");
+	service = getClassManager().getClass("Service");
+    constanta = getClassManager().getClass("Constanta");
+end
+
+function setControls(form)
+    txtPath = form.txtPath;
+	btnChooseFolder = form.btnChooseFolder;
+	btnChooseFolder = form.btnChooseFolder;
+	lblInfo = form.lblInfo;	
+	lstDataLoadResults = form.lstDataLoadResults;
+	pnlDataLoadLogFile = form.pnlDataLoadLogFile;
+    txtDataLoadLogFilePath = form.txtDataLoadLogFilePath;
+    btnOpenDataLoadLogFile = form.btnOpenDataLoadLogFile;
+    btnDataTestAndDescover = form.btnDataTestAndDescover;
+	chkIsDetectDelta = form.chkIsDetectDelta;
+	btnConfigurate = form.btnConfigurate
+	btnLoadData = form.btnLoadData;	
+	lstDeltaFiles = form.lstDeltaFiles;
+end
+
+function setTxtPathText( txtPathValue )
+    txtPath.Text = txtPathValue
+end
+function getTxtPathText( )
+    return txtPath.Text
+end
+
+function setBtnChooseFolderText( btnChooseFolderValue )
+   btnChooseFolder.Text = btnChooseFolderValue
+end
+
+function getBtnChooseFolderText( )
+    return btnChooseFolder.Text
+end
+
+function setBtnChooseFolderText( btnChooseFolderValue )
+   btnChooseFolder.Text = btnChooseFolderValue
+end
+
+function getBtnChooseFolderText( )
+    return btnChooseFolder.Text
+end
+
+function setLblInfoText( lblInfoValue )
+   lblInfo.Text = lblInfoValue
+end
+
+function getLblInfoText( )
+    return lblInfo.Text
+end
+
+function addLstDataLoadResultsItem( lstDataLoadResultsValue )
+   lstDataLoadResults:Add(lstDataLoadResultsValue)
+end
+function insertLstDataLoadResultsItem( lstDataLoadResultsValue, index )
+   lstDataLoadResults:Insert(lstDataLoadResultsValue, index);
+end
+function addLstDataLoadResultsItems( lstDataLoadResultsValues )
+    if lstDataLoadResultsValues ~= nil then
+        for key, value in pairs (lstDataLoadResultsValues) do
+            addLstDataLoadResultsItem(value);
+        end
+    end
+end
+function clearLstDataLoadResultsItems( )
+   lstDataLoadResults:Clear();
+end
+function removeLstDataLoadResultsItem( index )
+   lstDataLoadResults:Remove(index);
+end
+function getLstDataLoadResultsItem( index )
+    return lstDataLoadResults:GetItem(index);
+end
+function setLstDataLoadResultsItemChecked( index, isChecked)
+    lstDataLoadResults:SetItemChecked(index, isChecked);
+end
+function isLstDataLoadResultsItemChecked( lstDataLoadResultsIndexValue )
+    lstDataLoadResults:IsIndexChecked (lstDataLoadResultsIndexValue);
+end
+function getLstDataLoadResultsSelectedIndex( )
+    return lstDataLoadResults.SelectedIndex;
+end
+function getLstDataLoadResultsCheckedItems( )
+    return lstDataLoadResults.CheckedItems;
+end
+function getLstDataLoadResultsCheckedIndices( )
+    return lstDataLoadResults.CheckedIndices;
+end
+function getLstDataLoadResultsItemsCount( )
+    return lstDataLoadResults.ItemsCount;
+end
+function setLstDataLoadResultsEnabled( isLstDataLoadResultsEnabled )
+   lstDataLoadResults.Enabled = isLstDataLoadResultsEnabled
+end
+
+function setPnlDataLoadLogFileEnabled( pnlDataLoadLogFileValue )
+   pnlDataLoadLogFile.Enabled = pnlDataLoadLogFileValue
+end
+function isPnlDataLoadLogFileEnabled( )
+   return pnlDataLoadLogFile.Enabled
+end
+function setPnlDataLoadLogFileVisible( pnlDataLoadLogFileValue )
+   pnlDataLoadLogFile.Visible = pnlDataLoadLogFileValue
+end
+function isPnlDataLoadLogFileVisible( )
+   return pnlDataLoadLogFile.Visible
+end
+
+function getTxtDataLoadLogFilePathText( )
+    return txtDataLoadLogFilePath.Text
+end
+function setTxtDataLoadLogFilePathText( txtDataLoadLogFilePathValue )
+    txtDataLoadLogFilePath.Text = txtDataLoadLogFilePathValue
+end
+function setTxtDataLoadLogFilePathEnabled( isTxtDataLoadLogFilePathEnabled )
+   txtDataLoadLogFilePath.Enabled = isTxtDataLoadLogFilePathEnabled
+end
+
+function setBtnOpenDataLoadLogFileText( btnOpenDataLoadLogFileValue )
+   btnOpenDataLoadLogFile.Text = btnOpenDataLoadLogFileValue
+end
+function getBtnOpenDataLoadLogFileText( )
+    return btnOpenDataLoadLogFile.Text
+end
+function setBtnOpenDataLoadLogFileEnabled( isBtnOpenDataLoadLogFileEnabled )
+   btnOpenDataLoadLogFile.Enabled = isBtnOpenDataLoadLogFileEnabled
+end
+
+function setBtnDataTestAndDescoverText( btnDataTestAndDescoverValue )
+   btnDataTestAndDescover.Text = btnDataTestAndDescoverValue
+end
+function getBtnDataTestAndDescoverText( )
+    return btnDataTestAndDescover.Text
+end
+function setBtnDataTestAndDescoverEnabled( isBtnDataTestAndDescoverEnabled )
+   btnDataTestAndDescover.Enabled = isBtnDataTestAndDescoverEnabled
+end
+
+function setBtnLoadDataText( btnLoadDataValue )
+   btnLoadData.Text = btnLoadDataValue
+end
+function getBtnLoadDataText( )
+    return btnLoadData.Text
+end
+function setBtnLoadDataEnabled( isBtnLoadDataEnabled )
+   btnLoadData.Enabled = isBtnLoadDataEnabled
+end
+
+function setChkIsDetectDelta( chkIsDetectDeltaValue )
+   chkIsDetectDelta.Check   = chkIsDetectDeltaValue
+end
+function isChkIsDetectDelta( )
+    return chkIsDetectDelta.Check
+end
+function setChkIsDetectDeltaText( chkIsDetectDeltaValue )
+   chkIsDetectDelta.Text = chkIsDetectDeltaValue
+end
+function getChkIsDetectDeltaText( )
+    return chkIsDetectDelta.Text
+end
+function setChkIsDetectDeltaEnabled( isChkIsDetectDeltaEnabled )
+   chkIsDetectDelta.Enabled = isChkIsDetectDeltaEnabled
+end
+
+function setBtnConfigurateText( btnConfigurateValue )
+   btnConfigurate.Text = btnConfigurateValue
+end
+function getBtnConfigurateText( )
+    return btnConfigurate.Text
+end
+function setBtnConfigurateEnabled( isBtnConfigurateEnabled )
+   btnConfigurate.Enabled = isBtnConfigurateEnabled
+end
+
+function addLstDeltaFilesItem( lstDeltaFilesValue )
+   lstDeltaFiles:Add(lstDeltaFilesValue)
+end
+function insertLstDeltaFilesItem( lstDeltaFilesValue, index )
+   lstDeltaFiles:Insert(lstDeltaFilesValue, index);
+end
+function addLstDeltaFilesItems( lstDeltaFilesValues )
+    if lstDeltaFilesValues ~= nil then
+        for key, value in pairs (lstDeltaFilesValues) do
+            addLstDeltaFilesItem(value);
+        end
+    end
+end
+function clearLstDeltaFilesItems( )
+   lstDeltaFiles:Clear();
+end
+function removeLstDeltaFilesItem( index )
+   lstDeltaFiles:Remove(index);
+end
+function getLstDeltaFilesItem( index )
+    return lstDeltaFiles:GetItem(index);
+end
+function setLstDeltaFilesItemChecked( index, isChecked)
+    lstDeltaFiles:SetItemChecked(index, isChecked);
+end
+function isLstDeltaFilesItemChecked( lstDeltaFilesIndexValue )
+    lstDeltaFiles:IsIndexChecked (lstDeltaFilesIndexValue);
+end
+function getLstDeltaFilesSelectedIndex( )
+    return lstDeltaFiles.SelectedIndex;
+end
+function getLstDeltaFilesCheckedItems( )
+    return lstDeltaFiles.CheckedItems;
+end
+function getLstDeltaFilesCheckedIndices( )
+    return lstDeltaFiles.CheckedIndices;
+end
+function getLstDeltaFilesItemsCount( )
+    return lstDeltaFiles.ItemsCount;
+end
+function setLstDeltaFilesEnabled( isLstDeltaFilesEnabled )
+   lstDeltaFiles.Enabled = isLstDeltaFilesEnabled
+end----------------------------------------------
+function setControlEnabled(control, isEnabled)
+	control.Enabled = isEnabled;
+end
+function setControlFocused(control, isFocused)
+	control.Focused = isFocused;
+end
+-------------------------------------------------------
+
+function setFormBackColor( formBackColor )
+   getCurrentForm().BackColor = formBackColor
+end
+
+function showDataLoadResults()	
+	local dataDataLoadLogFilePath = IO.Path.AddSlash(ClassManager.getClass("Constanta").getLogFilePath()).. ClassManager.getClass("Constanta").getLogFileName();
+	setTxtDataLoadLogFilePathText(dataDataLoadLogFilePath);
+	setPnlDataLoadLogFileEnabled(true);
+	local dataLoadResultsFile = io.open(dataDataLoadLogFilePath, "r");	
+	if (dataLoadResultsFile ~= nil) then
+		local counter = 0		
+		for line in dataLoadResultsFile:lines() do
+			counter = counter + 1
+			if (counter > 100) then
+				insertLstDataLoadResultsItem("Не все строки из отчета были загружены в форму. Откройте лог-файл с помощью кнопки снизу")
+				break
+			else
+				insertLstDataLoadResultsItem((line:swap(getTxtPathText():swap("\\","/"),"")):swap("/","\\"));
+			end
+		end
+		dataLoadResultsFile:close();		
+	else
+		insertLstDataLoadResultsItem("Не обнаружен файл отчета загрузки по следующему пути: "..dataDataLoadLogFilePath)		
+		for _, message in pairs (getClassManager().getClass("DataLoader").getResultStringTable()) do
+			insertLstDataLoadResultsItem((message:swap(getTxtPathText():swap("\\","/"),"")):swap("/","\\"));
+		end		
+	end			
+end
+function btnOpenDataLoadLogFile_Click( control )
+	local result, errStr = ShellExecute(getTxtDataLoadLogFilePathText(), "", false, "open", "", 1)  -- запускаем приложение
+	if ( result == nil ) then
+		MsgBox("При открытии файлв с локального диска произошла ошибка: \n"..errStr)
+	end
+end
+
+function btnDataTestAndDescover_Click( control )
+	if (getTxtPathText() ~= nil and string.len(getTxtPathText()) > 0) then
+		clearLstDataLoadResultsItems()		
+		getClassManager().getClass("FormsController").openNeccessaryForm(getClassManager(), control)		
+		showDataLoadResults()
+	else
+		MsgBox("Перед запуском процедуры загрузки данных необходимо определить путь к директории, в которой находятся файлы с информацией для загрузки!",IconError)
+	end	
+end
+
+function btnConfigurate_Click( control )
+	table.insert(childForms, formsController.openNeccessaryForm(getClassManager(), control , nil));
+end
+
+function Форма_UnloadForm( form, mode )
+	unloadController.doUnload(getClassManager(), form, childForms);
+    --getClassManager().setClass(form, nil)
+    return true;
+end
+
+
+function chkIsDetectDelta_Click( control )	
+	getClassManager().getClass("FormsController").openNeccessaryForm(getClassManager(), control)		
+end

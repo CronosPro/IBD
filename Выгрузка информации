@@ -1,0 +1,81 @@
+local txtSaveFolderPath = nil;
+local btnDownloadFromDB = nil;
+
+function getTxtSaveFolderPath()
+    return txtSaveFolderPath;
+end
+function setTxtSaveFolderPath(txtSaveFolderPathValue)
+    txtSaveFolderPath = txtSaveFolderPathValue;
+end
+
+function setBtnDownloadFromDBEnabled( isBtnDownloadFromDBEnabled )
+   btnDownloadFromDB.Enabled = isBtnDownloadFromDBEnabled;
+end
+
+function btnChooseFolder_Click( control )
+	setTxtSaveFolderPath(BrowseForFolder("Укажите папку для загрузки файлов",CroApp.WorkingFolder,BifNewDialogStyle));
+	control.Form.txtPath.Text = getTxtSaveFolderPath();	
+	setBtnDownloadFromDBEnabled(true);
+end
+
+function btnDownloadFromDB_Click( control )
+	local saveFolderPath = IO.Path.AddSlash(getTxtSaveFolderPath());
+	local saveFileName = saveFolderPath.."result.txt"	
+	local base = CroApp.GetBank():GetBase("РГ");
+	local fileTextDescription = "Информация банка-партнера";	
+		if base then
+			local fields = base.Fields;	
+			local fieldsTable ={}
+			for _, field in pairs(fields) do
+				table.insert(fieldsTable,field.Number);
+			end	
+			table.remove(fieldsTable,1)		
+			local recordSet = base.RecordSet;
+			for rec in recordSet.Records do	
+				--if(rec.SN > 15000 and rec.SN< 20000)then
+					for item,fieldName in pairs (fieldsTable) do
+						if (item == 1)then
+							resultText = splitPersonalInfo(rec:GetValue(fieldName))
+						elseif(item == 2)then
+							resultText = resultText..rec:GetValue(fieldName).."|"
+						else
+							--if(string.len(rec:GetValue(fieldName))>0 and fieldName ~= 11)then
+								fileTextDescription = fileTextDescription..";"..fieldName..": "..render(rec:GetValue(fieldName))
+							--end
+						end					
+					end
+					resultText = resultText..fileTextDescription.."\n"
+					saveToFile(saveFileName, resultText);
+					--MsgBox(fileTextDescription);
+					--MsgBox(rec.SN);
+					
+					--rec:SetValue(17, fileTextDescription); 
+					--rec:Update()
+				--[[end	
+				if(rec.SN > 20000)then
+					break
+				end	--]]			
+			end
+		else
+			MsgBox("Не могу получить доступ к базе "..base.Name)
+		end	
+end
+
+function setControls(form)
+	btnDownloadFromDB = form.btnDownloadFromDB;	
+end
+function Форма_Load( form )  
+	setControls(form);	
+end
+
+function saveToFile(filename , textInformation)
+	local resultFile = io.open(filename..".csv","a");
+		resultFile:write(textInformation);			
+		resultFile:close()	
+end
+function splitPersonalInfo(personalInfoText)
+	local surname = string.field( personalInfoText, " ", 1); 
+	local name = string.field( personalInfoText, " ", 2);
+	local fathername = string.field( personalInfoText, " ", 3);
+	return surname.."|"..name.."|"..fathername.."|";
+end

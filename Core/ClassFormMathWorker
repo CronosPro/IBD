@@ -1,0 +1,162 @@
+function Форма_Open( form )
+	return true;
+end
+
+--метод сравнения строковых чисел без преобразования 
+function compareNumbers (ClassManager, numberChecking, type, numberChecked)
+	local result = nil
+	local lenNumberChecking = string.len(numberChecking)
+	local lenNumberChecked = string.len(numberChecked)	
+	if type == ">" then
+		if lenNumberChecking > lenNumberChecked then
+			result = true
+		elseif lenNumberChecking < lenNumberChecked then
+			result = false
+		elseif lenNumberChecking == lenNumberChecked then
+			for i=1, lenNumberChecking do				
+				if compareDigites (string.sub(numberChecking, i,i), string.sub(numberChecked, i,i), "<") == false and 
+						compareDigites (string.sub(numberChecking, i,i), string.sub(numberChecked, i,i), "==") == false then			
+					result = false
+					break
+				end
+				i = i + 1
+			end
+		end
+	elseif type == "<" then
+		if lenNumberChecking < lenNumberChecked then
+			result = true
+		elseif lenNumberChecking > lenNumberChecked then
+			result = false
+		elseif lenNumberChecking == lenNumberChecked then
+			for i=1, lenNumberChecking do
+				if compareDigites (string.sub(numberChecking, i,i), string.sub(numberChecked, i,i), ">") == false and 
+						compareDigites (string.sub(numberChecking, i,i), string.sub(numberChecked, i,i), "==") == false then			
+					result = false
+					break
+				end
+				i = i + 1
+			end
+		end
+	elseif type == "==" then
+		if lenNumberChecking ~= lenNumberChecked then
+			result = false
+		else
+			for i=1, lenNumberChecking do
+				if compareDigites (string.sub(numberChecking, i,i), string.sub(numberChecked, i,i), "==") == false then						
+					result = false
+					break
+				end
+				i = i + 1
+			end
+		end
+	else
+		MsgBox("Задан неправильный тип сверки чисел "..numberChecking.."и "..numberChecked)
+	end
+	return result
+end
+
+--метод сравнения цифр строкового типа
+function compareDigites (digitChecking, digitChecked, type)	
+	local result
+	if digitChecking == "0" then
+		if digitChecked == "0" then
+			result = getAnswerAboutComparing("==", type)
+		else			
+			result = getAnswerAboutComparing("<", type)
+		end		
+	elseif digitChecking == "1" then
+		if digitChecked == "0" then
+			result = getAnswerAboutComparing(">", type)
+		elseif digitChecked == "1" then
+			result = getAnswerAboutComparing("==", type)
+		else
+			result = getAnswerAboutComparing("<", type)
+		end
+	elseif digitChecking == "2" then
+		if digitChecked == "0" or digitChecked == "1" then
+			result = getAnswerAboutComparing(">")
+		elseif digitChecked == "2" then
+			result = getAnswerAboutComparing("==", type)
+		else
+			result = getAnswerAboutComparing("<", type)
+		end
+	elseif digitChecking == "3" then
+		if digitChecked == "0" or digitChecked == "1" or digitChecked == "2" then
+			result = getAnswerAboutComparing(">", type)
+		elseif digitChecked == "3" then
+			result = getAnswerAboutComparing("==", type)
+		else
+			result = getAnswerAboutComparing("<", type)
+		end
+	elseif digitChecking == "4" then
+		if digitChecked == "0" or digitChecked == "1" or digitChecked == "2" or digitChecked == "3" then
+			result = getAnswerAboutComparing(">", type)
+		elseif digitChecked == "4" then
+			result = getAnswerAboutComparing("==", type)
+		else
+			result = getAnswerAboutComparing("<", type)
+		end
+	elseif digitChecking == "5" then
+		if digitChecked == "6" or digitChecked == "7" or digitChecked == "8" or digitChecked == "9" or digitChecked == "4" then
+			result = getAnswerAboutComparing("<", type)
+		elseif digitChecked == "5" then
+			result = getAnswerAboutComparing("==", type)
+		else
+			result = getAnswerAboutComparing(">", type)
+		end
+	elseif digitChecking == "6" then
+		if digitChecked == "7" or digitChecked == "8" or digitChecked == "9" then
+			result = getAnswerAboutComparing("<", type)
+		elseif digitChecked == "6" then
+			result = getAnswerAboutComparing("==", type)
+		else
+			result = getAnswerAboutComparing(">", type)
+		end
+	elseif digitChecking == "7" then
+		if digitChecked == "8" or digitChecked == "9" then
+			result = getAnswerAboutComparing("<", type)
+		elseif digitChecked == "7" then
+			result = getAnswerAboutComparing("==", type)
+		else
+			result = getAnswerAboutComparing(">", type)
+		end
+	elseif digitChecking == "8" then
+		if digitChecked == "9" then
+			result = getAnswerAboutComparing("<", type)
+		elseif digitChecked == "8" then
+			result = getAnswerAboutComparing("==", type)
+		else
+			result = getAnswerAboutComparing(">", type)
+		end
+	elseif digitChecking == "9" then
+		if digitChecked == "9" then
+			result = getAnswerAboutComparing("==", type)
+		else			
+			result = getAnswerAboutComparing(">", type)
+		end		
+	end
+	return result
+end
+
+--метод, дающий ответ по сравнению цифр
+function getAnswerAboutComparing(type, expectedType)
+	if type == "==" then
+		if expectedType == "==" then
+			return true
+		else
+			return false
+		end		
+	elseif type == ">" then
+		if expectedType == ">" then
+			return true
+		else
+			return false
+		end		
+	elseif type == "<" then
+		if expectedType == "<" then
+			return true
+		else
+			return false
+		end		
+	end
+end

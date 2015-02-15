@@ -1,0 +1,581 @@
+local logger = nil;
+
+function initLogger(ClassManager)
+	if logger == nil then
+		logger = ClassManager.getClass("Logger");	
+	end
+end
+
+------Получение объектов словарных баз данных
+function getVocItems(ClassManager, vocCode, numberOfExistingDefs)
+	local vocTableDefinitions = {};
+	local vocTableCodes = {};
+	if vocCode ~= nil then		
+		local vocRequest = "ОТ "..vocCode.."01";				
+		local vocRecordSet = CroApp:GetBank():GetVocabulary():GetBase(vocCode):StringRequest(vocRequest);								
+		if (numberOfExistingDefs ~= vocRecordSet.Count) then			
+			vocRecordSet:Sort({field=20,descent=false, case = false});
+			for rec in vocRecordSet.Records do
+				table.insert(vocTableDefinitions,rec:GetValue(20));
+				table.insert(vocTableCodes,rec:GetValue(10));
+			end				
+		else
+			vocTableDefinitions = nil;
+			vocTableCodes = nil;
+		end		
+	else	
+		MsgBox("В метод getVocItems передан пустой аргумент vocCode", BtnOk + IconError )
+	end		
+	return vocTableCodes, vocTableDefinitions;
+end
+
+------Получение объектов базы данных Организация
+function getItemsForOrganization(ClassManager, itemBaseCode, record)
+	local orgItems = nil;			
+	if itemBaseCode == ClassManager.getClass("Constanta").getCnstJobTrack()then									
+		local jobTrackRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 27 , "" , "", "", itemBaseCode);						
+		orgItems = jobTrackRecordSet;
+	elseif itemBaseCode == ClassManager.getClass("Constanta").getCnstAddressType()then				
+		local addressTypeRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 28 , "" , "", "", itemBaseCode);							
+		orgItems = addressTypeRecordSet;		
+	elseif itemBaseCode == ClassManager.getClass("Constanta").getCnstConnectionType() then
+		local connectionTypeRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 36 , "" , "", "", itemBaseCode);						
+		orgItems = connectionTypeRecordSet;
+	elseif itemBaseCode == ClassManager.getClass("Constanta").getCnstFoundersAndPartners() then		
+		local foundersAndPartnersRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 33 , "" , "", "", itemBaseCode);										
+		for recSN in ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 32 , "" , "", "", itemBaseCode).SysNums do
+			foundersAndPartnersRecordSet:Add(recSN);
+		end								
+		orgItems = foundersAndPartnersRecordSet;
+	elseif itemBaseCode == ClassManager.getClass("Constanta").getCnstBankAccount() then
+		local bankAccountRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 31 , "" , "", "", itemBaseCode);						
+		orgItems = bankAccountRecordSet;	
+	elseif itemBaseCode == ClassManager.getClass("Constanta").getCnstDocument() then
+		local documentRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 29 , "" , "", "", itemBaseCode);						
+		orgItems = documentRecordSet;	
+	elseif itemBaseCode == ClassManager.getClass("Constanta").getCnstBranch() then
+		itemBaseCode = ClassManager.getClass("Constanta").getCnstOrganization();
+		local branchRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 46 , "" , "", "", itemBaseCode);						
+		orgItems = branchRecordSet;	
+	elseif itemBaseCode == ClassManager.getClass("Constanta").getCnstEstate() then
+		local estateRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 47 , "" , "", "", itemBaseCode);						
+		orgItems = estateRecordSet;	
+	elseif itemBaseCode == ClassManager.getClass("Constanta").getCnstBelgamsGroup() then
+		local belgamsGroupRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 48 , "" , "", "", itemBaseCode);						
+		orgItems = belgamsGroupRecordSet;	
+	elseif itemBaseCode == ClassManager.getClass("Constanta").getCnstRequestJournal() then
+		local requestJournalRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 37 , "" , "", "", itemBaseCode);						
+		orgItems = requestJournalRecordSet;	
+	end			
+	return processRetievedRecordSet(itemBaseCode, orgItems);
+end
+
+------Получение объектов базы данных Лицо
+function getItemsForPerson(ClassManager, itemBaseCode, record)
+	local personItems = nil;			
+	if itemBaseCode == ClassManager.getClass("Constanta").getCnstJobTrack() or 
+		itemBaseCode == ClassManager.getClass("Constanta").getCnstFoundersAndPartners()then									
+		local jobTrackRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 25 , "" , "", "", itemBaseCode);						
+		personItems = jobTrackRecordSet;
+	elseif itemBaseCode == ClassManager.getClass("Constanta").getCnstAddressType()then				
+		local addressTypeRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 28 , "" , "", "", itemBaseCode);										
+		personItems = addressTypeRecordSet;		
+	elseif itemBaseCode == ClassManager.getClass("Constanta").getCnstConnectionType() then
+		local connectionTypeRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 29 , "" , "", "", itemBaseCode);						
+		personItems = connectionTypeRecordSet;	
+	elseif itemBaseCode == ClassManager.getClass("Constanta").getCnstBankAccount() then
+		local bankAccountRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 34 , "" , "", "", itemBaseCode);						
+		personItems = bankAccountRecordSet;	
+	elseif itemBaseCode == ClassManager.getClass("Constanta").getCnstEducation() then
+		local educationRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 50 , "" , "", "", itemBaseCode);						
+		personItems = educationRecordSet;	
+	elseif itemBaseCode == ClassManager.getClass("Constanta").getCnstDocument() then
+		local documentRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 31 , "" , "", "", itemBaseCode);						
+		personItems = documentRecordSet;	
+	elseif itemBaseCode == ClassManager.getClass("Constanta").getCnstPersonalID() then
+		local personalIDRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 27 , "" , "", "", itemBaseCode);						
+		personItems = personalIDRecordSet;	
+	elseif itemBaseCode == ClassManager.getClass("Constanta").getCnstBreaches() then
+		local breachesRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 43 , "" , "", "", itemBaseCode);						
+		personItems = breachesRecordSet;	
+	elseif itemBaseCode == ClassManager.getClass("Constanta").getCnstJobTrack() then
+		local jobTrackRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 25 , "" , "", "", itemBaseCode);								
+		personItems = jobTrackRecordSet;	
+	elseif itemBaseCode == ClassManager.getClass("Constanta").getCnstPersonRelations() then	
+		local personRelationsRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 37 , "" , "", "", itemBaseCode);								
+		personItems = personRelationsRecordSet;	
+	elseif itemBaseCode == ClassManager.getClass("Constanta").getCnstRequestJournal() then
+		local requestJournalRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 46 , "" , "", "", itemBaseCode);						
+		personItems = requestJournalRecordSet;	
+	end		
+	return processRetievedRecordSet(itemBaseCode, personItems);
+end
+
+------Получение связанных объектов для базы данных Трудовая Деятельность
+function getItemsForJobTrack(ClassManager, itemBaseCode, record)
+	local jobTrackItems = nil;	
+	if itemBaseCode == ClassManager.getClass("Constanta").getCnstPerson() then					
+		local employeeRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 10 , "" , "", "", itemBaseCode);
+		jobTrackItems = employeeRecordSet
+	elseif itemBaseCode == ClassManager.getClass("Constanta").getCnstOrganization() then						
+		local organizationsRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 9 , "" , "", "", itemBaseCode);		
+		jobTrackItems = organizationsRecordSet
+	end
+	return processRetievedRecordSet(itemBaseCode, jobTrackItems);
+end
+------Получение связанных объектов для базы данных Тип Адреса
+function getItemsForAddressType(ClassManager, itemBaseCode, record)
+	local addressTypeItems = nil;		
+	if itemBaseCode == ClassManager.getClass("Constanta").getCnstAddress() then									
+		local addressRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 2 , "" , "", "", itemBaseCode);				
+		addressTypeItems = addressRecordSet	
+	end
+	return processRetievedRecordSet(itemBaseCode, addressTypeItems);
+end
+------Получение связанных объектов для базы данных Тип Связи
+function getItemsForConnectionType(ClassManager, itemBaseCode, record)
+	local conectionTypeItems = nil;				
+	if itemBaseCode == ClassManager.getClass("Constanta").getCnstConnection() then														
+		local telephoneRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 5 , "" , "", "", itemBaseCode);				
+		conectionTypeItems = telephoneRecordSet					
+	end
+	return processRetievedRecordSet(itemBaseCode, conectionTypeItems);
+end
+------Получение связанных объектов для базы данных Характер связи
+function getItemsForPersonRelations(ClassManager, itemBaseCode, record)
+	local personRelationsItems = nil;			
+	if itemBaseCode == ClassManager.getClass("Constanta").getCnstPerson() then										
+		local personsRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 2 , "" , "", "", itemBaseCode);				
+		personRelationsItems = personsRecordSet		
+	end
+	if itemBaseCode == ClassManager.getClass("Constanta").getCnstAddress() then								
+		local addressBase=CroApp.GetBank():GetBase(itemBaseCode) 				
+		local addressesRecordSet = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 6 , "" , "", "", itemBaseCode);		
+		personRelationsItems = addressesRecordSet		
+	end
+	return processRetievedRecordSet(itemBaseCode, personRelationsItems);
+end
+------Получение связанных объектов для базы данных Учредители и партнеры
+function getItemsForFoundersAndPartners(ClassManager, itemBaseCode, record)		 
+	local founderAndPartnerItems = nil;
+	if itemBaseCode == ClassManager.getClass("Constanta").getCnstOrganization() then												
+		founderAndPartnerItems = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 8 , "" , "", "", itemBaseCode);		
+		founderAndPartnerItems = founderAndPartnerItems:Union(ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 2 , "" , "", "", itemBaseCode));								
+	elseif itemBaseCode == ClassManager.getClass("Constanta").getCnstPerson() then		
+		founderAndPartnerItems = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 9 , "" , "", "", itemBaseCode);								
+	end
+	return processRetievedRecordSet(itemBaseCode, founderAndPartnerItems);
+end
+------Получение связанных подчиняющихся объектов для базы данных Учредители и партнеры 
+function getItemsForFoundersAndPartnersControlling(ClassManager, itemBaseCode, record)		 
+	local founderAndPartnerItems = nil;
+	if itemBaseCode == ClassManager.getClass("Constanta").getCnstOrganization() then												
+		founderAndPartnerItems = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 2 , "" , "", "", itemBaseCode);					
+	end
+	return processRetievedRecordSet(itemBaseCode, founderAndPartnerItems);
+end
+------Получение связанных контролируемыми объектов для базы данных Учредители и партнеры 
+function getItemsForFoundersAndPartnersControlled(ClassManager, itemBaseCode, record)		 
+	local founderAndPartnerItems = nil;
+	if itemBaseCode == ClassManager.getClass("Constanta").getCnstOrganization() then												
+		founderAndPartnerItems = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 8 , "" , "", "", itemBaseCode);					
+	end
+	return processRetievedRecordSet(itemBaseCode, founderAndPartnerItems);
+end
+------Получение связанных объектов для базы данных Недвижимое имущество орагнизации
+function getItemsForEstate(ClassManager, itemBaseCode, record)		 
+	local estateItems = nil;
+	if itemBaseCode == ClassManager.getClass("Constanta").getCnstAddress() then												
+		estateItems = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 4 , "" , "", "", itemBaseCode);					
+	end
+	return processRetievedRecordSet(itemBaseCode, estateItems);
+end
+
+------Получение связанных объектов для базы данных Документ
+function getItemsForDocument(ClassManager, itemBaseCode, record)		 
+	local documentItems = nil;						
+	documentItems = ClassManager.getClass("FieldsWorker").getField(record.Base.Code, record , 5 , "" , "", "", itemBaseCode);						
+	return processRetievedRecordSet(itemBaseCode, documentItems);
+end
+
+--метод для определения статуса блокировки записи
+function isRecordLocked(ClassManager, record)
+	initLogger(ClassManager);	
+	logger.writeDebugMessage(ClassManager,"Проверка, заблокирована ли запись с системным номером "..record.SN.." базы данных "..record.Base.Name)
+	return CroApp.GetBank():GetBase(record.Base.Code):CheckRecordLock (record.SN)
+end
+
+function lockRecord(ClassManager, record)
+	initLogger(ClassManager);	
+	logger.writeDebugMessage(ClassManager,"Запись с системным номером "..record.SN.." базы данных "..record.Base.Name.." необходимо заблокировать")
+	record:Lock();	
+	logger.writeDebugMessage(ClassManager,"Запись заблокирована")
+end
+function unlockRecord(ClassManager, record)		
+	initLogger(ClassManager);	
+	logger.writeDebugMessage(ClassManager,"Запись с системным номером "..record.SN.." базы данных "..record.Base.Name.." необходимо деблокировать")
+	record:Unlock();	
+	logger.writeDebugMessage(ClassManager,"Запись деблокирована")
+end
+
+--Вспомогательная сервисная функция
+function processRetievedRecordSet(itemBaseCode, orgItems)
+	--В связи с тем, что в возвращаемом наборе могут присутствовать фиктивные записи, по которым не проходит итератор, необходимо "перелить" набор записей
+	local orgItemsCopy = RecordSet.new({},CroApp.GetBank():GetBase(itemBaseCode));					
+	for orgItemRec in orgItems.Records do				
+		orgItemsCopy:Add(orgItemRec.SN);					
+	end	
+	return orgItemsCopy;
+end
+
+function doMergeRecords(ClassManager, baseCode, tableOfEntities)
+	local errorMessages = {}
+	--необходимо проверить, возможно ли слить данные записи, то есть идентичны ли значения немножественных полей	
+	--необходимо получить набор простых полей базы данных		
+	local base = CroApp.GetBank():GetBase(baseCode) 
+	local baseFields = base.Fields;	
+	--итерируем по полям базы данных и сравниваем значения соответствующего простого поля во всех записях
+	local statusMultiple = Field.Multiple;	
+	local statusNotEditable = Field.NotEditable;	
+	local statusAutoFill = Field.AutoFill;		
+	local recordsToMerge = RecordSet.new({}, base);
+	local isAllRecordsSimilar = true;	
+	for fieldKey, baseField in pairs(baseFields) do	
+		if (baseField.Number > 0 and (not baseField:TestStatus(statusNotEditable)) and (not baseField:TestStatus(statusAutoFill))) then			
+			--если поле простое, то проверяем значение
+			local isAllValuesSimilar = true;		
+			if (not baseField:TestStatus(statusMultiple)) then							
+				local fieldValue = nil;
+				local differentValues = {};				
+				local fieldsWithIssue = {};
+				for key, entity in pairs(tableOfEntities) do											
+					if (entity.getEntityBaseCode() == baseCode) then
+						local record = entity.getEntityRecord();
+						if (ClassManager.getClass("DBWorker").isRecordLocked(ClassManager, record)) then
+							local errorMessage = "Запись "..entity.toShortString().." сейчас заблокирована.\n\rДля данной записи операция слияния не может быть выполнена.";
+							if (table.count(ClassManager.getClass("Service").getIndexesFromTable(errorMessages,errorMessage)) == 0) then
+								table.insert(errorMessages,errorMessage);
+							end
+						else
+							recordsToMerge:Add(record.SN);
+							if (fieldValue == nil) then
+								fieldValue = ClassManager.getClass("FieldsWorker").getField(baseCode, record , baseField.Number , "" , "", "");													
+								if (fieldValue ~= nil) then
+									if (string.len(string.trim(fieldValue)) == 0) then
+										fieldValue = nil;									
+									end
+								end
+							else	
+								local fieldValueOfNewRecord = ClassManager.getClass("FieldsWorker").getField(baseCode, record , baseField.Number , "" , "", "")
+								if (fieldValueOfNewRecord ~= nil) then
+									if (string.len(string.trim(fieldValueOfNewRecord))>0 and string.lower(fieldValue) ~= string.lower(fieldValueOfNewRecord)) then
+									--string.len(string.trim(fieldValueOfNewRecord))>0 and fieldValue ~= fieldValueOfNewRecord) then
+										isAllValuesSimilar = false;
+										if (table.count(ClassManager.getClass("Service").getIndexesFromTable(differentValues,fieldValueOfNewRecord)) == 0) then
+											table.insert(differentValues, fieldValueOfNewRecord) 																		
+										end
+										if (table.count(ClassManager.getClass("Service").getIndexesFromTable(differentValues,fieldValue)) == 0) then
+											table.insert(differentValues, fieldValue) 										
+										end
+										table.insert(fieldsWithIssue, baseField.Name);									
+									end
+								end
+							end
+						end
+					else
+						local errorMessage = "Запись "..entity.toShortString().." принадлежит другому типу объектов и не может быть слита с объектами типа "..baseCode;
+						if (table.count(ClassManager.getClass("Service").getIndexesFromTable(errorMessages,errorMessage)) == 0) then
+							table.insert(errorMessages,errorMessage);
+						end
+					end
+				end
+				if (not isAllValuesSimilar) then
+					table.insert(errorMessages,"Записи имеют различные значения в поле "..baseField.Name..":");							
+					table.insert(errorMessages,table.concat(differentValues, "; "));
+					isAllRecordsSimilar = false;
+				end
+			end
+		end
+	end
+	local mergedRecord = nil;
+	if (isAllRecordsSimilar) then			
+		mergedRecord = doMerge(ClassManager, baseCode, recordsToMerge, errorMessages)
+		if (table.count(errorMessages) > 0 ) then
+			MsgBox("Во время операции слияния произошли следующие ошибки:\n\r"..table.concat(errorMessages,"\n\r"),IconError);
+		end
+	else
+		MsgBox("Слияние объектов не может быть выполнено по следующим причинам:\n\r"..table.concat(errorMessages,"\n\r"),IconWarning);		
+	end
+	return mergedRecord;
+end
+
+function doMerge(ClassManager, baseCode, mergingRecordSet, errorMessages)
+	local base = CroApp.GetBank():GetBase(baseCode) 
+	local mergedRecord = mergingRecordSet:GetRecordByIndex (1);
+	local mergedRecordSN = mergedRecord.SN;
+	mergingRecordSet:Remove(mergedRecord.SN);
+	local baseFields = base.Fields;				
+	local isToContinue = true;
+	--MsgBox(mergingRecordSet.Count)
+	for record in mergingRecordSet.Records do						
+		--MsgBox(record.SN)
+		if isToContinue then
+			if (base:GetRecord(mergedRecordSN) == nil) then
+				MsgBox("Запись № "..mergedRecordSN.." базы "..base.Name.." была удалена в процессе слияния записей.\n\rПроцедура завершена.", IconInformation)
+				break;
+			end
+			local isToDeleteRecord = true;
+			local statusMultiple = Field.Multiple;	
+			local statusNotEditable = Field.NotEditable;	
+			local statusAutoFill = Field.AutoFill;					
+			local recordsToMerge = RecordSet.new({}, base);		
+			for fieldKey, baseField in pairs(baseFields) do		
+				if (base:GetRecord(record.SN) == nil) then
+					--MsgBox("Запись № "..record.SN.." базы "..base.Name.." была удалена в процессе слияния записей.", IconInformation)
+					break;
+				end							
+				if (baseField.Number > 0 and (not baseField:TestStatus(statusNotEditable)) and (not baseField:TestStatus(statusAutoFill))) then										
+					local baseFieldType = baseField.Type;
+					if (baseFieldType == 6) then					
+						local mergedRecordValue = mergedRecord:GetValue(baseField.Number,0)							
+						local recordValue = record:GetValue(baseField.Number,0,"fullname")																						
+						for fileKey, fileValue in pairs (recordValue) do												
+							local isFound = false;						
+							local file = record:GetValue(baseField.Number,fileKey)						
+							for mergedFileKey, mergedFileValue in pairs(mergedRecordValue) do							
+								if (mergedFileValue == file) then
+									isFound = true;
+									break;
+								end
+							end						
+							if (not isFound) then	
+								local filePaths = {}
+								local filePath = CroApp.TempDir..fileValue;									
+								table.insert(filePaths,  "@"..filePath);							
+								record:GetValue(baseField.Number, 1, filePath);
+								if (baseField:TestStatus(statusMultiple)) then
+									ClassManager.getClass("FieldsWorker").setField(baseCode, mergedRecord, baseField.Number, 0, nil, filePaths);	
+								else
+									ClassManager.getClass("FieldsWorker").setField(baseCode, mergedRecord, baseField.Number, "", nil, "@"..filePath);	
+								end							
+								os.remove(filePath)																		
+							end													
+						end					
+					else			
+						if (baseField:TestStatus(statusMultiple)) then
+							--Множественное поле					
+							if (baseFieldType == 7 or baseFieldType == 8 or baseFieldType == 9 or baseFieldType == 17) then						
+								--ссылочное поле						
+								local linkedBases = baseField.LinkedBases;
+								for key, lnkBase in pairs (linkedBases) do															
+									local linkedBase = lnkBase.Base;		
+									local linkedField = lnkBase.Field																
+									local mergedRecordValueRecordSet = ClassManager.getClass("FieldsWorker").getField(baseCode, mergedRecord , baseField.Number , "", "", "", linkedBase.Code);						
+									local recordValueRecordSet = ClassManager.getClass("FieldsWorker").getField(baseCode, record , baseField.Number , "" , "", "", linkedBase.Code);
+									if (recordValueRecordSet ~= nil) then									
+										for recordValueRec in recordValueRecordSet.Records do								
+											if (not mergedRecordValueRecordSet:Test(recordValueRec.SN)) then
+												if (ClassManager.getClass("DBWorker").isRecordLocked(ClassManager, recordValueRec)) then									
+													local entity = ClassManager.newEntity(ClassManager, recordValueRec.Base.Code);																			
+													table.insert(errorMessages,"Связанная запись "..entity.toShortString(false).." заблокирована.\n\rНевозможно изменить связи во время слияния.");													
+													isToDeleteRecord = false;
+												else														
+													local isConnected = base:AddLink(mergedRecord.SN, baseField.Number, linkedBase, recordValueRec.SN, Base.NoLock, Base.NoLock);																																																					
+													--MsgBox("Установлена связь с записью № "..recordValueRec.SN.." базы "..linkedBase.Name, IconInformation)
+													if (not isConnected) then
+														MsgBox("Не удалось связать записи № "..mergedRecord.SN.." базы "..base.Name.."\n\rи запись № "..recordValueRec.SN.." базы "..linkedBase.Name)
+													else
+														mergedRecord = base:GetRecord(mergedRecord.SN);
+													end
+													--linkedBase:AddLink(recordValueRec.SN, linkedField.Number, base, mergedRecord.SN, recordValueRec.SN, Base.NoLock, Base.NoLock);																									
+												end
+											end
+										end								
+									end
+								end
+							else
+								--поле базы данных						
+								local mergedRecordValue = ClassManager.getClass("FieldsWorker").getField(baseCode, mergedRecord , baseField.Number , 0 , "", "");							
+								local recordValue = ClassManager.getClass("FieldsWorker").getField(baseCode, record , baseField.Number , 0 , "", "")																								
+								if (table.count(recordValue) > 0) then													
+									local extraValues = {};							
+									for key, value in pairs(recordValue) do																							
+										if (table.count(ClassManager.getClass("Service").getIndexesFromTable(mergedRecordValue,value)) == 0) then
+											table.insert(mergedRecordValue, value)
+										end
+									end								
+									ClassManager.getClass("FieldsWorker").setField(baseCode, mergedRecord, baseField.Number, "", mergedRecordValue);								
+								end
+							end
+						else
+							--простое поле																
+							local mergedRecordValue = nil;
+							local recordValue = nil
+							mergedRecordValue = ClassManager.getClass("FieldsWorker").getField(baseCode, mergedRecord , baseField.Number , "" , "", "");
+							recordValue = ClassManager.getClass("FieldsWorker").getField(baseCode, record , baseField.Number , "" , "", "")											
+							local isToSaveNewValue = false;					
+							if (recordValue ~= nil) then					
+								if (mergedRecordValue ~= nil) then																					
+									if ((string.len(string.trim(mergedRecordValue)) == 0 or string.len(string.trim(recordValue)) > 0) and (string.lower(mergedRecordValue) ~= string.lower(recordValue))) then							
+										isToSaveNewValue = true;								
+									end							
+								else									
+									if (string.len(string.trim(recordValue)) > 0) then
+										isToSaveNewValue = true;			
+									end														
+								end
+							end	
+							if (isToSaveNewValue) then						
+								ClassManager.getClass("FieldsWorker").setField(baseCode, mergedRecord, baseField.Number, "", recordValue);						
+							end
+						end
+					end
+				end			
+			end	
+			if (isToDeleteRecord) then								
+				if (base:GetRecord(record.SN) ~= nil) then				
+					ClassManager.getClass("FieldsWorker").disconnectRecord(ClassManager, record, nil, true);			
+					if (base:GetRecord(mergedRecordSN) ~= nil) then							
+						MsgBox("Запись № "..record.SN.." базы "..base.Name.." будет удалена.", IconInformation)
+						local isDeleted = base:DeleteRecord(record.SN);							
+						if (not isDeleted) then
+							local entity = ClassManager.newEntity(record.Base.Code);
+							table.insert(errorMessages,"Запись "..entity.toShortString(false).." не была удалена\n\r");
+						end
+					else
+						isToContinue = false;
+						if (mergingRecordSet.Count > 1) then
+							MsgBox("Процедура слияния записей была прервана. Некоторые записи не были слиты.\n\rЗапустите процедуру заново.")
+						end
+					end
+				end
+			else			
+				local entity = ClassManager.newEntity(record.Base.Code);										
+				table.insert(errorMessages,"Для записи "..entity.toShortString(false).." слияние не выполнено\n\r");
+			end
+		else
+			break;
+		end
+	end	
+	return mergedRecord;
+end
+
+function processRecordLink(ClassManager,linkOperation, record, linkingField, relatedRecord)	
+	initLogger(ClassManager);	
+	local wasEntityRecordLocked = false;	
+	local wasConnectingEntityRecordLocked = false;
+	logger.writeDebugMessage(ClassManager,"------------------------Метод processRecordLink() класса DBWorker------------------------")				
+	logger.writeDebugMessage(ClassManager,"Проверка, не заблокирована ли запись с системным номером "..record.SN.." базы данных "..record.Base.Name)
+	if (isRecordLocked(ClassManager, record)) then			
+		unlockRecord(ClassManager,record);
+		wasEntityRecordLocked = true;
+	end	
+	logger.writeDebugMessage(ClassManager,"Проверка, не заблокирована ли запись с системным номером "..relatedRecord.SN.." базы данных "..relatedRecord.Base.Name)
+	if (isRecordLocked(ClassManager, relatedRecord)) then					
+		unlockRecord(ClassManager,relatedRecord);		
+		wasConnectingEntityRecordLocked = true;
+	end		
+	logger.writeDebugMessage(ClassManager,"Определения типа операции над связью меду записями")
+	if (linkOperation == ClassManager.getClass("Constanta").getCnstAddLink()) then
+		logger.writeDebugMessage(ClassManager,"Выполняется операция создания связи между записью с системным номером "..record.SN.." базы данных "..record.Base.Name.." и записью с системным номером "..relatedRecord.SN.." базы данных "..relatedRecord.Base.Name)
+		record.Base:AddLink(record.SN, linkingField, relatedRecord.Base, relatedRecord.SN, Base.LockWait, Base.LockWait);								
+	elseif (linkOperation == ClassManager.getClass("Constanta").getCnstDeleteLink()) then
+		logger.writeDebugMessage(ClassManager,"Выполняется операция удаления связи между записью с системным номером "..record.SN.." базы данных "..record.Base.Name.." и записью с системным номером "..relatedRecord.SN.." базы данных "..relatedRecord.Base.Name)
+		record.Base:DeleteLink(record.SN, linkingField, relatedRecord.Base, relatedRecord.SN, Base.LockWait, Base.LockWait);																	
+	end	
+	logger.writeDebugMessage(ClassManager,"Проверка, не производилось ли деблокирование записи с системным номером "..record.SN.." базы данных "..record.Base.Name)
+	if (wasEntityRecordLocked) then			
+		lockRecord(ClassManager, record);
+	end
+	logger.writeDebugMessage(ClassManager,"Проверка, не производилось ли деблокирование записи с системным номером "..relatedRecord.SN.." базы данных "..relatedRecord.Base.Name)
+	if (wasConnectingEntityRecordLocked) then			
+		lockRecord(ClassManager,relatedRecord);
+	end
+	logger.writeDebugMessage(ClassManager,"------------------------Метод processRecordLink() класса DBWorker завершил работу------------------------")
+end
+
+function convertExternalVocTermin(ClassManager, externalTermin, localVocCode)
+	initLogger(ClassManager);
+	logger.writeDebugMessage(ClassManager,"------------------------Метод convertExternalVocTermin() класса DBWorker------------------------")
+	local localVocKey = nil;
+	local messages = {};	
+	logger.writeDebugMessage(ClassManager,"Поиск по таблице трансялции внешних словарей для кода/понятия '"..externalTermin.."' и мнемокода словаря '"..localVocCode.."'")
+	local serviceRecord, messages = ClassManager.getClass("RequestController").doRequestLocalVocTerminByExternal(ClassManager, externalTermin, localVocCode)	
+	logger.writeDebugMessage(ClassManager,"Создание нового программного объекта трансляции внешниих словарей");
+	local externalVocEntity = ClassManager.newEntity(ClassManager, ClassManager.getClass("Constanta").getCnstExternalVocs(), true, true);
+	logger.writeDebugMessage(ClassManager,"Проверка результатов поиска по таблице трансляции внешних словарей");	
+	if (serviceRecord ~= nil) then		
+		logger.writeDebugMessage(ClassManager,"Заполнение программного объекта значениями отобранной записи");	
+		externalVocEntity.setBeanFromRecord(serviceRecord);
+		logger.writeDebugMessage(ClassManager,"Получение кода понятия словаря Cronos");	
+		localVocKey = externalVocEntity.getLocalVocKey();
+		logger.writeDebugMessage(ClassManager,"Проверка полученного кода на пустое значение");	
+		if (localVocKey == nil or string.len(localVocKey)==0) then
+			logger.writeDebugMessage(ClassManager,"Проверка не прошла, таблица трансляции не содержит соответствующего значения для кода/понятия '"..externalTermin.."' и мнемокода словаря '"..localVocCode.."'");	
+			localVocKey = nil;
+			table.insert(messages, "В таблице трансляции внешних словарей для кода/понятия '"..externalTermin.."' не определен код понятия словаря Cronos с мнемокодом '"..localVocCode.."'");
+		end
+	else
+		logger.writeDebugMessage(ClassManager,"Заполнение программного объекта трансляции внешнего словаря");	
+		externalVocEntity.setExternalTermin(externalTermin);
+		externalVocEntity.setLocalVocCode(localVocCode);		
+		logger.writeDebugMessage(ClassManager,"Сохранение программного объекта трансляции внешнего словаря в соответствующею базу данных");	
+		externalVocEntity.saveBeanToDb();
+	end	
+	logger.writeDebugMessage(ClassManager,"------------------------Метод convertExternalVocTermin() класса DBWorker завершил работу------------------------")
+	return localVocKey, messages;
+end
+
+
+function descoverDataBaseProperties(ClassManager)
+	initLogger(ClassManager);
+	local dataBaseProperties = {}
+	logger.writeDebugMessage(ClassManager,"------------------------Метод descoverDataBaseProperties() класса DataLoader------------------------")	
+	logger.writeDebugMessage(ClassManager,"Получение таблицы всех баз данных")	
+	local bases = CroApp.GetBank().Bases;
+	logger.writeDebugMessage(ClassManager,"Итерирование по таблице всех баз данных")	
+	for baseIndex, base in pairs (bases) do
+		logger.writeDebugMessage(ClassManager,"Получение таблицы всех аттрибутов баз данных")	
+		local fields = base.Fields
+		logger.writeDebugMessage(ClassManager,"Итерирование по таблице всех аттрибутов баз данных")	
+		dataBaseProperties[base.Code] = {}
+		for fieldIndex, field in pairs (fields) do			
+			if (field.Number > 0) then
+				logger.writeDebugMessage(ClassManager,"Получение свойств поля № "..field.Number.." базы данных с мнемокодом '"..base.Code.."'")	
+				dataBaseProperties[base.Code][field.Number] = ClassManager.getClass("FieldsWorker").getFieldParameters(base.Code, field.Number, false)										
+			end
+		end
+	end	
+	logger.writeDebugMessage(ClassManager,"------------------------Метод descoverDataBaseProperties() класса DataLoader завершил работу------------------------")	
+	return dataBaseProperties
+end
+
+function getDataBaseConcatenatedName(ClassManager, dataBaseCode)
+	initLogger(ClassManager);
+	local concatenatedName = "";
+	logger.writeDebugMessage(ClassManager,"------------------------Метод getDataBaseConcatenatedName() класса DataLoader------------------------")	
+	logger.writeDebugMessage(ClassManager,"Получение имени базы данных по мнемокоду и конкатенирование с мнемокодом в единую строку")
+	local base = CroApp.GetBank():GetBase(dataBaseCode)
+	if (base ~= nil) then 
+		concatenatedName = CroApp.GetBank():GetBase(dataBaseCode).Name.." - "..dataBaseCode
+	else
+		logger.writeDebugMessage(ClassManager,"Не существует базы данных с мнемокодом "..dataBaseCode)	
+	end
+	logger.writeDebugMessage(ClassManager,"------------------------Метод getDataBaseConcatenatedName() класса DataLoader завершил работу------------------------")	
+	return concatenatedName
+end
+
+function getDataBaseFieldConcatenatedName(ClassManager, dataBaseCode, dataBaseFieldNumber)
+	initLogger(ClassManager);
+	local concatenatedName = "";
+	logger.writeDebugMessage(ClassManager,"------------------------Метод getDataBaseFieldConcatenatedName() класса DataLoader------------------------")	
+	logger.writeDebugMessage(ClassManager,"Получение свойств поля № "..dataBaseFieldNumber.." базы данных с мнемокодом "..dataBaseCode)	
+	local fieldProperties = ClassManager.getClass("FieldsWorker").getFieldParameters(dataBaseCode, dataBaseFieldNumber, false)
+	if (table.count(fieldProperties) > 0) then
+		concatenatedName = fieldProperties.fieldNumber.." - "..fieldProperties.fieldName.." \("..fieldProperties.fieldTypeName.."\)";
+	else
+		logger.writeDebugMessage(ClassManager,"Поле № "..dataBaseFieldNumber.." не существует в базе данных с мнемокодом "..dataBaseCode)	
+	end
+	logger.writeDebugMessage(ClassManager,"------------------------Метод getDataBaseFieldConcatenatedName() класса DataLoader завершил работу------------------------")	
+	return concatenatedName
+end

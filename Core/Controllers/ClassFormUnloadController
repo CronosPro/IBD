@@ -1,0 +1,107 @@
+local logger = nil;
+function Форма_Open( form )
+	return true;
+end
+
+function getFormText(form)
+	return form.NameInList
+end
+function getControlName(control)
+	return control.Name
+end
+function getControlFormModule(control)
+	return control.Form.Module;
+end
+function getFormModule(form)
+	return form.Module;
+end
+
+function initLogger(ClassManager)
+	if logger == nil then
+		logger = ClassManager.getClass("Logger");	
+	end
+end
+
+function doUnload(ClassManager, form, childForms, isCheckDisconnectWithRequests)					
+	initLogger(ClassManager);	
+	logger.writeDebugMessage(ClassManager,"------------------------Метод doUnload() класса UnloadController------------------------")			
+	logger.writeDebugMessage(ClassManager,"Запрет для формы самостоятельного сохранения записи в банк данных")
+	logger.writeDebugMessage(ClassManager,"Получение имени формы")		
+	local formNameInList = getFormText(form);					
+	logger.writeDebugMessage(ClassManager,"Получение скрипта формы "..formNameInList)		
+	local formModule = getFormModule(form);	
+	local isToDeleteRecord = false;
+	local entity = nil;		
+	local excludedViews = {"MAIN",
+							"ObjectsList",
+							"CheckOrganizationView",
+							"ConnectedOrganizationView",
+							"ConnectedPersonView",
+							"SearchPersonView",
+							"SearchOrganizationView",
+							"CheckApplicantView", 
+							"ApplicantRelationsView", 
+							"CalendarView",
+							"RequestJournalView",
+							"DataLoader",
+							"DataLoaderConfiguration",
+							"SettingsView"}	
+	logger.writeDebugMessage(ClassManager,"Проверка, включена ли форма список тех форм, у которых не нужно удалять запись")		
+	if (table.count(ClassManager.getClass("Service").getIndexesFromTable(excludedViews,formNameInList)) == 0) then		
+		form.BankSaveDeny = true;
+		logger.writeDebugMessage(ClassManager,"Получении параметра, определяющего необходимость удаления записи")		
+		isToDeleteRecord = formModule.getIsNewObject();								
+		logger.writeDebugMessage(ClassManager,"Получении программного объекта")		
+		entity = formModule.getEntity();				
+	end			
+	--MsgBox("number of forms "..table.count(childForms))
+	logger.writeDebugMessage(ClassManager,"Пришел список форм для закрытия в количестве штук "..table.count(childForms))		
+	for key, formToClose in pairs(childForms) do						
+		--MsgBox(formToClose.Text)
+		logger.writeDebugMessage(ClassManager,"Объект формы №"..key)		
+		logger.writeDebugMessage(ClassManager,"Проверка объекта на возможность доступа к скрипту")		
+		if formToClose ~= nil then				
+			logger.writeDebugMessage(ClassManager,"Получение имени закрываемой формы")		
+			local formToCloseNameInList = getFormText(formToClose);		
+			logger.writeDebugMessage(ClassManager,"Проверка, не является ли форма "..formToCloseNameInList.." корневой в иерархии открытия, и не является ли она программным объектом сущности")					
+			if (not string.compare(formToCloseNameInList,formNameInList) and not string.ends(formToCloseNameInList,"Entity")) then						
+				logger.writeDebugMessage(ClassManager,"Форма не явялется корневой. Получение скрипта формы")		
+				local formModuleToClose = getFormModule(formToClose);
+				logger.writeDebugMessage(ClassManager,"Проверка, получен ли скрипт формы")		
+				if (formModuleToClose ~= nil) then												
+					logger.writeDebugMessage(ClassManager,"Выполнение метода закрытия формы ")		
+					formModuleToClose.Форма_UnloadForm(formToClose);															
+				end
+			else	
+				logger.writeDebugMessage(ClassManager,"Закрытие корневой формы")		
+				--MsgBox("Close current Form")
+				formToClose:CloseForm();				
+			end										
+		end
+	end			
+	logger.writeDebugMessage(ClassManager,"Определение, необходимо ли производить удаление записи формы")		
+	if (isToDeleteRecord) then		
+		logger.writeDebugMessage(ClassManager,"Проверка, был ли получен программный объект сущности формы")		
+		if (entity ~= nil) then			
+			logger.writeDebugMessage(ClassManager,"Получение записи, которая была загружена в форме")		
+			local entityRecord = entity.getEntityRecord();					
+			local entityRecordSN = entityRecord.SN;		
+			local entityBaseCode = entity.getEntityBaseCode();							
+			logger.writeDebugMessage(ClassManager,"Получена запись с системным номером "..entityRecordSN..", принадлежащая базе данных с мнемокодом "..entityBaseCode)		
+			if (isToDeleteRecord) then														
+				logger.writeDebugMessage(ClassManager,"Проверка, заблокирована ли запись")			
+				if (ClassManager.getClass("DBWorker").isRecordLocked(ClassManager, entityRecord)) then
+					logger.writeDebugMessage(ClassManager,"Деблокирование записи")								
+					ClassManager.getClass("DBWorker").unlockRecord(ClassManager, entityRecord)					
+					logger.writeDebugMessage(ClassManager,"Запись деблокирована")			
+				end											
+				logger.writeDebugMessage(ClassManager,"Разрыв всех связей записи с другими записями баз данных")			
+				ClassManager.getClass("FieldsWorker").disconnectRecord(ClassManager, entityRecord, nil, isCheckDisconnectWithRequests)																	
+				logger.writeDebugMessage(ClassManager,"Удаление записи")			
+				CroApp.GetBank():GetBase(entityBaseCode):DeleteRecord(entityRecordSN);													
+				logger.writeDebugMessage(ClassManager,"Запись удалена")			
+			end	
+		end		
+	end		
+	logger.writeDebugMessage(ClassManager,"------------------------Метод doUnload() класса UnloadController завершил работу------------------------")		
+end

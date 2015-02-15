@@ -1,0 +1,1317 @@
+local ClassManager = nil;
+local formAddHeight = 45
+local copyFormAddHeight = formAddHeight
+local progressBar = nil
+local timeValuesMs = {}
+local timeValuesMS = {}
+local timeValuesH = {}
+local timeUnits = {}
+local orgParticipationTypeForControl = {}
+local orgParticipationTypeForControlled = {}
+----------------Словари------------
+local cnstOrgOfficialStatusVoc = nil;
+local cnstOrgEconomicalStatusVoc = nil;
+local cnstSortOfPersonVoc = nil;
+local cnstSortOfEmployeeVoc = nil;
+local cnstAddressTypeVoc = nil;
+local cnstCountryVoc = nil;
+local cnstRegionVoc = nil;
+local cnstCityVoc = nil;
+local cnstStreetVoc = nil;
+local cnstCountryCodeVoc = nil;
+local cnstProviderCodeVoc = nil;
+local cnstPropertyFormVoc = nil;
+local cnstBusinessTypeVoc = nil;
+local cnstRegistrationOfficeVoc = nil;
+local cnstPersonRelationsTypeVoc = nil;
+local cnstEstateTypeVoc = nil;
+local cnstEstateSortVoc = nil;
+local cnstBelgamsGroupNameVoc = nil;
+local cnstDepartmentVoc = nil;
+local cnstEmpployeeVoc = nil;
+local cnstAccountArrestedVoc = nil;
+-----------------------------------
+local cnstJobTrack = nil;
+local cnstAddressType = nil;
+local cnstAddress = nil;
+local cnstConnectionType = nil;
+local cnstConnection = nil;
+local cnstFoundersAndPartners = nil;
+local cnstRequestJournal = nil;
+local cnstEmployee = nil;
+local cnstBankAccount = nil;
+local cnstEducation = nil;
+local cnstDocument = nil;
+local cnstLoan = nil;
+local cnstPersonalID = nil;
+local cnstBreaches = nil;
+local cnstPersonRelations = nil;
+local cnstEstate = nil;
+local cnstBranch = nil;
+local cnstBelgamsGroup = nil;
+local cnstBranch = nil;
+local cnstExternalVocs = nil
+---------------------------------
+local cnstConnectedPerson = nil;
+local cnstConnectedOrganization = nil;
+--------Vocabularies----------------
+local dpdOfficialStatus = {}
+local dpdOrgParticipationType = {};
+local dpdTypeOfCheck = {};
+local dpdSortOfEmployee = {};
+local dpdSortOfOrganization = {};
+local dpdActionJournal = {};
+local dpdAddressType = {};
+local dpdConnectionType = {};
+local dpdCountry = {};
+local dpdRegion = {};
+local dpdDistrict = {};
+local dpdCity = {};
+local dpdStreet = {};
+local dpdCurrency = {};
+local dpdAccountType = {};
+local dpdBankName = {};
+local dpdEducationDegree = {};
+local dpdDocumentType = {};
+local dpdPersonalIDType = {};
+local dpdConviction = {};
+local dpdLiabilityType = {};
+local dpdPersonRelationType = {};
+local dpdEstateType = {};
+local dpdEstateSort = {};
+local dpdBelgamsGroupName = {};
+local dpdDepartment = {};
+local dpdEmployee = {};
+local dpdAccountArrested = {};
+-------------------------------
+--local systemBackColor = Color.IndianRed;
+local systemBackColor = Color.Yellow;
+local cnstListObjectsLimit = 25;
+local logDirectory =  IO.Path.AddSlash(CroApp.TempDir).."CronosLog";
+local debugLogFile = "DebugLog.log";
+local memoryUsageLogFile = "ProcessMemoryUsage.log";
+local isDebug = true;
+local filesTypes = {".txt", ".csv"};
+local logFilePath = "D:\\BanksCronos_Development\\123";
+local logFileName = "Data_Load_Results.log";
+local dataLoadConfigName = "config.ini";
+local cnstAddLink = "AddLinkOperation";
+local cnstDeleteLink = "DeleteLinkOperation";
+local reportsDescription = {{"РГ",1},{"ЛЦ",1},{"АД",3},{"ТС",3},{"УЛ",1},{"ТС",3},{"ДК",2},{"КД",2},{"УП",1},{"РС",1},{"ХС",3},
+							{"ДР",1},{"СБ",3},{"ТА",3},{"ТЛ",1},{"ПН",1},{"ЖЗ",1},{"НИ",2},{"ОР",1},{"БГ",1},{"ОБ",2},{"ТД",0}};
+							
+local cnstConfigDataLoadBase = "base";
+local cnstConfigDataLoadFields= "loadConfiguration";
+local cnstConfigConnections= "connectionConfiguration";
+local cnstKeySet= "keySet";
+local cnstConfigSeparator = ";";
+local cnstMinUstSeparator = ";";
+local cnstCommentSeparator = "#";
+local cnstDataLoaderTestMode = "TestAndDescoverMode";
+local cnstDataLoaderLoadMode = "LoadMode";
+local cnstSkipLines = "skipLines";
+local cnstLineTerminSeparator = "lineTerminSeparator";
+local cnstConfigFileName = "config.ini";
+local cnstDeltaDirName = "DeltaFile";
+local cnstDeltaFileName = "delta.csv";
+local cnstAbsentDeltaDirName = "AbsentDeltaFile";
+local cnstAbsentDeltaFileName = "absentDelta.csv";
+local unpFieldLength = 0;
+--------------------------------------
+function getDeltaDirName()
+    return cnstDeltaDirName;
+end
+function getConfigFileName()
+    return cnstConfigFileName;
+end
+function getDeltaFileName()
+    return cnstDeltaFileName;
+end
+
+function getAbsentDeltaDirName()
+    return cnstAbsentDeltaDirName;
+end
+function getAbsentDeltaFileName()
+    return cnstAbsentDeltaFileName;
+end
+
+function getUnpFieldLength()
+    return unpFieldLength;
+end
+function setUnpFieldLength(unpFieldLengthValue)
+    unpFieldLength = unpFieldLengthValue;
+end
+-------------------------------
+
+function getSystemBackColor()
+    return systemBackColor;
+end
+function setSystemBackColor(systemBackColorValue)
+    systemBackColor = systemBackColorValue;
+end
+
+function getCnstListObjectsLimit()
+    return cnstListObjectsLimit;
+end
+function setCnstListObjectsLimit(cnstListObjectsLimitValue)
+    cnstListObjectsLimit = cnstListObjectsLimitValue;
+end
+
+function getLogDirectory()
+    return logDirectory;
+end
+function setLogDirectory(logDirectoryValue)
+    logDirectory = logDirectoryValue;
+end
+
+function getDebugLogFile()
+    return debugLogFile;
+end
+function setDebugLogFile(debugLogFileValue)
+    debugLogFile = debugLogFileValue;
+end
+
+function getMemoryUsageLogFile()
+    return memoryUsageLogFile;
+end
+function setMemoryUsageLogFile(memoryUsageLogFileValue)
+    memoryUsageLogFile = memoryUsageLogFileValue;
+end
+
+function getIsDebug()
+    return isDebug;
+end
+function setIsDebug(isDebugValue)
+    isDebug = isDebugValue;
+end
+
+function getEntityReportFormNumber (objectCode)
+	local formNumber = 0;
+	for key, report in pairs(reportsDescription) do
+		if (report[1] == objectCode) then
+			formNumber = report[2];
+			break;
+		end
+	end
+	return formNumber;
+end
+
+function getLogFilePath()
+	return logFilePath;
+end
+function setLogFilePath(initPathValue)
+	logFilePath = initPathValue;
+end
+
+function getLogFileName()
+    return logFileName;
+end
+function setLogFileName(logFileNameValue)
+    logFileName = logFileNameValue;
+end
+
+function getDataLoadConfigName()
+	return dataLoadConfigName;
+end
+function setDataLoadConfigName(dataLoadConfigNameValue)
+	dataLoadConfigName = dataLoadConfigNameValue;
+end
+
+function getFilesTypes()
+	return filesTypes;
+end
+
+function getCnstConfigDataLoadBase()
+	return cnstConfigDataLoadBase;
+end
+
+function getCnstConfigDataLoadFields()
+	return cnstConfigDataLoadFields;
+end
+
+function getCnstConfigConnections()
+    return cnstConfigConnections;
+end
+
+function getCnstConfigSeparator()
+    return cnstConfigSeparator;
+end
+function getCnstMinUstSeparator()
+    return cnstMinUstSeparator;
+end
+
+function getCnstCommentSeparator()
+    return cnstCommentSeparator;
+end
+
+function getCnstKeySet()
+    return cnstKeySet;
+end
+function setCnstKeySet(cnstKeySetValue)
+    cnstKeySet = cnstKeySetValue;
+end
+
+function getCnstDataLoaderTestMode()
+    return cnstDataLoaderTestMode;
+end
+function setCnstDataLoaderTestMode(cnstDataLoaderTestModeValue)
+    cnstDataLoaderTestMode = cnstDataLoaderTestModeValue;
+end
+
+function getCnstDataLoaderLoadMode()
+    return cnstDataLoaderLoadMode;
+end
+function setCnstDataLoaderLoadMode(cnstDataLoaderLoadModeValue)
+    cnstDataLoaderLoadMode = cnstDataLoaderLoadModeValue;
+end
+
+function getCnstSkipLines()
+    return cnstSkipLines;
+end
+function setCnstSkipLines(cnstSkipLinesValue)
+    cnstSkipLines = cnstSkipLinesValue;
+end
+
+function getCnstLineTerminSeparator()
+    return cnstLineTerminSeparator;
+end
+function setCnstLineTerminSeparator(cnstLineTerminSeparatorValue)
+    cnstLineTerminSeparator = cnstLineTerminSeparatorValue;
+end
+
+function Форма_Open( form )	
+	setClassManager(Arg.ClassManager);
+	timeValuesMS[01] = 1
+	timeValuesMS[05] = 5
+	timeValuesMS[10] = 10
+	timeValuesMS[20] = 20
+	timeValuesMS[30] = 30
+	timeValuesMS[40] = 40
+	timeValuesMS[50] = 50
+	timeValuesMS[60] = 59	
+	----------------------
+	timeValuesMs[001] = 001
+	timeValuesMs[005] = 005
+	timeValuesMs[010] = 010
+	timeValuesMs[100] = 100
+	timeValuesMs[100] = 200
+	timeValuesMs[200] = 300
+	timeValuesMs[300] = 400
+	timeValuesMs[400] = 500
+	timeValuesMs[500] = 500
+	timeValuesMs[600] = 600
+	timeValuesMs[700] = 700
+	timeValuesMs[800] = 800
+	timeValuesMs[900] = 900	
+	timeValuesMs[1000] = 999
+	---------------------------
+	timeValuesH[01] = 01
+	timeValuesH[02] = 02
+	timeValuesH[03] = 03
+	timeValuesH[04] = 04
+	timeValuesH[05] = 05
+	timeValuesH[06] = 06
+	timeValuesH[07] = 07
+	timeValuesH[08] = 08
+	timeValuesH[09] = 09
+	timeValuesH[10] = 10
+	timeValuesH[11] = 11
+	timeValuesH[12] = 12
+	-----------------------
+	timeUnits.ms = "миллисекунды"
+	timeUnits.s = "секунды"
+	timeUnits.m = "минуты"
+	timeUnits.h = "часы"
+	------------------------Мнемокоды словарей-----
+	setCnstOrgOfficialStatusVoc("ЮС"); --Юридический статус
+	setCnstOrgEconomicalStatusVoc("ХС"); --Хозяйственный статус
+	setCnstSortOfPersonVoc("КЛ"); --Категория лица
+	setCnstSortOfEmployeeVoc("КР"); --Категория сотрудника
+	setCnstAddressTypeVoc("ТА"); --Тип адреса
+	setCnstCountryVoc("СН"); --Страны мира
+	setCnstRegionVoc("РН"); --Район
+	setCnstCityVoc("НП"); --Населенный пункт
+	setCnstStreetVoc("УЛ"); --Улица
+	setCnstCountryCodeVoc("КС"); --Телефонный код страны
+	setCnstProviderCodeVoc("МК"); --Местный телефонный код
+	setCnstPropertyFormVoc("ФС"); --форма собственности
+	setCnstBusinessTypeVoc("ДЮ"); --вид деятельности
+	setCnstRegistrationOfficeVoc("ОР"); --орган регистрации юрлица
+	setCnstPersonRelationTypeVoc("СЛ");--тип связи лиц
+	setCnstEstateTypeVoc("ТИ");--тип недвижимого имущества организации
+	setCnstEstateSortVoc("ВИ");--вид недвижимого имущества организации
+	setCnstBelgamsGroupNameVoc("НГ");--наименование группы BelGams
+	setCnstDepartmentVoc("ПП");--подразделения банка
+	setCnstEmployeeVoc("СТ");--сотрудники Банка
+	setCnstAccountArrestedVoc("АР") -- счет арестован
+	------------------------Мнемокоды баз данных---
+	setCnstPerson("ЛЦ") --Лицо
+	setCnstOrganization("РГ") --Организация
+	setCnstJobTrack("ТД"); --Трудовая деятельность
+	setCnstAddressType("ТА"); --Тип адреса
+	setCnstAddress("АД"); --Адрес
+	setCnstConnectionType("ТС"); --Тип связи
+	setCnstConnection("ТЛ"); --Телефон
+	setCnstFoundersAndPartners("УП"); --Учредители и партнеры
+	setCnstRequestJournal("ЖЗ"); --Журнал запросов	
+	setCnstBankAccount("РС"); --Банковские счета
+	setCnstEducation("ОБ"); --Образование
+	setCnstDocument("ДК"); --Документ
+	setCnstLoan("КД"); --Кредиты
+	setCnstPersonalID("УЛ"); --Удостоверение личности
+	setCnstBreaches("ПН"); --Правонарушения
+	setCnstPersonRelations("ХС"); --Характер связи лиц
+	setCnstEstate("НИ"); --Недвижимое имущество организации	
+	setCnstBelgamsGroup("БГ"); --Группа BelGams
+	setCnstBranch("ФЛ"); --Филиал
+	setCnstExternalVocs("КЗ"); --База отображения кодов и понятий внешних словарей на локальные
+	------------------------Виртуальные объекты-----------
+	setCnstEmployee("EMPL");
+	setCnstConnectedPerson("CP"); --лицо, имеющее отнощение к проверяемому юридическому лицу	
+	setCnstConnectedOrganization("CO"); --организация, имеющее отнощение к проверяемому юридическому лицу	
+	---------------------------
+	orgParticipationTypeForControl = {"подрядчик", "арендатор", "дочернее предприятие", "покупатель", "предприятие-партнер"};
+	orgParticipationTypeForControlled = {a="учредитель", b="поручитель", c="залогодатель", d="поставщик", e="предприятие-партнер"};
+	--refreshVocList()
+	---------------------------------------
+	setUnpFieldLength(CroApp.GetBank():GetBase(getCnstOrganization()):GetField(1).Length) 
+	return true;
+end
+
+function refreshVocList(baseCode, fieldNumber, numberOfExistingDefs)			
+	local vocCodes,vocDefinitions = 
+		getClassManager().getClass("DBWorker").getVocItems(
+												getClassManager(), 
+												getClassManager().getClass("FieldsWorker").getVocFieldBaseCode(getClassManager(), baseCode, fieldNumber),
+												numberOfExistingDefs);																												
+----Vocabularies-----
+	if vocCodes ~= nil and vocDefinitions ~= nil then
+		if (baseCode == getCnstRequestJournal()) then
+			if (fieldNumber == 1) then
+				--заполнение списка вида проверки
+				setDpdTypeOfCheckCodes(vocCodes);
+				setDpdTypeOfCheckDefinitions(vocDefinitions);	
+			elseif (fieldNumber == 2) then
+				--заполнение списка сотрудников банка
+				setDpdEmployeeCodes(vocCodes);
+				setDpdEmployeeDefinitions(vocDefinitions);	
+			elseif (fieldNumber == 6) then
+				--заполнение списка подразделений банка				
+				setDpdDepartmentCodes(vocCodes);
+				setDpdDepartmentDefinitions(vocDefinitions);	
+			end
+		elseif (baseCode == getCnstOrganization()) then
+			if (fieldNumber == 38) then
+				--заполнение списка организационно-правовых форм организаций
+				setDpdOfficialStatusCodes(vocCodes);
+				setDpdOfficialStatusDefinitions(vocDefinitions);
+			elseif (fieldNumber == 39) then
+				--заполнение списка категории организаций в трудовой деятельности	
+				setDpdSortOfOrganizationCodes(vocCodes);	
+				setDpdSortOfOrganizationDefinitions(vocDefinitions);
+			end
+		elseif (baseCode == getCnstFoundersAndPartners()) then
+			if (fieldNumber == 1) then
+				--заполнение списка категорий юрлиц	(Партнерство или Учредительство)
+				setDpdOrgParticipationTypeCodes(vocCodes);	
+				setDpdOrgParticipationTypeDefinitions(vocDefinitions);
+			end
+		elseif (baseCode == getCnstJobTrack()) then
+			if (fieldNumber == 11) then
+				--заполнение списка категории лиц в трудовой деятельности	
+				setDpdSortOfEmployeeCodes(vocCodes);	
+				setDpdSortOfEmployeeDefinitions(vocDefinitions);	
+			end
+		elseif (baseCode == getCnstConnectionType()) then
+			if (fieldNumber == 1) then
+				--заполнение списка типа связи
+				setDpdConnectionTypeCodes(vocCodes);	
+				setDpdConnectionTypeDefinitions(vocDefinitions);	
+			end
+		elseif (baseCode == getCnstAddress()) then
+			if (fieldNumber == 1) then
+				--заполнение списка стран
+				setDpdCountryCodes(vocCodes);	
+				setDpdCountryDefinitions(vocDefinitions);	
+			elseif (fieldNumber == 86) then
+				--заполнение списка областей
+				setDpdRegionCodes(vocCodes);	
+				setDpdRegionDefinitions(vocDefinitions);
+			elseif (fieldNumber == 2) then
+				--заполнение списка районов
+				setDpdDistrictCodes(vocCodes);	
+				setDpdDistrictDefinitions(vocDefinitions);	
+			elseif (fieldNumber == 3) then
+				--заполнение списка насеселенных пунктов
+				setDpdCityCodes(vocCodes);	
+				setDpdCityDefinitions(vocDefinitions);		
+			elseif (fieldNumber == 4) then
+				--заполнение списка улиц
+				setDpdStreetCodes(vocCodes);	
+				setDpdStreetDefinitions(vocDefinitions);
+			end
+		elseif (baseCode == getCnstBankAccount()) then
+			if (fieldNumber == 2) then
+				--заполнение списка валют
+				setDpdCurrencyCodes(vocCodes);		
+				setDpdCurrencyDefinitions(vocDefinitions);
+			elseif (fieldNumber == 3) then
+				--заполнение списка типа счетов
+				setDpdAccountTypeCodes(vocCodes);	
+				setDpdAccountTypeDefinitions(vocDefinitions);	
+			elseif (fieldNumber == 7) then
+				--заполнение списка имен банков
+				setDpdBankNameCodes(vocCodes);	
+				setDpdBankNameDefinitions(vocDefinitions);	
+			elseif (fieldNumber == 23) then
+				--заполнение списка признаков ареста счета
+				setDpdAccountArrestedCodes(vocCodes);	
+				setDpdAccountArrestedDefinitions(vocDefinitions);	
+			end
+		elseif (baseCode == getCnstEducation()) then
+			if (fieldNumber == 1) then
+				--заполнение списка видов образования
+				setDpdEducationDegreeCodes(vocCodes);	
+				setDpdEducationDegreeDefinitions(vocDefinitions);	
+			end
+		elseif (baseCode == getCnstDocument()) then
+			if (fieldNumber == 1) then
+				--заполнение списка типов документа
+				setDpdDocumentTypeCodes(vocCodes);	
+				setDpdDocumentTypeDefinitions(vocDefinitions);		
+			end
+		elseif (baseCode == getCnstPersonalID()) then
+			if (fieldNumber == 1) then
+				--заполнение списка типов удостоверений личности
+				setDpdPersonalIDTypeCodes(vocCodes);		
+				setDpdPersonalIDTypeDefinitions(vocDefinitions);	
+			end
+		elseif (baseCode == getCnstBreaches()) then
+			if (fieldNumber == 1) then
+				--заполнение списка типов ответственности
+				setDpdLiabilityTypeCodes(vocCodes);		
+				setDpdLiabilityTypeDefinitions(vocDefinitions);	
+			elseif (fieldNumber == 8) then
+				--заполнение списка наличия судимости
+				setDpdConvictionCodes(vocCodes);		
+				setDpdConvictionDefinitions(vocDefinitions);	
+			end
+		elseif (baseCode == getCnstPersonRelations()) then		
+			if (fieldNumber == 1) then
+				--заполнение списка типов связи лиц			
+				setDpdPersonRelationTypeCodes(vocCodes);					
+				setDpdPersonRelationTypeDefinitions(vocDefinitions);				
+			end
+		elseif (baseCode == getCnstEstate()) then		
+			if (fieldNumber == 2) then
+				--заполнение списка типов недвижимого имущества		
+				setDpdEstateTypeCodes(vocCodes);					
+				setDpdEstateTypeDefinitions(vocDefinitions);	
+			elseif (fieldNumber == 1) then
+				--заполнение списка видов недвижимого имущества		
+				setDpdEstateSortCodes(vocCodes);					
+				setDpdEstateSortDefinitions(vocDefinitions);			
+			end
+		elseif (baseCode == getCnstBelgamsGroup()) then		
+			if (fieldNumber == 13) then
+				--заполнение списка наименования групп BelGams		
+				setDpdBelgamsGroupNameCodes(vocCodes);					
+				setDpdBelgamsGroupNameDefinitions(vocDefinitions);				
+			end
+		elseif (baseCode == getCnstAddressType()) then		
+			if (fieldNumber == 1) then
+				--заполнение списка Тип Адреса			
+				setDpdAddressTypeCodes(vocCodes);								
+				setDpdAddressTypeDefinitions(vocDefinitions);							
+			end
+		end
+	end
+end
+
+function getClassManager()
+    return ClassManager;
+end
+function setClassManager(classManagerValue)
+    ClassManager = classManagerValue;
+end
+
+function getConstantFormAddHeight()
+	return formAddHeight
+end
+
+function getConstantCopyFormAddHeight()
+	return copyFormAddHeight
+end
+
+function setConstantaFormAddHeight(value)
+	formAddHeight = value
+end
+
+function setProgressingOpened(value)
+	progressBar = value
+end
+
+function getProgressingOpened(value)
+	return progressBar
+end
+
+function getTimeUnits()
+	return timeUnits
+end
+
+function getTimeValuesMs()
+	return timeValuesMs			
+end
+
+function getTimeValuesMS()
+	return timeValuesMS			
+end
+
+function getTimeValuesH()
+	return timeValuesH			
+end
+
+---------Vocabulary Constants Section-------------
+function getCnstSortOfPersonVoc()
+    return cnstSortOfPersonVoc;
+end
+function setCnstSortOfPersonVoc(cnstSortOfPersonVocValue)
+    cnstSortOfPersonVoc = cnstSortOfPersonVocValue;
+end
+
+function getCnstSortOfEmployeeVoc()
+    return cnstSortOfEmployeeVoc;
+end
+function setCnstSortOfEmployeeVoc(cnstSortOfEmployeeVocValue)
+    cnstSortOfEmployeeVoc = cnstSortOfEmployeeVocValue;
+end
+
+function getCnstOrgOfficialStatusVoc()
+    return cnstOrgOfficialStatusVoc;
+end
+function setCnstOrgOfficialStatusVoc(cnstOrgOfficialStatusVocValue)
+    cnstOrgOfficialStatusVoc = cnstOrgOfficialStatusVocValue;
+end
+
+function getCnstOrgEconomicalStatusVoc()
+    return cnstOrgEconomicalStatusVoc;
+end
+function setCnstOrgEconomicalStatusVoc(cnstOrgEconomicalStatusVocValue)
+    cnstOrgEconomicalStatusVoc = cnstOrgEconomicalStatusVocValue;
+end
+
+function getCnstAddressTypeVoc()
+    return cnstAddressTypeVoc;
+end
+function setCnstAddressTypeVoc(cnstAddressTypeVocValue)
+    cnstAddressTypeVoc = cnstAddressTypeVocValue;
+end
+
+function getCnstCountryVoc()
+    return cnstCountryVoc;
+end
+function setCnstCountryVoc(cnstCountryVocValue)
+    cnstCountryVoc = cnstCountryVocValue;
+end
+
+function getCnstRegionVoc()
+    return cnstRegionVoc;
+end
+function setCnstRegionVoc(cnstRegionVocValue)
+    cnstRegionVoc = cnstRegionVocValue;
+end
+
+function getCnstCityVoc()
+    return cnstCityVoc;
+end
+function setCnstCityVoc(cnstCityVocValue)
+    cnstCityVoc = cnstCityVocValue;
+end
+
+function getCnstStreetVoc()
+    return cnstStreetVoc;
+end
+function setCnstStreetVoc(cnstStreetVocValue)
+    cnstStreetVoc = cnstStreetVocValue;
+end
+
+function getCnstCountryCodeVoc()
+    return cnstCountryCodeVoc;
+end
+function setCnstCountryCodeVoc(cnstCountryCodeVocValue)
+    cnstCountryCodeVoc = cnstCountryCodeVocValue;
+end
+
+function getCnstProviderCodeVoc()
+    return cnstProviderCodeVoc;
+end
+function setCnstProviderCodeVoc(cnstProviderCodeVocValue)
+    cnstProviderCodeVoc = cnstProviderCodeVocValue;
+end
+
+function getCnstPropertyFormVoc()
+    return cnstPropertyFormVoc;
+end
+function setCnstPropertyFormVoc(cnstPropertyFormVocValue)
+    cnstPropertyFormVoc = cnstPropertyFormVocValue;
+end
+
+function getCnstBusinessTypeVoc()
+    return cnstBusinessTypeVoc;
+end
+function setCnstBusinessTypeVoc(cnstBusinessTypeVocValue)
+    cnstBusinessTypeVoc = cnstBusinessTypeVocValue;
+end
+
+function getCnstRegistrationOfficeVoc()
+    return cnstRegistrationOfficeVoc;
+end
+function setCnstRegistrationOfficeVoc(cnstRegistrationOfficeVocValue)
+    cnstRegistrationOfficeVoc = cnstRegistrationOfficeVocValue;
+end
+
+function getCnstPersonRelationTypeVoc()
+    return cnstPersonRelationTypeVoc;
+end
+function setCnstPersonRelationTypeVoc(cnstPersonRelationTypeVocValue)
+    cnstPersonRelationTypeVoc = cnstPersonRelationTypeVocValue;
+end
+
+function getCnstEstateTypeVoc()
+    return cnstEstateTypeVoc;
+end
+function setCnstEstateTypeVoc(cnstEstateTypeVocValue)
+    cnstEstateTypeVoc = cnstEstateVoccnstPersonRelationTypeVocValueValue;
+end
+
+function getCnstEstateSortVoc()
+    return cnstEstateSortVoc;
+end
+function setCnstEstateSortVoc(cnstEstateSortVocValue)
+    cnstEstateSortVoc = cnstEstateSortVocValue;
+end
+
+function getCnstBelgamsGroupNameVoc()
+    return cnstBelgamsGroupNameVoc;
+end
+function setCnstBelgamsGroupNameVoc(cnstBelgamsGroupNameVocValue)
+    cnstBelgamsGroupNameVoc = cnstBelgamsGroupNameVocValue;
+end
+
+function getCnstDepartmentVoc()
+    return cnstDepartmentVoc;
+end
+function setCnstDepartmentVoc(cnstDepartmentVocValue)
+    cnstDepartmentVoc = cnstDepartmentVocValue;
+end
+
+function getCnstEmployeeVoc()
+    return cnstEmployeeVoc;
+end
+function setCnstEmployeeVoc(cnstEmployeeVocValue)
+    cnstEmployeeVoc = cnstEmployeeVocValue;
+end
+
+function getCnstAccountArrestedVoc()
+    return cnstAccountArrestedVoc;
+end
+function setCnstAccountArrestedVoc(cnstAccountArrestedVocValue)
+    cnstAccountArrestedVoc = cnstAccountArrestedVocValue;
+end
+
+-------Entity Constan Section--------------
+
+function getCnstOrganization()
+    return cnstOrganization;
+end
+function setCnstOrganization(cnstOrganizationValue)
+    cnstOrganization = cnstOrganizationValue;
+end
+
+function getCnstPerson()
+    return cnstPerson;
+end
+function setCnstPerson(cnstPersonValue)
+    cnstPerson = cnstPersonValue;
+end
+
+function getCnstJobTrack()
+    return cnstJobTrack;
+end
+function setCnstJobTrack(cnstJobTrackValue)
+    cnstJobTrack = cnstJobTrackValue;
+end
+
+function getCnstAddressType()
+    return cnstAddressType;
+end
+function setCnstAddressType(cnstAddressTypeValue)
+    cnstAddressType = cnstAddressTypeValue;
+end
+
+function getCnstAddress()
+    return cnstAddress;
+end
+function setCnstAddress(cnstAddressValue)
+    cnstAddress = cnstAddressValue;
+end
+
+function getCnstConnectionType()
+    return cnstConnectionType;
+end
+function setCnstConnectionType(cnstConnectionTypeValue)
+    cnstConnectionType = cnstConnectionTypeValue;
+end
+
+function getCnstConnection()
+    return cnstConnection;
+end
+function setCnstConnection(cnstConnectionValue)
+    cnstConnection = cnstConnectionValue;
+end
+
+function getCnstFoundersAndPartners()
+    return cnstFoundersAndPartners;
+end
+function setCnstFoundersAndPartners(cnstFoundersAndPartnersValue)
+    cnstFoundersAndPartners = cnstFoundersAndPartnersValue;
+end
+
+function getCnstConnectedPerson()
+    return cnstConnectedPerson;
+end
+function setCnstConnectedPerson(cnstConnectedPersonValue)
+    cnstConnectedPerson = cnstConnectedPersonValue;
+end
+
+function getCnstConnectedOrganization()
+    return cnstConnectedOrganization;
+end
+function setCnstConnectedOrganization(cnstConnectedOrganizationValue)
+    cnstConnectedOrganization = cnstConnectedOrganizationValue;
+end
+
+function getCnstEmployee()
+    return cnstEmployee;
+end
+function setCnstEmployee(cnstEmployeeValue)
+    cnstEmployee = cnstEmployeeValue;
+end
+
+function getCnstBankAccount()
+    return cnstBankAccount;
+end
+function setCnstBankAccount(cnstBankAccountValue)
+    cnstBankAccount = cnstBankAccountValue;
+end
+
+function getCnstEducation()
+    return cnstEducation;
+end
+function setCnstEducation(cnstEducationValue)
+    cnstEducation = cnstEducationValue;
+end
+
+function getCnstDocument()
+    return cnstDocument;
+end
+function setCnstDocument(cnstDocumentValue)
+    cnstDocument = cnstDocumentValue;
+end
+
+function getCnstLoan()
+    return cnstLoan;
+end
+function setCnstLoan(cnstLoanValue)
+    cnstLoan = cnstLoanValue;
+end
+
+function getCnstPersonalID()
+    return cnstPersonalID;
+end
+function setCnstPersonalID(cnstPersonalIDValue)
+    cnstPersonalID = cnstPersonalIDValue;
+end
+
+function getCnstBreaches()
+    return cnstBreaches;
+end
+function setCnstBreaches(cnstBreachesValue)
+    cnstBreaches = cnstBreachesValue;
+end
+
+function getCnstPersonRelations()
+    return cnstPersonRelations;
+end
+function setCnstPersonRelations(cnstPersonRelationsValue)
+    cnstPersonRelations = cnstPersonRelationsValue;
+end
+
+function getCnstRequestJournal()
+    return cnstRequestJournal;
+end
+function setCnstRequestJournal(cnstRequestJournalValue)
+    cnstRequestJournal = cnstRequestJournalValue;	
+end
+function getCnstActionJournal()
+    return cnstRequestJournal;
+end
+function setCnstActionJournal(cnstRequestJournalValue)
+    cnstRequestJournal = cnstRequestJournalValue;
+end
+
+function getCnstEstate()
+    return cnstEstate;
+end
+function setCnstEstate(cnstEstateValue)
+    cnstEstate = cnstEstateValue;
+end
+
+function getCnstBelgamsGroup()
+    return cnstBelgamsGroup;
+end
+function setCnstBelgamsGroup(cnstBelgamsGroupValue)
+    cnstBelgamsGroup = cnstBelgamsGroupValue;
+end
+
+function getCnstBranch()
+    return cnstBranch;
+end
+function setCnstBranch(cnstBranchValue)
+    cnstBranch = cnstBranchValue;
+end
+
+function getCnstExternalVocs()
+    return cnstExternalVocs;
+end
+function setCnstExternalVocs(cnstExternalVocsValue)
+    cnstExternalVocs = cnstExternalVocsValue;
+end
+---------------------------------------------------------------------------
+function getOrgParticipationTypeForControl()
+    return orgParticipationTypeForControl;
+end
+function setOrgParticipationTypeForControl(orgParticipationTypeForControlValue)
+    table.insert(orgParticipationTypeForControl,orgParticipationTypeForControlValue);
+end
+
+function getOrgParticipationTypeForControlled()
+    return orgParticipationTypeForControlled;
+end
+function setOrgParticipationTypeForControlled(orgParticipationTypeForControlledValue)
+    table.insert(orgParticipationTypeForControlled, orgParticipationTypeForControlledValue);
+end
+
+function getDpdOfficialStatusCodes()
+	refreshVocList(getCnstOrganization(),38, table.count(dpdOfficialStatus["Codes"]))
+    return dpdOfficialStatus["Codes"];
+end
+function setDpdOfficialStatusCodes(dpdOfficialStatusCodesValue)
+    dpdOfficialStatus["Codes"] = dpdOfficialStatusCodesValue;
+end
+function getDpdOfficialStatusDefinitions()
+	refreshVocList(getCnstOrganization(),38, table.count(dpdOfficialStatus["Definitions"]))
+    return dpdOfficialStatus["Definitions"];
+end
+function setDpdOfficialStatusDefinitions(dpdOfficialStatusDefinitionsValue)
+    dpdOfficialStatus["Definitions"] = dpdOfficialStatusDefinitionsValue;
+end
+
+function getDpdOrgParticipationTypeCodes()
+	refreshVocList(getCnstFoundersAndPartners(),1,table.count(dpdOrgParticipationType["Codes"]))
+    return dpdOrgParticipationType["Codes"];
+end
+function setDpdOrgParticipationTypeCodes(dpdOrgParticipationTypeCodesValue)
+    dpdOrgParticipationType["Codes"] = dpdOrgParticipationTypeCodesValue;
+end
+function getDpdOrgParticipationTypeDefinitions()
+	refreshVocList(getCnstFoundersAndPartners(),1, table.count(dpdOrgParticipationType["Definitions"]))
+    return dpdOrgParticipationType["Definitions"];
+end
+function setDpdOrgParticipationTypeDefinitions(dpdOrgParticipationTypeDefinitionsValue)
+    dpdOrgParticipationType["Definitions"] = dpdOrgParticipationTypeDefinitionsValue;
+end
+
+function getDpdTypeOfCheckCodes()
+	refreshVocList(getCnstRequestJournal(),1, table.count(dpdTypeOfCheck["Codes"]))
+    return dpdTypeOfCheck["Codes"];
+end
+function setDpdTypeOfCheckCodes(dpdTypeOfCheckCodesValue)
+    dpdTypeOfCheck["Codes"] = dpdTypeOfCheckCodesValue;
+end
+function getDpdTypeOfCheckDefinitions()	
+	refreshVocList(getCnstRequestJournal(),1, table.count(dpdTypeOfCheck["Definitions"]))
+    return dpdTypeOfCheck["Definitions"];
+end
+function setDpdTypeOfCheckDefinitions(dpdTypeOfCheckDefinitionsValue)
+    dpdTypeOfCheck["Definitions"] = dpdTypeOfCheckDefinitionsValue;
+end
+
+function getDpdSortOfEmployeeCodes()
+	refreshVocList(getCnstJobTrack(),11, table.count(dpdSortOfEmployee["Codes"]))
+    return dpdSortOfEmployee["Codes"];
+end
+function setDpdSortOfEmployeeCodes(dpdSortOfEmployeeCodesValue)
+    dpdSortOfEmployee["Codes"] = dpdSortOfEmployeeCodesValue;
+end
+function getDpdSortOfEmployeeDefinitions()
+	refreshVocList(getCnstJobTrack(),11, table.count(dpdSortOfEmployee["Definitions"]))
+    return dpdSortOfEmployee["Definitions"];
+end
+function setDpdSortOfEmployeeDefinitions(dpdSortOfEmployeeDefinitionsValue)
+    dpdSortOfEmployee["Definitions"] = dpdSortOfEmployeeDefinitionsValue;
+end
+
+function getDpdSortOfOrganizationCodes()
+	refreshVocList(getCnstOrganization(),39, table.count(dpdSortOfOrganization["Codes"]))
+    return dpdSortOfOrganization["Codes"];
+end
+function setDpdSortOfOrganizationCodes(dpdSortOfOrganizationCodesValue)
+    dpdSortOfOrganization["Codes"] = dpdSortOfOrganizationCodesValue;
+end
+function getDpdSortOfOrganizationDefinitions()
+	refreshVocList(getCnstOrganization(),39, table.count(dpdSortOfOrganization["Definitions"]))
+    return dpdSortOfOrganization["Definitions"];
+end
+function setDpdSortOfOrganizationDefinitions(dpdSortOfOrganizationDefinitionsValue)
+    dpdSortOfOrganization["Definitions"] = dpdSortOfOrganizationDefinitionsValue;
+end
+
+function getDpdConnectionTypeCodes()
+	refreshVocList(getCnstConnectionType(),1, table.count(dpdConnectionType["Codes"]))
+    return dpdConnectionType["Codes"];
+end
+function setDpdConnectionTypeCodes(dpdConnectionTypeCodesValue)
+    dpdConnectionType["Codes"] = dpdConnectionTypeCodesValue;
+end
+function getDpdConnectionTypeDefinitions()
+	refreshVocList(getCnstConnectionType(),1, table.count(dpdConnectionType["Definitions"]))
+    return dpdConnectionType["Definitions"];
+end
+function setDpdConnectionTypeDefinitions(dpdConnectionTypeDefinitionsValue)
+    dpdConnectionType["Definitions"] = dpdConnectionTypeDefinitionsValue;
+end
+
+function getDpdCountryCodes()
+	refreshVocList(getCnstAddress(),1, table.count(dpdCountry["Codes"]))
+    return dpdCountry["Codes"];
+end
+function setDpdCountryCodes(dpdCountryCodesValue)
+    dpdCountry["Codes"] = dpdCountryCodesValue;
+end
+function getDpdCountryDefinitions()
+	refreshVocList(getCnstAddress(),1, table.count(dpdCountry["Definitions"]))
+    return dpdCountry["Definitions"];
+end
+function setDpdCountryDefinitions(dpdCountryDefinitionsValue)
+    dpdCountry["Definitions"] = dpdCountryDefinitionsValue;
+end
+
+function getDpdRegionCodes()
+	refreshVocList(getCnstAddress(),86, table.count(dpdRegion["Codes"]))
+    return dpdRegion["Codes"];
+end
+function setDpdRegionCodes(dpdRegionCodesValue)
+    dpdRegion["Codes"] = dpdRegionCodesValue;
+end
+function getDpdRegionDefinitions()
+	refreshVocList(getCnstAddress(),86, table.count(dpdRegion["Definitions"]))
+    return dpdRegion["Definitions"];
+end
+function setDpdRegionDefinitions(dpdRegionDefinitionsValue)
+    dpdRegion["Definitions"] = dpdRegionDefinitionsValue;
+end
+
+function getDpdDistrictCodes()
+	refreshVocList(getCnstAddress(), 2, table.count(dpdDistrict["Codes"]))
+    return dpdDistrict["Codes"];
+end
+function setDpdDistrictCodes(dpdDistrictCodesValue)
+    dpdDistrict["Codes"] = dpdDistrictCodesValue;
+end
+function getDpdDistrictDefinitions()
+	refreshVocList(getCnstAddress(),2, table.count(dpdDistrict["Definitions"]))
+    return dpdDistrict["Definitions"];
+end
+function setDpdDistrictDefinitions(dpdDistrictDefinitionsValue)
+    dpdDistrict["Definitions"] = dpdDistrictDefinitionsValue;
+end
+
+function getDpdCityCodes()
+	refreshVocList(getCnstAddress(),3, table.count(dpdCity["Codes"]))
+    return dpdCity["Codes"];
+end
+function setDpdCityCodes(dpdCityCodesValue)
+    dpdCity["Codes"] = dpdCityCodesValue;
+end
+function getDpdCityDefinitions()
+	refreshVocList(getCnstAddress(),3, table.count(dpdCity["Definitions"]))
+    return dpdCity["Definitions"];
+end
+function setDpdCityDefinitions(dpdCityDefinitionsValue)
+    dpdCity["Definitions"] = dpdCityDefinitionsValue;
+end
+
+function getDpdStreetCodes()
+	refreshVocList(getCnstAddress(),4, table.count(dpdStreet["Codes"]))
+    return dpdStreet["Codes"];
+end
+function setDpdStreetCodes(dpdStreetCodesValue)
+    dpdStreet["Codes"] = dpdStreetCodesValue;
+end
+function getDpdStreetDefinitions()
+	refreshVocList(getCnstAddress(),4, table.count(dpdStreet["Definitions"]))
+    return dpdStreet["Definitions"];
+end
+function setDpdStreetDefinitions(dpdStreetDefinitionsValue)
+    dpdStreet["Definitions"] = dpdStreetDefinitionsValue;
+end
+
+function getDpdCurrencyCodes()
+	refreshVocList(getCnstBankAccount(),2, table.count(dpdCurrency["Codes"]))
+    return dpdCurrency["Codes"];
+end
+function setDpdCurrencyCodes(dpdCurrencyCodesValue)
+    dpdCurrency["Codes"] = dpdCurrencyCodesValue;
+end
+function getDpdCurrencyDefinitions()
+	refreshVocList(getCnstBankAccount(),2, table.count(dpdCurrency["Definitions"]))
+    return dpdCurrency["Definitions"];
+end
+function setDpdCurrencyDefinitions(dpdCurrencyDefinitionsValue)
+    dpdCurrency["Definitions"] = dpdCurrencyDefinitionsValue;
+end
+
+function getDpdAccountTypeCodes()
+	refreshVocList(getCnstBankAccount(),3, table.count(dpdAccountType["Codes"]))
+    return dpdAccountType["Codes"];
+end
+function setDpdAccountTypeCodes(dpdAccountTypeCodesValue)
+    dpdAccountType["Codes"] = dpdAccountTypeCodesValue;
+end
+function getDpdAccountTypeDefinitions()
+	refreshVocList(getCnstBankAccount(),3, table.count(dpdAccountType["Definitions"]))
+    return dpdAccountType["Definitions"];
+end
+function setDpdAccountTypeDefinitions(dpdAccountTypeDefinitionsValue)
+    dpdAccountType["Definitions"] = dpdAccountTypeDefinitionsValue;
+end
+
+function getDpdBankNameCodes()
+	refreshVocList(getCnstBankAccount(),7, table.count(dpdBankName["Codes"]))
+    return dpdBankName["Codes"];
+end
+function setDpdBankNameCodes(dpdBankNameCodesValue)
+    dpdBankName["Codes"] = dpdBankNameCodesValue;
+end
+function getDpdBankNameDefinitions()
+	refreshVocList(getCnstBankAccount(),7, table.count(dpdBankName["Definitions"]))
+    return dpdBankName["Definitions"];
+end
+function setDpdBankNameDefinitions(dpdBankNameDefinitionsValue)
+    dpdBankName["Definitions"] = dpdBankNameDefinitionsValue;
+end
+
+function getDpdEducationDegreeCodes()
+	refreshVocList(getCnstEducation(),1, table.count(dpdEducationDegree["Codes"]))
+    return dpdEducationDegree["Codes"];
+end
+function setDpdEducationDegreeCodes(dpdEducationDegreeCodesValue)
+    dpdEducationDegree["Codes"] = dpdEducationDegreeCodesValue;
+end
+function getDpdEducationDegreeDefinitions()
+	refreshVocList(getCnstEducation(),1, table.count(dpdEducationDegree["Definitions"]))
+    return dpdEducationDegree["Definitions"];
+end
+function setDpdEducationDegreeDefinitions(dpdEducationDegreeDefinitionsValue)
+    dpdEducationDegree["Definitions"] = dpdEducationDegreeDefinitionsValue;
+end
+
+function getDpdDocumentTypeCodes()
+	refreshVocList(getCnstDocument(),1, table.count(dpdDocumentType["Codes"]))
+    return dpdDocumentType["Codes"];
+end
+function setDpdDocumentTypeCodes(dpdDocumentTypeCodesValue)
+    dpdDocumentType["Codes"] = dpdDocumentTypeCodesValue;
+end
+function getDpdDocumentTypeDefinitions()
+	refreshVocList(getCnstDocument(),1, table.count(dpdDocumentType["Definitions"]))
+    return dpdDocumentType["Definitions"];
+end
+function setDpdDocumentTypeDefinitions(dpdDocumentTypeDefinitionsValue)
+    dpdDocumentType["Definitions"] = dpdDocumentTypeDefinitionsValue;
+end
+
+function getDpdPersonalIDTypeCodes()
+	refreshVocList(getCnstPersonalID(),1, table.count(dpdPersonalIDType["Codes"]))
+    return dpdPersonalIDType["Codes"];
+end
+function setDpdPersonalIDTypeCodes(dpdPersonalIDTypeCodesValue)
+    dpdPersonalIDType["Codes"] = dpdPersonalIDTypeCodesValue;
+end
+function getDpdPersonalIDTypeDefinitions()
+	refreshVocList(getCnstPersonalID(),1, table.count(dpdPersonalIDType["Definitions"]))
+    return dpdPersonalIDType["Definitions"];
+end
+function setDpdPersonalIDTypeDefinitions(dpdPersonalIDTypeDefinitionsValue)
+    dpdPersonalIDType["Definitions"] = dpdPersonalIDTypeDefinitionsValue;
+end
+
+function getDpdConvictionCodes()
+	refreshVocList(getCnstBreaches(),8, table.count(dpdConviction["Codes"]))
+    return dpdConviction["Codes"];
+end
+function setDpdConvictionCodes(dpdConvictionCodesValue)
+    dpdConviction["Codes"] = dpdConvictionCodesValue;
+end
+function getDpdConvictionDefinitions()
+	refreshVocList(getCnstBreaches(),8, table.count(dpdConviction["Definitions"]))
+    return dpdConviction["Definitions"];
+end
+function setDpdConvictionDefinitions(dpdConvictionDefinitionsValue)
+    dpdConviction["Definitions"] = dpdConvictionDefinitionsValue;
+end
+
+function getDpdLiabilityTypeCodes()
+	refreshVocList(getCnstBreaches(),1, table.count(dpdLiabilityType["Codes"]))
+    return dpdLiabilityType["Codes"];
+end
+function setDpdLiabilityTypeCodes(dpdLiabilityTypeCodesValue)
+    dpdLiabilityType["Codes"] = dpdLiabilityTypeCodesValue;
+end
+function getDpdLiabilityTypeDefinitions()
+	refreshVocList(getCnstBreaches(),1, table.count(dpdLiabilityType["Definitions"]))
+    return dpdLiabilityType["Definitions"];
+end
+function setDpdLiabilityTypeDefinitions(dpdLiabilityTypeDefinitionsValue)
+    dpdLiabilityType["Definitions"] = dpdLiabilityTypeDefinitionsValue;
+end
+
+function getDpdPersonRelationTypeCodes()	
+	refreshVocList(getCnstPersonRelations(),1, table.count(dpdPersonRelationType["Codes"]))	
+    return dpdPersonRelationType["Codes"];
+end
+function setDpdPersonRelationTypeCodes(dpdPersonRelationsCodesValue)
+    dpdPersonRelationType["Codes"] = dpdPersonRelationsCodesValue;
+end
+function getDpdPersonRelationTypeDefinitions()
+	refreshVocList(getCnstPersonRelations(),1, table.count(dpdPersonRelationType["Definitions"]))
+    return dpdPersonRelationType["Definitions"];
+end
+function setDpdPersonRelationTypeDefinitions(dpdPersonRelationsDefinitionsValue)
+    dpdPersonRelationType["Definitions"] = dpdPersonRelationsDefinitionsValue;
+end
+
+function getDpdEstateTypeCodes()	
+	refreshVocList(getCnstEstate(),2, table.count(dpdEstateType["Codes"]))	
+    return dpdEstateType["Codes"];
+end
+function setDpdEstateTypeCodes(dpdEstateTypeCodesValue)
+    dpdEstateType["Codes"] = dpdEstateTypeCodesValue;
+end
+function getDpdEstateTypeDefinitions()
+	refreshVocList(getCnstEstate(),2, table.count(dpdEstateType["Definitions"]))
+    return dpdEstateType["Definitions"];
+end
+function setDpdEstateTypeDefinitions(dpdEstateTypeDefinitionsValue)
+    dpdEstateType["Definitions"] = dpdEstateTypeDefinitionsValue;
+end
+
+function getDpdEstateSortCodes()		
+	refreshVocList(getCnstEstate(),1, table.count(dpdEstateSort["Codes"]))	
+    return dpdEstateSort["Codes"];
+end
+function setDpdEstateSortCodes(dpdEstateSortCodesValue)
+    dpdEstateSort["Codes"] = dpdEstateSortCodesValue;
+end
+function getDpdEstateSortDefinitions()
+	refreshVocList(getCnstEstate(),1, table.count(dpdEstateSort["Definitions"]))
+    return dpdEstateSort["Definitions"];
+end
+function setDpdEstateSortDefinitions(dpdEstateSortDefinitionsValue)
+    dpdEstateSort["Definitions"] = dpdEstateSortDefinitionsValue;
+end
+
+function getDpdBelgamsGroupNameCodes()	
+	refreshVocList(getCnstBelgamsGroup(),13, table.count(dpdBelgamsGroupName["Codes"]))	
+    return dpdBelgamsGroupName["Codes"];
+end
+function setDpdBelgamsGroupNameCodes(dpdBelgamsGroupNameCodesValue)
+    dpdBelgamsGroupName["Codes"] = dpdBelgamsGroupNameCodesValue;
+end
+function getDpdBelgamsGroupNameDefinitions()
+	refreshVocList(getCnstBelgamsGroup(),13, table.count(dpdBelgamsGroupName["Definitions"]))
+    return dpdBelgamsGroupName["Definitions"];
+end
+function setDpdBelgamsGroupNameDefinitions(dpdBelgamsGroupNameDefinitionsValue)
+    dpdBelgamsGroupName["Definitions"] = dpdBelgamsGroupNameDefinitionsValue;
+end
+
+function getDpdAddressTypeCodes()		
+	refreshVocList(getCnstAddressType(),1, table.count(dpdAddressType["Codes"]))	
+    return dpdAddressType["Codes"];
+end
+function setDpdAddressTypeCodes(dpdAddressTypeodesValue)
+    dpdAddressType["Codes"] = dpdAddressTypeodesValue;
+end
+function getDpdAddressTypeDefinitions()
+	refreshVocList(getCnstAddressType(),1, table.count(dpdAddressType["Definitions"]))
+    return dpdAddressType["Definitions"];
+end
+function setDpdAddressTypeDefinitions(dpdAddressTypeDefinitionsValue)
+    dpdAddressType["Definitions"] = dpdAddressTypeDefinitionsValue;
+end
+
+function getDpdEmployeeCodes()	
+	refreshVocList(getCnstRequestJournal(),2, table.count(dpdEmployee["Codes"]))	
+    return dpdEmployee["Codes"];
+end
+function setDpdEmployeeCodes(dpdEmployeeCodesValue)
+    dpdEmployee["Codes"] = dpdEmployeeCodesValue;
+end
+function getDpdEmployeeDefinitions()
+	refreshVocList(getCnstRequestJournal(),2, table.count(dpdEmployee["Definitions"]))
+    return dpdEmployee["Definitions"];
+end
+function setDpdEmployeeDefinitions(dpdEmployeeDefinitionsValue)
+    dpdEmployee["Definitions"] = dpdEmployeeDefinitionsValue;
+end
+
+function getDpdDepartmentCodes()		
+	refreshVocList(getCnstRequestJournal(),6, table.count(dpdDepartment["Codes"]))		
+    return dpdDepartment["Codes"];
+end
+function setDpdDepartmentCodes(dpdDepartmentCodesValue)
+    dpdDepartment["Codes"] = dpdDepartmentCodesValue;
+end
+function getDpdDepartmentDefinitions()
+	refreshVocList(getCnstRequestJournal(),6, table.count(dpdDepartment["Definitions"]))
+    return dpdDepartment["Definitions"];
+end
+function setDpdDepartmentDefinitions(dpdDepartmentDefinitionsValue)
+    dpdDepartment["Definitions"] = dpdDepartmentDefinitionsValue;
+end
+
+function getDpdAccountArrestedCodes()		
+	refreshVocList(getCnstAccountArrested(),23, table.count(dpdAccountArrested["Codes"]))		
+    return dpdAccountArrested["Codes"];
+end
+function setDpdAccountArrestedCodes(dpdAccountArrestedCodesValue)
+    dpdAccountArrested["Codes"] = dpdAccountArrestedCodesValue;
+end
+function getDpdAccountArrestedDefinitions()
+	refreshVocList(getCnstAccountArrested(),23, table.count(dpdAccountArrested["Definitions"]))
+    return dpdAccountArrested["Definitions"];
+end
+function setDpdAccountArrestedDefinitions(dpdAccountArrestedDefinitionsValue)
+    dpdAccountArrested["Definitions"] = dpdAccountArrestedDefinitionsValue;
+end
+---------------------------------------------------------------
+
+function getCnstAddLink()
+    return cnstAddLink;
+end
+
+function getCnstDeleteLink()
+    return cnstDeleteLink;
+end

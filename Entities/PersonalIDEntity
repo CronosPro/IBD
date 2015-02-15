@@ -1,0 +1,312 @@
+local documentType = nil;
+local personalNumber = nil;
+local serialNumber = nil;
+local issueOffice = nil;
+local issueDate = nil;
+local note = nil;
+local classManager = nil;
+local entityRecord = nil;
+local entityBaseCode = nil;
+local personEntities = {};
+local logger = nil;
+
+function initLogger()
+	if logger == nil then
+		logger = getClassManager().getClass("Logger");	
+	end
+end
+
+function getClassManager()
+    return classManager;
+end
+function setClassManager(classManagerValue)
+    classManager = classManagerValue;
+end
+
+function getPersonEntities()
+    return personEntities;
+end
+function addPersonEntity(newPersonEntity)
+    table.insert(personEntities,newPersonEntity);
+end
+function setPersonEntities(newPersonEntities)
+    personEntities = newPersonEntities;
+end
+
+function getEntityRecord()
+    return entityRecord;
+end
+function setEntityRecord(entityRecordValue)
+    entityRecord = entityRecordValue;
+end
+
+function getEntityBaseCode()
+    return entityBaseCode;
+end
+function getEntityBaseCode()
+    return entityBaseCode;
+end
+--------------------------------------------------
+function setBeanFromLine(dataTable, configTable, mode, isCurrentEntityOnly) -- передаем таблицу с данными для загрузки и  таблицу с конфигурацией для загрузки	
+	initLogger();
+	local messages = {};	
+	local configValues = "";
+	local tConfigValues = "";
+	local terminPosition = 0;
+	local fieldNumber = 0;
+	local extractedTermin = "";	
+	local isConnectedEntityNew = true;
+	local passedEntitiesCodes = {}
+	for index, tConfigValues in ipairs(configTable) do		
+		local localVocKey = nil;				
+		logger.writeDebugMessage( getClassManager(),"Получена конфигурация: "..render(tConfigValues));
+		logger.writeDebugMessage( getClassManager(),"Получение номера аттрибута базы данных");
+		fieldNumber = tonumber(tConfigValues[3]);	
+		logger.writeDebugMessage(getClassManager(),"Получение позиции в строке загрузки");		
+		if (string.sub(tConfigValues[1],1,1) ~= "@") then
+			terminPosition = tonumber(tConfigValues[1]);					
+			logger.writeDebugMessage( getClassManager(),"Получение термина строки по позиции № "..terminPosition);
+			extractedTermin = dataTable[terminPosition];
+		else
+			extractedTermin = string.sub(tConfigValues[1],2);
+			localVocKey = tonumber(extractedTermin)
+		end		
+		logger.writeDebugMessage( getClassManager(), "Был получен термин для загрузки в поле "..fieldNumber);
+		if (extractedTermin ~= nil and string.len(extractedTermin)>0) then		
+			if (tConfigValues[2] == getEntityBaseCode()) then
+				if (fieldNumber == 9) then									
+					setPersonalNumber(extractedTermin);	
+				elseif(fieldNumber == 2) then
+					setSerialNumber(extractedTermin);
+				--elseif(fieldNumber == 3) then
+					--setNumber(extractedTermin);
+				elseif(fieldNumber == 14) then
+					setIssueOffice(extractedTermin);
+				elseif(fieldNumber == 5) then
+					setIssueDate(extractedTermin);		
+				elseif(fieldNumber == 7) then				
+					setNote({extractedTermin});		
+				else
+					local vocCode = getClassManager().getClass("FieldsWorker").getVocFieldBaseCode(getClassManager(),getEntityBaseCode(),fieldNumber)			
+					if (vocCode ~= nil) then						
+						if (localVocKey == nil) then
+							localVocKey, errorMessages = getClassManager().getClass("DBWorker").convertExternalVocTermin(getClassManager(), extractedTermin, vocCode);				
+							for _,message in pairs(errorMessages) do
+								table.insert(messages, message)
+							end
+						end	
+						if(fieldNumber == 1) then
+							--категория 	
+							setDocumentType(localVocKey);					
+						end	
+						
+					else
+						logger.writeDebugMessage( getClassManager(), "Поле № "..fieldNumber.. " не обрабатывает программным объектом");
+					end
+				end
+			else		
+				isConnectedEntityNew = table.count(getClassManager().getClass("Service").getIndexesFromTable(passedEntitiesCodes, tConfigValues[2]))==0
+				if (not isCurrentEntityOnly) then
+					logger.writeDebugMessage( getClassManager(),"Термин принадлежит базе данных с мнемокодом "..tConfigValues[2]);			
+					logger.writeDebugMessage( getClassManager(),"Создание нового программного объекта")
+					local connectedEntity = getClassManager().newEntity(getClassManager(), tConfigValues[2], true, isConnectedEntityNew)			
+					if (isConnectedEntityNew) then
+						logger.writeDebugMessage( getClassManager(),"Добавление созданного объекта для установления связи")				
+						addConnectedEntity (connectedEntity);			
+					end
+					isConnectedEntityNew = false;				
+					logger.writeDebugMessage( getClassManager(),"Заполнение программного объекта на основе данных из файла загрузки и запись полученных сообщений");																								
+					local errorMessages = connectedEntity.setBeanFromLine(dataTable, {tConfigValues}, mode); 						
+					for _,message in pairs(errorMessages) do
+						table.insert(messages, message)
+					end	
+					logger.writeDebugMessage(getClassManager(),"Проверка режима работы системы: "..mode);	
+					if (mode == getClassManager().getClass("Constanta").getCnstDataLoaderLoadMode()) then
+						logger.writeDebugMessage(getClassManager(),"Сохранение программного объекта в базу данных с мнемокодом "..tConfigValues[2]);																													
+						connectedEntity.saveBeanToDb();						
+					end
+				end
+			end
+			table.insert(passedEntitiesCodes,tConfigValues[2]);
+		end
+	end	
+	return messages;
+end
+
+function addConnectedEntity (connectedEntity)
+	local connectedEntityCode = connectedEntity.getEntityBaseCode();
+	if (connectedEntityCode == getClassManager().getClass("Constanta").getCnstPerson()) then
+		addPersonEntity(connectedEntity);
+	end		
+end
+
+function getAttributeByFieldNumber(fieldNumber)
+	local attribute = nil;
+	local noAttributeLineDefined = false;
+	fieldNumber = tonumber(fieldNumber)	
+	if (fieldNumber == 1) then									
+		attribute = getDocumentType();		
+	elseif(fieldNumber == 2) then
+		attribute = getSerialNumber();	
+	elseif(fieldNumber == 5) then
+		attribute = getIssueDate();
+	elseif(fieldNumber == 9) then
+		attribute = getPersonalNumber()
+	elseif(fieldNumber == 14) then
+		attribute = getIssueOffice()
+	elseif(fieldNumber == 7) then
+		attribute = getNote()		
+	else
+		noAttributeLineDefined = true;
+	end		
+	--необходимо для логики выдачи сообщения про неопределенный номер поля в данном методе
+	if (noAttributeLineDefined == false and attribute == nil) then
+		attribute = "";		
+	end	
+	return attribute;
+end
+--------------------------------------------------
+function clearEntities()	
+	setPersonEntities({});	
+end
+
+function setLinks()		
+	local personalIDBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstPersonalID());								
+	local personBase 	= CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstPerson());								
+	--persons linking	
+	for key, personEntity in pairs(getPersonEntities()) do						
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), getEntityRecord())) then
+			getEntityRecord():Unlock();
+		end
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), personEntity.getEntityRecord())) then
+			personEntity.getEntityRecord():Unlock();
+		end
+		personalIDBase:AddLink(getEntityRecord().SN,6,personBase,personEntity.getEntityRecord().SN, Base.LockWait, Base.LockWait);																	
+	end		
+	setEntityRecord(personalIDBase:GetRecord(getEntityRecord().SN));
+end
+
+function setBeanFromRecord(personalIDRecord)	
+	local peronalIDBaseCode = getEntityBaseCode();
+	if personalIDRecord.Base.Code == peronalIDBaseCode then				
+		setEntityRecord(personalIDRecord)
+		setDocumentType(	getClassManager().getClass("FieldsWorker").getField(peronalIDBaseCode, personalIDRecord , 1 , "" , "", ""));
+		setPersonalNumber(	getClassManager().getClass("FieldsWorker").getField(peronalIDBaseCode, personalIDRecord , 9 , "" , "", ""));
+		setSerialNumber(	getClassManager().getClass("FieldsWorker").getField(peronalIDBaseCode, personalIDRecord , 2 , "" , "", ""));		
+		setIssueOffice(		getClassManager().getClass("FieldsWorker").getField(peronalIDBaseCode, personalIDRecord , 14, "" , "", ""));
+		setIssueDate(		getClassManager().getClass("FieldsWorker").getField(peronalIDBaseCode, personalIDRecord , 5 , "" , "", ""));
+		setNote(			getClassManager().getClass("FieldsWorker").getField(peronalIDBaseCode, personalIDRecord , 7 , "" , "", ""));					
+	end
+end
+
+function setBeanFromView(view)	
+	setDocumentType(view.getDpdDocumentTypeSelectedCode());				
+	setPersonalNumber(view.getTxtPersonalNumberText());
+	setSerialNumber(view.getTxtSerialNumberText());			
+	setIssueOffice(view.getTxtIssueOfficeText());		
+	setIssueDate(view.getTxtIssueDateText());		
+	setNote(view.getTxtNoteText());	
+end
+
+function saveBeanToDb()		
+	local saveResult = true;			
+	local peronalIDBaseCode = getEntityBaseCode();	
+	if (getEntityRecord() == nil) then		
+		setEntityRecord(CroApp.GetBank():GetBase(peronalIDBaseCode):AddRecord())					
+	end				
+	local personalIDRecord = getEntityRecord();					
+	if personalIDRecord.Base.Code == peronalIDBaseCode then						
+		getClassManager().getClass("FieldsWorker").setField(peronalIDBaseCode, personalIDRecord, 1 , "", getDocumentType(), nil, nil, true);						
+		getClassManager().getClass("FieldsWorker").setField(peronalIDBaseCode, personalIDRecord, 9 , "", getPersonalNumber(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(peronalIDBaseCode, personalIDRecord, 2 , "", getSerialNumber(), nil, nil, true);				
+		getClassManager().getClass("FieldsWorker").setField(peronalIDBaseCode, personalIDRecord, 14, "", getIssueOffice(), nil, nil, true);	
+		getClassManager().getClass("FieldsWorker").setField(peronalIDBaseCode, personalIDRecord, 5 , "", getIssueDate(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(peronalIDBaseCode, personalIDRecord, 7 , "", getNote(), nil, nil, false);				
+		setLinks();
+	else
+		saveResult = false;
+	end		
+	return saveResult;
+end
+------------------------------------------------
+function getDocumentType()
+    return documentType;
+end
+function  getDocumentTypeDefinition()
+    local defIndexes = getClassManager().getClass("Service").getIndexesFromTable(
+						getClassManager().getClass("Constanta").getDpdPersonalIDTypeCodes(),getDocumentType());	
+	return getClassManager().getClass("Service").getItemFromTableByIndex(getClassManager().getClass("Constanta").getDpdPersonalIDTypeDefinitions(),
+																		getClassManager().getClass("Service").getItemFromTableByIndex(defIndexes,1));
+end
+function setDocumentType(documentTypeValue)
+    documentType = documentTypeValue;
+end
+
+function getPersonalNumber()
+    return personalNumber;
+end
+function setPersonalNumber(personalNumberValue)
+    personalNumber = personalNumberValue;
+end
+
+function getSerialNumber()
+    return serialNumber;
+end
+function setSerialNumber(serialNumberValue)
+    serialNumber = serialNumberValue;
+end
+
+function getIssueDate()
+    return issueDate;
+end
+function setIssueDate(issueDateValue)
+    issueDate = issueDateValue;
+end
+
+function getNote()
+    return note;
+end
+function setNote(noteValue)
+    note = noteValue;
+end
+
+function getEntityBaseCode()
+    return entityBaseCode;
+end
+function getEntityBaseCode()
+    return entityBaseCode;
+end
+function setEntityBaseCode(entityBaseCodeValue)
+    entityBaseCode = entityBaseCodeValue;
+end
+
+function getIssueOffice()
+    return issueOffice;
+end
+function setIssueOffice(issueOfficeValue)
+    issueOffice = issueOfficeValue;
+end
+
+function toShortString(isWithConnectedItems)
+	local result = {};			
+	table.insert(result, getDocumentTypeDefinition())		
+	table.insert(result, getSerialNumber())			
+	table.insert(result, getIssueDate())		
+	if (isWithConnectedItems) then
+		for key, personEntity in pairs(getPersonEntities()) do		
+			table.insert(result, personEntity.toShortString(false))
+		end
+	end	
+	return table.concat(result," | ")
+end
+
+function clearEntity()
+	clearEntities()
+	setEntityRecord(nil)
+	setDocumentType(nil)
+	setPersonalNumber(nil)
+	setSerialNumber(nil)	
+	setIssueOffice(nil)
+	setIssueDate(nil)
+	setNote(nil)
+end

@@ -1,0 +1,779 @@
+local unn = nil;
+local fullName = nil;
+local shortName = nil;
+local registrationDate = nil;
+local eliminationDate = nil;
+local officialStatus = nil;
+local economicStatus = {};
+local registration = nil;
+local businessType = nil;
+local propertyForm = nil;
+local registrationOffice = nil;
+local businessDescription = {};
+local entryByEmployee = nil;
+local orgLogoPicture = nil;
+local entityBaseCode = nil;
+local jobTrackEntities = {};
+local foundersAndPartnersEntities = {};
+local actionJournalEntities = {};
+local addressTypeEntities = {};
+local documentEntities = {};
+local loanEntities = {};
+local bankAccountEntities = {};
+local connectionTypeEntities = {};
+local estateEntities = {};
+local branchEntities = {};
+local employeeEntities = {};
+local belgamsGroupEntities = {};
+local classManager = nil;
+local founderConnectionField = nil;
+local wasEntityRecordLocked = false;
+local wasConnectingEntityRecordLocked = false;	
+local fieldsSubstitutionTable = {};
+local logger = nil;
+local sidBankClient = {};
+local sidBankPotentialClient = {};
+local sidRLGroupClient = {};
+local businessTypeExt = nil;
+local registrationOfficeExt = nil;
+
+function initLogger()
+	if logger == nil then
+		logger = getClassManager().getClass("Logger");	
+	end
+end
+
+function getFounderConnectionField()
+    return founderConnectionField;
+end
+function setFounderConnectionField(founderConnectionFieldValue)
+    founderConnectionField = founderConnectionFieldValue;
+end
+
+function getClassManager()
+    return classManager;
+end
+function setClassManager(classManagerValue)
+    classManager = classManagerValue;
+end
+
+function getEntityRecord()
+    return entityRecord;
+end
+function setEntityRecord(entityRecordValue)
+    entityRecord = entityRecordValue;
+end
+function refreshEntityRecord()
+	if (getEntityRecord().Base:GetRecord(getEntityRecord().SN) ~= nil) then
+		setEntityRecord(getEntityRecord().Base:GetRecord(getEntityRecord().SN));		
+	end
+end
+
+function getEntityBaseCode()
+    return entityBaseCode;
+end
+function setEntityBaseCode(entityBaseCodeValue)
+    entityBaseCode = entityBaseCodeValue;
+end
+
+function getJobTrackEntities()
+    return jobTrackEntities;
+end
+function addJobTrackEntity(newJobTrackEntity)
+    table.insert(jobTrackEntities,newJobTrackEntity);
+end
+function setJobTrackEntities(newJobTrackEntities)
+    jobTrackEntities = newJobTrackEntities;
+end 
+
+function getFoundersAndPartnersEntities()
+    return foundersAndPartnersEntities;
+end
+function addFoundersAndPartnersEntity(newFoundersAndPartnersEntity)
+    table.insert(foundersAndPartnersEntities,newFoundersAndPartnersEntity);
+end
+function setFoundersAndPartnersEntities(newFoundersAndPartnersEntities)
+    foundersAndPartnersEntities = newFoundersAndPartnersEntities;
+end
+
+function getActionJournalEntities()
+    return actionJournalEntities;
+end
+function addActionJournalEntity(newActionJournalEntity)
+    table.insert(actionJournalEntities,newActionJournalEntity);
+end
+function setActionJournalEntities(newActionJournalEntities)
+    actionJournalEntities = newActionJournalEntities;
+end
+
+function getAddressTypeEntities()
+    return addressTypeEntities;
+end
+function addAddressTypeEntity(newAddressTypeEntity)
+    table.insert(addressTypeEntities,newAddressTypeEntity);
+end
+function setAddressTypeEntities(newAddressTypeEntities)
+    addressTypeEntities = newAddressTypeEntities;
+end
+
+function getDocumentEntities()
+    return documentEntities;
+end
+function addDocumentEntity(newDocumentEntity)
+    table.insert(documentEntities,newDocumentEntity);
+end
+function setDocumentEntities(newDocumentEntities)
+    documentEntities = newDocumentEntities;
+end
+
+function getLoanEntities()
+    return loanEntities;
+end
+function addLoanEntity(newLoanEntity)
+    table.insert(loanEntities,newLoanEntity);
+end
+function setLoanEntities(newLoanEntity)
+    loanEntities = newLoanEntity;
+end
+
+function getBankAccountEntities()
+    return bankAccountEntities;
+end
+function addBankAccountEntity(newBankAccountEntity)
+    table.insert(bankAccountEntities,newBankAccountEntity);
+end
+function setBankAccountEntities(newBankAccountEntities)
+    bankAccountEntities = newBankAccountEntities;
+end
+
+function getConnectionTypeEntities()
+    return connectionTypeEntities;
+end
+function addConnectionTypeEntity(newConnectionTypeEntity)
+    table.insert(connectionTypeEntities,newConnectionTypeEntity);
+end
+function setConnectionTypeEntities(newConnectionTypeEntities)
+    connectionTypeEntities = newConnectionTypeEntities;
+end
+
+function getEstateEntities()
+    return estateEntities;
+end
+function addEstateEntity(newEstateEntity)
+    table.insert(estateEntities,newEstateEntity);
+end
+function setEstateEntities(newEstateEntities)
+    estateEntities = newEstateEntities;
+end
+
+function getBranchEntities()
+    return branchEntities;
+end
+function addBranchEntity(newBranchEntity)
+    table.insert(branchEntities,newBranchEntity);
+end
+function setBranchEntities(newBranchEntities)
+    branchEntities = newBranchEntities;
+end
+
+function getBelgamsGroupEntities()
+    return belgamsGroupEntities;
+end
+function addBelgamsGroupEntity(newBelgamsGroupEntity)
+    table.insert(belgamsGroupEntities,newBelgamsGroupEntity);
+end
+function setBelgamsGroupEntities(newBelgamsGroupEntities)
+    belgamsGroupEntities = newBelgamsGroupEntities;
+end
+
+function getEmployeeEntities()
+    return employeeEntities;
+end
+function addEmployeeEntity(newEmployeeEntity)
+    table.insert(employeeEntities,newEmployeeEntity);
+end
+function setEmployeeEntities(newEmployeeEntities)
+    employeeEntities = newEmployeeEntities;
+end
+
+function getFieldsSubstitutionTable()
+    return fieldsSubstitutionTable;
+end
+function addFieldsSubstitutionTable(newFieldsSubstitutionTable)
+    table.insert(fieldsSubstitutionTable,newFieldsSubstitutionTable);
+end
+function setFieldsSubstitutionTable(newFieldsSubstitutionTable)
+    fieldsSubstitutionTable = newFieldsSubstitutionTable;
+end
+
+function getSidBankClient()
+    return sidBankClient;
+end
+function addSidBankClient(sidBankClientValue)
+    table.insert(sidBankClient, sidBankClientValue);
+end
+function setSidBankClient(sidBankClientValue)
+    sidBankClient = table.iunion(sidBankClientValue, {})
+end
+
+
+function getSidBankPotentialClient()
+    return sidBankPotentialClient;
+end
+function setSidBankPotentialClient(sidBankPotentialClientValue)
+    sidBankPotentialClient = table.iunion(sidBankPotentialClientValue, {})
+end
+function addSidBankPotentialClient(sidBankPotentialClientValue)
+    table.insert(sidBankPotentialClient, sidBankPotentialClientValue);
+end
+
+
+function getSidRLGroupClient()
+    return sidRLGroupClient;
+end
+function setSidRLGroupClient(sidRLGroupClientValue)
+    sidRLGroupClient = table.iunion(sidRLGroupClientValue, {})
+end
+function addSidRLGroupClient(sidRLGroupClientValue)
+    table.insert(sidRLGroupClient, sidRLGroupClientValue);
+end
+
+
+
+--------------------------------------------------
+function setBeanFromLine(dataTable, configTable, mode, isCurrentEntityOnly) -- передаем таблицу с данными для загрузки и  таблицу с конфигурацией для загрузки
+	initLogger();
+	local messages = {};	
+	local configValues = "";
+	local tConfigValues = "";
+	local terminPosition = 0;
+	local fieldNumber = 0;
+	local extractedTermin = "";	
+	local isConnectedEntityNew = true;
+	local passedEntitiesCodes = {}
+	for index, tConfigValues in pairs(configTable) do		
+		local localVocKey = nil;				
+		logger.writeDebugMessage( getClassManager(),"Получена конфигурация: "..render(tConfigValues));
+		logger.writeDebugMessage( getClassManager(),"Получение номера аттрибута базы данных");
+		fieldNumber = tonumber(tConfigValues[3]);			
+		logger.writeDebugMessage(getClassManager(),tConfigValues[1]);	
+		logger.writeDebugMessage(getClassManager(),"Получение позиции в строке загрузки");		
+		logger.writeDebugMessage(getClassManager(),string.sub(tConfigValues[1],1,1) );	
+		logger.writeDebugMessage(getClassManager(),"Получение позиции в строке загрузки");		
+		if (string.sub(tConfigValues[1],1,1) ~= "@") then
+			terminPosition = tonumber(tConfigValues[1]);					
+			logger.writeDebugMessage( getClassManager(),"Получение термина строки по позиции № "..terminPosition);
+			extractedTermin = dataTable[terminPosition];
+		else
+			extractedTermin = string.sub(tConfigValues[1],2);
+			localVocKey = tonumber(extractedTermin)
+		end		
+		logger.writeDebugMessage( getClassManager(), "Был получен термин для загрузки в поле "..fieldNumber);		
+		if (extractedTermin ~= nil and string.len(extractedTermin)>0) then
+			if (tConfigValues[2] == getEntityBaseCode()) then
+				if (fieldNumber == 1) then									
+					setUnn(extractedTermin);	
+				elseif(fieldNumber == 2) then					
+					setFullName(extractedTermin);					
+				elseif(fieldNumber == 3) then
+					setShortName(extractedTermin);
+				elseif(fieldNumber == 15) then
+					setEliminationDate(extractedTermin);
+				elseif(fieldNumber == 42) then
+					setRegistrationDate(extractedTermin);		
+				elseif(fieldNumber == 43) then				
+					addBusinessDescription(extractedTermin);		
+				elseif(fieldNumber == 57) then				
+					--setSidBankClient(extractedTermin);
+					addSidBankClient(extractedTermin);
+				elseif(fieldNumber == 58) then				
+					--setSidBankPotentialClient(extractedTermin);
+					addSidBankPotentialClient(extractedTermin);
+				elseif(fieldNumber == 59) then				
+					--setSidRLGroupClient(extractedTermin);
+					addSidRLGroupClient(extractedTermin);								
+				elseif(fieldNumber == 60) then				
+					setBusinessTypeExt(extractedTermin);
+				elseif(fieldNumber == 61) then				
+					setRegistrationOfficeExt(extractedTermin);
+				else
+					local vocCode = getClassManager().getClass("FieldsWorker").getVocFieldBaseCode(getClassManager(),getEntityBaseCode(),fieldNumber)
+					if (vocCode ~= nil) then						
+						if (localVocKey == nil) then
+							localVocKey, errorMessages = getClassManager().getClass("DBWorker").convertExternalVocTermin(getClassManager(), extractedTermin, vocCode);				
+							for _,message in pairs(errorMessages) do
+								table.insert(messages, message)
+							end
+						end	
+						if(fieldNumber == 38) then
+							--организационно-правовая форма			
+							setOfficialStatus(localVocKey);					
+						elseif(fieldNumber == 39) then				
+							addEconomicStatus(localVocKey);
+						elseif(fieldNumber == 41) then
+							--вид деятельности
+							setBusinessType(localVocKey);
+						elseif(fieldNumber == 50) then
+							--форма собственности
+							setPropertyForm(localVocKey);
+						end	
+					else
+						logger.writeDebugMessage( getClassManager(), "Поле № "..fieldNumber.. " не обрабатывает программным объектом");
+					end					
+				end
+			else			
+				isConnectedEntityNew = table.count(getClassManager().getClass("Service").getIndexesFromTable(passedEntitiesCodes, tConfigValues[2]))==0
+				if (not isCurrentEntityOnly) then
+					logger.writeDebugMessage( getClassManager(),"Термин принадлежит базе данных с мнемокодом "..tConfigValues[2]);			
+					logger.writeDebugMessage( getClassManager(),"Создание нового программного объекта")
+					local connectedEntity = getClassManager().newEntity(getClassManager(), tConfigValues[2], true, isConnectedEntityNew)			
+					if (isConnectedEntityNew) then
+						logger.writeDebugMessage( getClassManager(),"Добавление созданного объекта для установления связи")				
+						addConnectedEntity (connectedEntity);			
+					end
+					isConnectedEntityNew = false;				
+					logger.writeDebugMessage( getClassManager(),"Заполнение программного объекта на основе данных из файла загрузки и запись полученных сообщений");																								
+					local errorMessages = connectedEntity.setBeanFromLine(dataTable, {tConfigValues}, mode); 						
+					for _,message in pairs(errorMessages) do
+						table.insert(messages, message)
+					end	
+					logger.writeDebugMessage(getClassManager(),"Проверка режима работы системы: "..mode);	
+					if (mode == getClassManager().getClass("Constanta").getCnstDataLoaderLoadMode()) then
+						logger.writeDebugMessage(getClassManager(),"Сохранение программного объекта в базу данных с мнемокодом "..tConfigValues[2]);																													
+						connectedEntity.saveBeanToDb();						
+					end
+				end
+			end
+			table.insert(passedEntitiesCodes,tConfigValues[2]);
+		end
+	end	
+	return messages;
+end
+
+function addConnectedEntity (connectedEntity)
+	local connectedEntityCode = connectedEntity.getEntityBaseCode();
+	if (connectedEntityCode == getClassManager().getClass("Constanta").getCnstOrganization()) then
+		addBranchEntity(connectedEntity);	
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstFoundersAndPartners()) then
+		addFoundersAndPartnersEntity(connectedEntity);	
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstAddressType()) then
+		addAddressTypeEntity(connectedEntity);	
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstAddress()) then		
+		for index, addressTypeEntity in pairs(connectedEntity.getAddressTypeEntities()) do
+			addAddressTypeEntity(addressTypeEntity);	
+		end	
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstDocument()) then
+		addDocumentEntity(connectedEntity);
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstLoan()) then
+		addLoanEntity(connectedEntity);		
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstBankAccount()) then
+		addBankAccountEntity(connectedEntity);	
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstConnectionType()) then		
+		addConnectionTypeEntity(connectionTypeEntity);			
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstConnection()) then
+		for index, connectionTypeEntity in pairs(connectedEntity.getConnectionTypeEntities()) do
+			addConnectionTypeEntity(connectionTypeEntity);	
+		end		
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstEstate()) then
+		addEstateEntity(connectedEntity);	
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstJobTrack()) then
+		addJobTrackEntity(connectedEntity);	
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstBelgamsGroup()) then
+		addBelgamsGroupEntity(connectedEntity);	
+	end		
+end
+
+function getAttributeByFieldNumber(fieldNumber)
+	local attribute = nil;
+	local noAttributeLineDefined = false;	
+	fieldNumber = tonumber(fieldNumber)	
+	if (fieldNumber == 1) then											
+		attribute = getUnn();		
+	elseif(fieldNumber == 2) then		
+		attribute = getFullName();
+	elseif(fieldNumber == 3) then
+		attribute = getShortName();
+	elseif(fieldNumber == 15) then
+		attribute = getEliminationDate();
+	elseif(fieldNumber == 38) then
+		attribute = getOfficialStatus()
+	elseif(fieldNumber == 39) then
+		attribute = getEconomicStatus()
+	elseif(fieldNumber == 41) then
+		attribute = getBusinessType()	
+	elseif(fieldNumber == 42) then
+		attribute = getRegistrationDate();		
+	elseif(fieldNumber == 43) then
+		attribute = getBusinessDescription();					
+	elseif(fieldNumber == 50) then
+		attribute = getPropertyForm()
+	elseif(fieldNumber == 57) then
+		attribute = getSidBankClient()
+	elseif(fieldNumber == 58) then
+		attribute = getSidBankPotentialClient()
+	elseif(fieldNumber == 59) then
+		attribute = getSidRLGroupClient()
+	elseif(fieldNumber == 60) then
+		attribute = getBusinessTypeExt()
+	elseif(fieldNumber == 61) then
+		attribute = getRegistrationOfficeExt()
+	else
+		noAttributeLineDefined = true;
+	end		
+	--необходимо для логики выдачи сообщения про неопределенный номер поля в данном методе	              	
+	if (noAttributeLineDefined == false and attribute == nil) then
+		attribute = "";		
+	end		
+	return attribute;
+end
+--------------------------------------------------
+function setBeanFromRecord(orgRecord)	
+	local orgBaseCode = getEntityBaseCode();
+	if orgRecord.Base.Code == orgBaseCode then		
+		setEntityRecord(orgRecord)		
+		setUnn(						getClassManager().getClass("FieldsWorker").getField(orgBaseCode, orgRecord , 1 , "" , "", ""));
+		setFullName(				getClassManager().getClass("FieldsWorker").getField(orgBaseCode, orgRecord , 2 , "" , "", ""));
+		setShortName(				getClassManager().getClass("FieldsWorker").getField(orgBaseCode, orgRecord , 3 , "" , "", ""));
+		setRegistrationDate(		getClassManager().getClass("FieldsWorker").getField(orgBaseCode, orgRecord , 42, "" , "", ""));
+		setEliminationDate(			getClassManager().getClass("FieldsWorker").getField(orgBaseCode, orgRecord , 15, "" , "", ""));
+		setBusinessDescription(		getClassManager().getClass("FieldsWorker").getField(orgBaseCode, orgRecord , 43, 0  , "", ""));
+		setOfficialStatus(			getClassManager().getClass("FieldsWorker").getField(orgBaseCode, orgRecord , 38, "" , "", ""));
+		setEconomicStatus(			getClassManager().getClass("FieldsWorker").getField(orgBaseCode, orgRecord , 39, 0  , "", ""));
+		setBusinessType(			getClassManager().getClass("FieldsWorker").getField(orgBaseCode, orgRecord , 41, "" , "", ""));		
+		setPropertyForm(			getClassManager().getClass("FieldsWorker").getField(orgBaseCode, orgRecord , 50, "" , "", ""));
+		setRegistrationOffice(		getClassManager().getClass("FieldsWorker").getField(orgBaseCode, orgRecord , 40, "" , "", ""));				
+		setSidBankClient(			getClassManager().getClass("FieldsWorker").getField(orgBaseCode, orgRecord , 57, 0  , "", ""));		
+		setSidBankPotentialClient(	getClassManager().getClass("FieldsWorker").getField(orgBaseCode, orgRecord , 58, 0  , "", ""));		
+		setSidRLGroupClient(		getClassManager().getClass("FieldsWorker").getField(orgBaseCode, orgRecord , 59, 0  , "", ""));		
+		setBusinessTypeExt(			getClassManager().getClass("FieldsWorker").getField(orgBaseCode, orgRecord , 60, "" , "", ""));
+		setRegistrationOfficeExt(	getClassManager().getClass("FieldsWorker").getField(orgBaseCode, orgRecord , 61, "" , "", ""));
+		--setOrgLogoPicture(		getClassManager().getClass("FieldsWorker").getField(orgBaseCode, orgRecord , 30, "" , "", ""));		
+	end
+end
+
+function updateEntity()
+	setBeanFromRecord(getClassManager(), getEntityRecord())	
+end
+
+function setBeanFromView(view)			
+	setUnn(					view.getTxtUnnText());				
+	setFullName(			view.getTxtFullNameText());				
+	setShortName(			view.getTxtShortNameText());					
+	setRegistrationDate(	view.getTxtRegistrationDateText());		
+	setEliminationDate(		view.getTxtEliminationDateText());				
+	setBusinessDescription(	view.getTxtBusinessDescriptionText());			
+	setOfficialStatus(		view.getDpdOfficialStatusSelectedCode());					
+	setEconomicStatus(		view.getDpdEconomicStatusSelectedCode());	
+	setBusinessType(		view.getDpdBusinessTypeSelectedCode());						
+	setPropertyForm(		view.getDpdPropertyFormSelectedCode());				
+	setRegistrationOffice(	view.getDpdRegistrationOfficeSelectedCode());			
+	if (getOrgLogoPicture() ~= nil)then				
+		view.getPctOrgLogo():SaveToFile(getOrgLogoPicture(), 1, false)		
+	end	
+end
+
+function clearEntities()
+	setFoundersAndPartnersEntities({})
+	setActionJournalEntities({})
+	setJobTrackEntities({})
+	setAddressTypeEntities({})
+	setDocumentEntities({})
+	setLoanEntities({})
+	setBankAccountEntities({})
+	setConnectionTypeEntities({})
+	setEstateEntities({})
+	setBranchEntities({})
+	setBelgamsGroupEntities({})
+end
+
+function clearEntity()
+	clearEntities()
+	setEntityRecord(nil)
+	setUnn(nil)
+	setFullName(nil)
+	setShortName(nil)
+	setRegistrationDate(nil)
+	setEliminationDate(nil)
+	setBusinessDescription({})
+	setOfficialStatus(nil)
+	setEconomicStatus({})	
+	setBusinessType(nil)
+	setPropertyForm(nil)
+	setRegistrationOffice(nil)
+	setSidBankClient({})
+	setSidBankPotentialClient({})
+	setSidRLGroupClient({})
+	setRegistrationOfficeExt(nil)
+	setBusinessTypeExt(nil)
+end
+
+function setLinks()				
+	--organizations linking							
+	if (getFounderConnectionField() == nil) then 
+		setFounderConnectionField(33);		 
+	end				
+	setOrganizationLinks(getFoundersAndPartnersEntities(), getFounderConnectionField());
+	setOrganizationLinks(getActionJournalEntities(), 37);
+	setOrganizationLinks(getJobTrackEntities(), 27);	
+	setOrganizationLinks(getAddressTypeEntities(), 28);	
+	setOrganizationLinks(getDocumentEntities(), 29);
+	setOrganizationLinks(getLoanEntities(), 62);	
+	setOrganizationLinks(getBankAccountEntities(), 31);
+	setOrganizationLinks(getConnectionTypeEntities(), 36);
+	setOrganizationLinks(getEstateEntities(), 47);	
+	setOrganizationLinks(getBranchEntities(), 46);			
+	setOrganizationLinks(getBelgamsGroupEntities(), 48);			
+	refreshEntityRecord()
+end
+
+function setOrganizationLinks(entities, linkingField)
+	
+	for key, entity in pairs(entities) do		
+		if (entity.getEntityRecord() ~= nil) then				
+			getClassManager().getClass("DBWorker").processRecordLink(getClassManager(), getClassManager().getClass("Constanta").getCnstAddLink(), getEntityRecord(), linkingField, entity.getEntityRecord())			
+			refreshEntityRecord()
+		end
+	end	
+end
+
+function deleteLinkFounderAndPartners(foundersAndPartnersEntity)	
+	getClassManager().getClass("DBWorker").processRecordLink(getClassManager(), getClassManager().getClass("Constanta").getCnstDeleteLink(), getEntityRecord(), 32, foundersAndPartnersEntity.getEntityRecord())
+	getClassManager().getClass("DBWorker").processRecordLink(getClassManager(), getClassManager().getClass("Constanta").getCnstDeleteLink(), getEntityRecord(), 33, foundersAndPartnersEntity.getEntityRecord())	
+	refreshEntityRecord()
+end
+
+function deleteLinkJobTrack(jobTrackEntity)
+	getClassManager().getClass("DBWorker").processRecordLink(getClassManager(), getClassManager().getClass("Constanta").getCnstDeleteLink(), getEntityRecord(), 27, jobTrackEntity.getEntityRecord())
+	refreshEntityRecord()
+end
+
+function deleteLinkBranch(branchEntity)	
+	getClassManager().getClass("DBWorker").processRecordLink(getClassManager(), getClassManager().getClass("Constanta").getCnstDeleteLink(), getEntityRecord(), 46, branchEntity.getEntityRecord())	
+	setEntityRecord(getEntityRecord().Base:GetRecord(getEntityRecord().SN));	
+end
+
+function deleteLinkDocument(documentEntity)	
+	getClassManager().getClass("DBWorker").processRecordLink(getClassManager(), getClassManager().getClass("Constanta").getCnstDeleteLink(), getEntityRecord(), 29, documentEntity.getEntityRecord())	
+	refreshEntityRecord()
+end
+
+function deleteLinkLoan(loanEntity)	
+	getClassManager().getClass("DBWorker").processRecordLink(getClassManager(), getClassManager().getClass("Constanta").getCnstDeleteLink(), getEntityRecord(), 62, loanEntity.getEntityRecord())	
+	refreshEntityRecord()
+end
+
+
+function deleteRecord ()
+	local orgBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstOrganization());			
+	if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), getEntityRecord())) then
+		getEntityRecord():Unlock();
+	end		
+	if (not orgBase:DeleteRecord(getEntityRecord().SN)) then
+		MsgBox("Запись "..getEntityRecord().SN.." не была удалена")
+	end	
+end
+
+function saveBeanToDb(fieldsSubstitutionTable)	
+	local saveResult = true;		
+	local orgBaseCode = getEntityBaseCode();
+	local orgBase = CroApp.GetBank():GetBase(orgBaseCode);	
+	if (getEntityRecord() == nil) then		
+		setEntityRecord(CroApp.GetBank():GetBase(orgBaseCode):AddRecord())					
+	else
+		refreshEntityRecord()		
+	end			
+	setFieldsSubstitutionTable(fieldsSubstitutionTable)
+	local orgRecord = getEntityRecord();
+	if orgRecord.Base.Code == orgBaseCode then						
+		getClassManager().getClass("FieldsWorker").setField(orgBaseCode, orgRecord, 1, "", getUnn(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(orgBaseCode, orgRecord, 2, "", getFullName(), nil, nil, true);
+		getClassManager().getClass("FieldsWorker").setField(orgBaseCode, orgRecord, 3, "", getShortName(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(orgBaseCode, orgRecord, 42,"", getRegistrationDate(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(orgBaseCode, orgRecord, 15,"", getEliminationDate(), nil, nil, true);
+		getClassManager().getClass("FieldsWorker").setField(orgBaseCode, orgRecord, 38,"", getOfficialStatus(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(orgBaseCode, orgRecord, 39,"", getEconomicStatus(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(orgBaseCode, orgRecord, 40,"", getRegistration(), nil, nil, true);
+		getClassManager().getClass("FieldsWorker").setField(orgBaseCode, orgRecord, 41,"", getBusinessType(), nil, nil, true);						
+		getClassManager().getClass("FieldsWorker").setField(orgBaseCode, orgRecord, 50,"", getPropertyForm(), nil, nil, true);						
+		getClassManager().getClass("FieldsWorker").setField(orgBaseCode, orgRecord, 40,"", getRegistrationOffice(), nil, nil, true);										
+		if (getOrgLogoPicture() ~= nil) then			
+			if (string.len(getOrgLogoPicture()) > 0 ) then							
+				getClassManager().getClass("FieldsWorker").setField(orgBaseCode, orgRecord, 30,"", nil, "@"..getOrgLogoPicture(), nil, true);								
+				os.remove(getOrgLogoPicture())								
+			else
+				orgRecord:DeleteFieldValue(30)
+			end
+		end								
+		getClassManager().getClass("FieldsWorker").setField(orgBaseCode, orgRecord, 57,"", getSidBankClient(), nil, nil, true);										
+		getClassManager().getClass("FieldsWorker").setField(orgBaseCode, orgRecord, 58,"", getSidBankPotentialClient(), nil, nil, true);										
+		getClassManager().getClass("FieldsWorker").setField(orgBaseCode, orgRecord, 59,"", getSidRLGroupClient(), nil, nil, true);												
+		getClassManager().getClass("FieldsWorker").setField(orgBaseCode, orgRecord, 60,"", getBusinessTypeExt(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(orgBaseCode, orgRecord, 61,"", getRegistrationOfficeExt(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(orgBaseCode, orgRecord, 43,"", getBusinessDescription(), nil, nil, false);										
+		setLinks()						
+	else
+		saveResult = false;
+	end	
+	return saveResult;
+end
+
+function sbstFld(fieldNumber)
+	return getClassManager().getClass("Service").substituteField(getClassManager(), getFieldsSubstitutionTable(), fieldNumber)
+end
+
+function getUnn()
+    return unn;
+end
+function setUnn(unnValue)
+    unn = unnValue;
+end
+
+function getFullName()
+    return fullName;
+end
+function setFullName(fullNameValue)
+    fullName = fullNameValue;
+end
+
+function getShortName()
+    return shortName;
+end
+function setShortName(shortNameValue)
+    shortName = shortNameValue;
+end
+
+function getRegistrationDate()
+    return registrationDate;
+end
+function setRegistrationDate(registrationDateValue)	
+    registrationDate = registrationDateValue;
+end
+
+function getEliminationDate()
+    return eliminationDate;
+end
+function setEliminationDate(eliminationDateValue)
+    eliminationDate = eliminationDateValue;
+end
+
+function getOfficialStatus()
+    return officialStatus;
+end
+function getOfficialStatusDefinition()	
+	return getClassManager().getClass("Service").getVocItem(getClassManager(), 
+														getClassManager().getClass("Constanta").getDpdOfficialStatusCodes(), 
+														getClassManager().getClass("Constanta").getDpdOfficialStatusDefinitions(),
+														"Definition",
+														getOfficialStatus());
+end
+function setOfficialStatus(officialStatusValue)
+    officialStatus = officialStatusValue;
+end
+
+function getEconomicStatus()
+    return economicStatus;
+end
+function addEconomicStatus(economicStatusValue)
+    table.insert(economicStatus, economicStatusValue);
+end
+function setEconomicStatus(economicStatusValue)
+    economicStatus = table.iunion(economicStatusValue, {})
+end
+
+function getRegistration()
+    return registration;
+end
+function setRegistration(registrationValue)
+    registration = registrationValue;
+end
+
+function getBusinessType()
+    return businessType;
+end
+function setBusinessType(businessTypeValue)
+    businessType = businessTypeValue;
+end
+
+function getPropertyForm()
+    return propertyForm;
+end
+function setPropertyForm(propertyFormValue)
+    propertyForm = propertyFormValue;
+end
+
+function getRegistrationOffice()
+    return registrationOffice;
+end
+function setRegistrationOffice(registrationOfficeValue)
+    registrationOffice = registrationOfficeValue;
+end
+
+function getBusinessDescription()
+    return businessDescription;
+end
+function addBusinessDescription(businessDescriptionValue)
+    table.insert(businessDescription, businessDescriptionValue);
+end
+function setBusinessDescription(businessDescriptionValue)
+    businessDescription = table.iunion(businessDescriptionValue, {})
+end
+
+function getEntryByEmployee()
+    return entryByEmployee;
+end
+function setEntryByEmployee(entryByEmployeeValue)
+    entryByEmployee = entryByEmployeeValue;
+end
+
+function getOrgLogoPicture()
+    return orgLogoPicture;
+end
+function setOrgLogoPicture(orgLogoPictureValue)
+    orgLogoPicture = orgLogoPictureValue;
+end
+
+function getBusinessTypeExt()
+    return businessTypeExt;
+end
+function setBusinessTypeExt(businessTypeExtValue)
+    businessTypeExt = businessTypeExtValue;
+end
+
+function getRegistrationOfficeExt()
+    return registrationOfficeExt;
+end
+function setRegistrationOfficeExt(registrationOfficeExtValue)
+    registrationOfficeExt = registrationOfficeExtValue;
+end
+------------------------------------
+
+function toShortString(isWithFoundersAndPartners)
+	local result = {};	
+	if (isWithFoundersAndPartners) then		
+		for key, entity in pairs(getFoundersAndPartnersEntities()) do			
+			table.insert(result, entity.toShortString(false))
+		end	
+	end	
+	table.insert(result, getUnn())	
+	table.insert(result, getFullName())
+	table.insert(result, getOfficialStatusDefinition(getClassManager()))
+	table.insert(result, getRegistrationDate())
+	table.insert(result, getEliminationDate())		
+	return table.concat(result," | ")
+end
+
+function toShortStringAsConnectedOrganization()
+	local result = {};
+	table.insert(result, getUnn())
+	table.insert(result, getFullName())
+	table.insert(result, getOfficialStatusDefinition(getClassManager()))
+	return table.concat(result," | ")
+end
+
+function toShortStringForObjectList()
+	local result = {};
+	table.insert(result, "УНП "..getUnn())
+	table.insert(result, getFullName())
+	table.insert(result, getOfficialStatusDefinition(getClassManager()))
+	return table.concat(result," ")
+end

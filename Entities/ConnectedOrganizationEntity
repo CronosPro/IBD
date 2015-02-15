@@ -1,0 +1,95 @@
+local organizationEntity = nil;
+local foundersAndPartnersEntity = nil;
+local requestJournalEntity = nil;
+local typeOfCheck = nil;
+local isControlling = nil;
+local isControlled = nil;
+local listPosition = nil;
+local classManager = nil;
+local isExisted = nil;
+
+function getClassManager()
+    return classManager;
+end
+function setClassManager(classManagerValue)
+    classManager = classManagerValue;
+end
+-------------------------
+function getIsExisted()
+    return isExisted;
+end
+function setIsExisted(isExistedValue)
+    isExisted = isExistedValue;
+end
+
+function getOrganizationEntity()
+    return organizationEntity;
+end
+function setOrganizationEntity(organizationEntityValue)
+    organizationEntity = organizationEntityValue;
+end
+
+function getFoundersAndPartnersEntity()
+    return foundersAndPartnersEntity;
+end
+function setFoundersAndPartnersEntity(foundersAndPartnersEntityValue)
+    foundersAndPartnersEntity = foundersAndPartnersEntityValue;
+end
+
+function getRequestJournalEntity()
+    return requestJournalEntity;
+end
+function setRequestJournalEntity(requestJournalEntityValue)
+    requestJournalEntity = requestJournalEntityValue;
+end
+
+function getListPosition()
+    return listPosition;
+end
+function setListPosition(listPositionValue)
+    listPosition = listPositionValue;
+end
+
+function getIsControlling()
+    return isControlling;
+end
+function setIsControlling(isControllingValue)
+    isControlling = isControllingValue;
+end
+
+function getIsControlled()
+    return isControlled;
+end
+function setIsControlled(isControlledValue)
+    isControlled = isControlledValue;
+end
+
+function getTypeOfCheck()
+    return typeOfCheck;
+end
+function setTypeOfCheck(typeOfCheckValue)
+    typeOfCheck = typeOfCheckValue;
+end
+
+function toShortString ()
+	local result = {};			
+	if (getIsExisted()) then
+		table.insert(result,"Существующ.орг.")
+	else
+		table.insert(result,"Добавленная орг.")
+	end
+	table.insert(result, getOrganizationEntity().toShortString(false))		
+	table.insert(result, getFoundersAndPartnersEntity().toShortStringAsConnectedPerson())				
+	return table.concat(result," | ")
+end
+
+function clearEntity()
+	setIsExisted(nil)
+	setOrganizationEntity(nil)
+	setFoundersAndPartnersEntity(nil)
+	setRequestJournalEntity(nil)
+	setListPosition(nil)
+	setIsControlling(nil)
+	setIsControlled(nil)
+	setTypeOfCheck(nil)	
+end

@@ -1,0 +1,74 @@
+local personCategory = nil;
+local visitAim = nil;
+local attendantPerson = nil;
+local personId = nil;
+local incidentType = nil;
+local dutyPerson = nil;
+local eventId = nil;
+local classManager = nil;
+
+function getClassManager()
+    return classManager;
+end
+function setClassManager(classManagerValue)
+    classManager = classManagerValue;
+end
+
+function getPersonCategory()
+    return personCategory;
+end
+function setPersonCategory(personCategoryValue)
+    personCategory = personCategoryValue;
+end
+
+function getVisitAim()
+    return visitAim;
+end
+function setVisitAim(visitAimValue)
+    visitAim = visitAimValue;
+end
+
+function getAttendantPerson()
+    return attendantPerson;
+end
+function setAttendantPerson(attendantPersonValue)
+    attendantPerson = attendantPersonValue;
+end
+
+function getPersonId()
+    return personId;
+end
+function setPersonId(personIdValue)
+    personId = personIdValue;
+end
+
+function getIncidentType()
+    return incidentType;
+end
+function setIncidentType(incidentTypeValue)
+    incidentType = incidentTypeValue;
+end
+
+function getDutyPerson()
+    return dutyPerson;
+end
+function setDutyPerson(dutyPersonValue)
+    dutyPerson = dutyPersonValue;
+end
+
+function getEventId()
+    return eventId;
+end
+function setEventId(eventIdValue)
+    eventId = eventIdValue;
+end
+
+function clearEntity()
+	setEventId(nil)	
+	setDutyPerson(nil)
+	setPersonId(nil)
+	setAttendantPerson(nil)
+	setVisitAim(nil)
+	setPersonCategory(nil)
+	setIncidentType(nil)
+end

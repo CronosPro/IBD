@@ -1,0 +1,43 @@
+local ClassManager = nil
+local CurrentForm = nil;
+local unloadController = nil;
+local formsController = nil;
+local constanta = nil;
+
+function getClassManager()
+	return ClassManager
+end
+function setClassManager(ClassManagerNew)
+	ClassManager = ClassManagerNew
+end
+
+function setForm(newForm)
+	CurrentForm = newForm
+end
+
+function setControllersReferences()	
+	unloadController = getClassManager().getClass("UnloadController");
+	formsController = getClassManager().getClass("FormsController");
+	constanta = getClassManager().getClass("Constanta");
+end
+
+function Форма_Open( form )
+	local args = {}
+	args.invokingForm = form
+	--local ClassManagerForm = CroApp:GetBank():OpenForm("ClassFormClassManager", CroApp:GetBank(), "",  args)
+	--setClassManager(ClassManagerForm.Module);
+	--ClassManagerForm:CloseForm()	
+	setClassManager(Arg.ClassManager)	
+	setControllersReferences();	
+	return true;
+end
+
+function Форма_Load( form )
+	setForm(form);
+	setFormBackColor(constanta.getSystemBackColor());	
+	--formsController.openNeccessaryForm(getClassManager(), form.txtInfo , nil)
+end
+
+function setFormBackColor( formBackColor )
+   CurrentForm.BackColor = formBackColor
+end

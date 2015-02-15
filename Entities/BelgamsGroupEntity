@@ -1,0 +1,253 @@
+local groupId = nil;
+local groupName = nil;
+local groupListName = nil;
+local entityBaseCode = nil;
+local entityRecord = nil;
+local organizationEntities = {};
+local classManager = nil;
+
+function initLogger()
+	if logger == nil then
+		logger = getClassManager().getClass("Logger");	
+	end
+end
+
+function getGroupId()
+    return groupId;
+end
+function setGroupId(groupIdValue)
+    groupId = groupIdValue;
+end
+
+function getGroupName()
+    return groupName;
+end
+function setGroupName(groupNameValue)
+    groupName = groupNameValue;
+end
+
+function getGroupListName()
+    return groupListName;
+end
+function setGroupListName(groupListNameValue)
+    groupListName = groupListNameValue;
+end
+
+function getEntityBaseCode()
+    return entityBaseCode;
+end
+function getEntityBaseCode()
+    return entityBaseCode;
+end
+function setEntityBaseCode(entityBaseCodeValue)
+    entityBaseCode = entityBaseCodeValue;
+end
+
+function getEntityRecord()
+    return entityRecord;
+end
+function setEntityRecord(entityRecordValue)
+    entityRecord = entityRecordValue;
+end
+
+function getOrganizationEntities()
+    return organizationEntities;
+end
+function addOrganizationEntity(newOrganizationEntity)
+    table.insert(organizationEntities,newOrganizationEntity);
+end
+function setOrganizationEntities(newOrganizationEntities)
+    organizationEntities = newOrganizationEntities;
+end
+
+function getClassManager()
+    return classManager;
+end
+function setClassManager(classManagerValue)
+    classManager = classManagerValue;
+end
+--------------------------------------------------
+function setBeanFromLine(dataTable, configTable, mode, isCurrentEntityOnly) -- передаем таблицу с данными для загрузки и  таблицу с конфигурацией для загрузки
+	initLogger();
+	local messages = {};	
+	local configValues = "";
+	local tConfigValues = "";
+	local terminPosition = 0;
+	local fieldNumber = 0;
+	local extractedTermin = "";	
+	local isConnectedEntityNew = true;
+	local passedEntitiesCodes = {}
+	for index, tConfigValues in ipairs(configTable) do		
+		local localVocKey = nil;				
+		logger.writeDebugMessage( getClassManager(),"Получена конфигурациz: "..render(tConfigValues));
+		logger.writeDebugMessage( getClassManager(),"Получение номера аттрибута базы данных");
+		fieldNumber = tonumber(tConfigValues[3]);	
+		logger.writeDebugMessage(getClassManager(),"Получение позиции в строке загрузки");		
+		if (string.sub(tConfigValues[1],1,1) ~= "@") then
+			terminPosition = tonumber(tConfigValues[1]);					
+			logger.writeDebugMessage( getClassManager(),"Получение термина строки по позиции № "..terminPosition);
+			extractedTermin = dataTable[terminPosition];
+		else
+			extractedTermin = string.sub(tConfigValues[1],2);
+			localVocKey = tonumber(extractedTermin)
+		end		
+		logger.writeDebugMessage( getClassManager(), "Был получен термин для загрузки в поле "..fieldNumber);
+		if (extractedTermin ~= nil and string.len(extractedTermin)>0) then			
+			if (tConfigValues[2] == getEntityBaseCode()) then
+				if (fieldNumber == 11) then									
+					setGroupId(extractedTermin);				
+				elseif(fieldNumber == 13) then
+					setGroupListName(extractedTermin);			
+				else
+					local vocCode = getClassManager().getClass("FieldsWorker").getVocFieldBaseCode(getClassManager(),getEntityBaseCode(),fieldNumber)			
+					if (vocCode ~= nil) then						
+						if (localVocKey == nil) then
+							localVocKey, errorMessages = getClassManager().getClass("DBWorker").convertExternalVocTermin(getClassManager(), extractedTermin, vocCode);				
+							for _,message in pairs(errorMessages) do
+								table.insert(messages, message)
+							end
+						end	
+						if(fieldNumber == 12) then						 
+							setGroupName(localVocKey);					
+						end	
+					else
+						logger.writeDebugMessage( getClassManager(), "Поле № "..fieldNumber.. " не обрабатывает программным объектом");
+					end
+				end	
+			else					
+				isConnectedEntityNew = table.count(getClassManager().getClass("Service").getIndexesFromTable(passedEntitiesCodes, tConfigValues[2]))==0
+				if (not isCurrentEntityOnly) then
+					logger.writeDebugMessage( getClassManager(),"Термин принадлежит базе данных с мнемокодом "..tConfigValues[2]);			
+					logger.writeDebugMessage( getClassManager(),"Создание нового программного объекта")
+					local connectedEntity = getClassManager().newEntity(getClassManager(), tConfigValues[2], true, isConnectedEntityNew)			
+					if (isConnectedEntityNew) then
+						logger.writeDebugMessage( getClassManager(),"Добавление созданного объекта для установления связи")				
+						addConnectedEntity (connectedEntity);			
+					end
+					isConnectedEntityNew = false;				
+					logger.writeDebugMessage( getClassManager(),"Заполнение программного объекта на основе данных из файла загрузки и запись полученных сообщений");																								
+					local errorMessages = connectedEntity.setBeanFromLine(dataTable, {tConfigValues}, mode); 						
+					for _,message in pairs(errorMessages) do
+						table.insert(messages, message)
+					end	
+					logger.writeDebugMessage(getClassManager(),"Проверка режима работы системы: "..mode);	
+					if (mode == getClassManager().getClass("Constanta").getCnstDataLoaderLoadMode()) then
+						logger.writeDebugMessage(getClassManager(),"Сохранение программного объекта в базу данных с мнемокодом "..tConfigValues[2]);																													
+						connectedEntity.saveBeanToDb();						
+					end
+				end
+			end
+			table.insert(passedEntitiesCodes,tConfigValues[2]);
+		end
+	end	
+	return messages;
+end
+
+function addConnectedEntity (connectedEntity)
+	local connectedEntityCode = connectedEntity.getEntityBaseCode();
+	if (connectedEntityCode == getClassManager().getClass("Constanta").getCnstOrganization()) then
+		addOrganizationEntity(connectedEntity);		
+	end		
+end
+
+function getAttributeByFieldNumber(fieldNumber)
+	local attribute = nil;
+	local noAttributeLineDefined = false;
+	fieldNumber = tonumber(fieldNumber)	
+	if (fieldNumber == 11) then									
+		attribute = getGroupId();		
+	elseif(fieldNumber == 12) then
+		attribute = getGroupName();
+	elseif(fieldNumber == 13) then
+		attribute = getGroupListName();	
+	else
+		noAttributeLineDefined = true;
+	end		
+	--необходимо для логики выдачи сообщения про неопределенный номер поля в данном методе
+	if (noAttributeLineDefined == false and attribute == nil) then
+		attribute = "";		
+	end	
+	return attribute;
+end
+--------------------------------------------------
+function clearEntities()
+	setOrganizationEntities({})
+end
+ 
+function setLinks()		
+	local belgamsGroupBase 	= CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstBelgamsGroup());									
+	local organizationBase 	= CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstOrganization());				
+	--organizations linking	
+	for key, organizationEntity in pairs(getOrganizationEntities()) do						
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), getEntityRecord())) then
+			getEntityRecord():Unlock();
+		end
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), organizationEntity.getEntityRecord())) then
+			organizationEntity.getEntityRecord():Unlock();
+		end
+		belgamsGroupBase:AddLink(getEntityRecord().SN,10,organizationBase,organizationEntity.getEntityRecord().SN, Base.LockWait, Base.LockWait);																	
+	end
+	setEntityRecord(belgamsGroupBase:GetRecord(getEntityRecord().SN));
+end
+
+function setBeanFromRecord(belgamsGroupRecord)	
+	local belgamsGroupBaseCode = getEntityBaseCode();
+	if belgamsGroupRecord.Base.Code == belgamsGroupBaseCode then				
+		setEntityRecord(belgamsGroupRecord)
+		setGroupId(			getClassManager().getClass("FieldsWorker").getField(belgamsGroupBaseCode, belgamsGroupRecord , 11 , "" , "", ""));
+		setGroupName(		getClassManager().getClass("FieldsWorker").getField(belgamsGroupBaseCode, belgamsGroupRecord , 12 , "" , "", ""));
+		setGroupListName(	getClassManager().getClass("FieldsWorker").getField(belgamsGroupBaseCode, belgamsGroupRecord , 13 , "" , "", ""));		
+	end
+end
+
+function setBeanFromView(view)	
+	setGroupId(view.getTxtIdText());				
+	setGroupName(view.getTxtNameText());	
+	setGroupListName(view.getDpdListNameSelectedCode());	
+end
+
+function saveBeanToDb()		
+	local saveResult = true;				
+	local belgamsGroupBaseCode = getEntityBaseCode();		
+	if (getEntityRecord() == nil) then			
+		setEntityRecord(CroApp.GetBank():GetBase(belgamsGroupBaseCode):AddRecord())					
+	end					
+	local belgamsGroupRecord = getEntityRecord();						
+	if belgamsGroupRecord.Base.Code == belgamsGroupBaseCode then								
+		getClassManager().getClass("FieldsWorker").setField(belgamsGroupBaseCode, belgamsGroupRecord, 11, "", getGroupId(), nil, nil, true);								
+		getClassManager().getClass("FieldsWorker").setField(belgamsGroupBaseCode, belgamsGroupRecord, 12, "", getGroupName(), nil, nil, true);				
+		getClassManager().getClass("FieldsWorker").setField(belgamsGroupBaseCode, belgamsGroupRecord, 13, "", getGroupListName(), nil, nil, false);							
+		setLinks();	
+	else
+		saveResult = false;
+	end		
+	return saveResult;
+end
+function  getNameInListDefinition()
+    local defIndexes = getClassManager().getClass("Service").getIndexesFromTable(
+						getClassManager().getClass("Constanta").getDpdNameInListCodes(),getNameInList());	
+	return getClassManager().getClass("Service").getItemFromTableByIndex(getClassManager().getClass("Constanta").getDpdNameInListDefinitions(),
+																		getClassManager().getClass("Service").getItemFromTableByIndex(defIndexes,1));
+end
+
+
+
+function toShortString(isWithConnectedItems)
+	local result = {};					
+	table.insert(result, getGroupId())				
+	table.insert(result, getGroupName())						
+	if (isWithConnectedItems) then	
+		for key, organizationEntity in pairs(getOrganizationEntities()) do		
+			table.insert(result, organizationEntity.toShortString(false))
+		end		
+	end		
+	return table.concat(result," | ")
+end
+
+function clearEntity()
+	clearEntities()
+	setEntityRecord(nil)
+	setGroupId(nil)
+	setGroupName(nil)
+	setGroupListName(nil)
+end

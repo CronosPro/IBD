@@ -1,0 +1,357 @@
+local ClassManager = nil;
+local Entity = nil;
+local unloadController = nil;
+local formsController = nil;
+local constanta = nil;
+local objectList = nil;
+local isNewObject = false;
+local childForms = {};
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function getObjectList()
+    return objectList;
+end
+function setObjectList(objectListValue)
+    objectList = objectListValue;
+end
+
+function getIsNewObject()
+    return isNewObject;
+end
+function setIsNewObject(isNewObjectValue)
+    isNewObject = isNewObjectValue;
+end
+
+function getEntity()	
+    return Entity;
+end
+function setEntity(entityValue)
+    Entity = entityValue;
+end
+
+function Форма_Open( form	)
+    setClassManager(Arg.ClassManager)
+    setControllersReferences()
+    return true;
+end
+
+function Форма_Load( form )
+    getClassManager().setClass(form, form)	
+	setObjectList(Arg.FormModule);
+    if (Arg.Data ~= nil) then
+        for key,entity in pairs(Arg.Data) do
+            if (entity.getEntityBaseCode() == constanta.getCnstEstate()) then
+                Entity = entity;
+                form.RecordNumber = Entity.getEntityRecord().SN;			
+			elseif (entity.getEntityBaseCode() == constanta.getCnstAddress()) then
+				Entity.addAddressEntity(entity);
+            end
+        end
+    end
+    if (Entity == nil) then
+        Форма_UnloadForm( form);
+    else        		
+		setControls(form);		
+        setFormFromEntity(getEntity());		
+        table.insert(childForms,form);	
+		setIsNewObject(Arg.isNewObject);		
+    end
+end
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+    constanta = getClassManager().getClass("Constanta");
+end
+
+function Форма_UnloadForm( form, mode )
+    unloadController.doUnload(getClassManager(), form, childForms);
+    getClassManager().setClass(form, nil)
+    return true;
+end
+
+local lblEstateSort = nil;
+local dpdEstateSort = nil;
+local lblEstateType = nil;
+local dpdEstateType = nil;
+local lblSquareMeters = nil;
+local txtSquareMeters = nil;
+local lblNotes = nil;
+local txtNotes = nil;
+local lnkAddress = nil;
+local pnlButtons = nil;
+local btnSave = nil;
+local btnClose = nil;
+local txtInfoPanel = nil;
+local btnCreateAddress = nil;
+
+function setControls(form)
+    lblEstateSort = form.lblEstateSort;
+    dpdEstateSort = form.dpdEstateSort;
+    lblEstateType = form.lblEstateType;
+    dpdEstateType = form.dpdEstateType;
+    lblSquareMeters = form.lblSquareMeters;
+    txtSquareMeters = form.txtSquareMeters;
+    lblNotes = form.lblNotes;
+    txtNotes = form.txtNotes;	
+	pnlButtons = form.pnlButtons;
+	btnSave = form.btnSave;
+    btnClose = form.btnClose;
+    txtInfoPanel = form.txtInfoPanel;	
+	btnCreateAddress = form.btnCreateAddress;
+	if (table.count(getEntity().getAddressEntities()) >0 ) then
+		lnkAddress = form.lnkAddress.Controls["Область данных"].Form.Module;			
+		for key, addressEntity in pairs(getEntity().getAddressEntities()) do			
+			table.insert(Arg.Data, addressEntity)			
+		end
+		lnkAddress.setArg(Arg);	
+		lnkAddress.Форма_Open(form.lnkAddress.Controls["Область данных"].Form)	
+		lnkAddress.Форма_Load(form.lnkAddress.Controls["Область данных"].Form)	
+		lnkAddress.setPnlButtonsVisibility(false);			
+		btnCreateAddress.Visible = false;
+	else		
+		adjustView(form, form.lnkAddress.Height*(-1))	
+	end        
+    populateLists();	
+	setTxtInfoPanelBackColor(constanta.getSystemBackColor());
+end
+
+function populateLists()
+
+end
+
+function setFormFromEntity(entity)
+    setDpdEstateSortSelectedItem(entity.getEstateSort());
+    setDpdEstateTypeSelectedItem(entity.getEstateType());
+    setTxtSquareMetersText(entity.getSquareMeters());
+    setTxtNotesText(entity.getNotes());
+end
+function setLblEstateSortText( lblEstateSortValue )
+   lblEstateSort.Value = lblEstateSortValue
+end
+function getLblEstateSortText( )
+    return lblEstateSort.Value
+end
+
+function addDpdEstateSortItem( dpdEstateSortValue )
+   dpdEstateSort:Add(dpdEstateSortValue)
+end
+function addDpdEstateSortItems( dpdEstateSortValues )
+    if dpdEstateSortValues ~= nil then
+        for key, value in pairs (dpdEstateSortValues) do
+            addDpdEstateSortItem(value)
+        end
+    end
+end
+function clearDpdEstateSortItesm( )
+   dpdEstateSort:Clear(index)
+end
+function getDpdEstateSortSelectedItem( )
+    return dpdEstateSort.Text
+end
+function setDpdEstateSortSelectedItem( dpdEstateSortItemValue)
+    dpdEstateSort.Value = dpdEstateSortItemValue
+end
+function getDpdEstateSortSelectedIndex( )
+    return dpdEstateSort.SelectedIndex
+end
+function getDpdEstateSortSelectedCode( )
+    return dpdEstateSort.Value
+end
+function setDpdEstateSortSelectedIndex( dpdEstateSortIndexValue )
+    dpdEstateSort.SelectedIndex = dpdEstateSortIndexValue
+end
+function setDpdEstateSortEnabled( isDpdEstateSortEnabled )
+   dpdEstateSort.Enabled = isDpdEstateSortEnabled
+end
+
+function setLblEstateTypeText( lblEstateTypeValue )
+   lblEstateType.Value = lblEstateTypeValue
+end
+function getLblEstateTypeText( )
+    return lblEstateType.Value
+end
+
+function addDpdEstateTypeItem( dpdEstateTypeValue )
+   dpdEstateType:Add(dpdEstateTypeValue)
+end
+function addDpdEstateTypeItems( dpdEstateTypeValues )
+    if dpdEstateTypeValues ~= nil then
+        for key, value in pairs (dpdEstateTypeValues) do
+            addDpdEstateTypeItem(value)
+        end
+    end
+end
+function clearDpdEstateTypeItesm( )
+   dpdEstateType:Clear(index)
+end
+function getDpdEstateTypeSelectedItem( )
+    return dpdEstateType.Text
+end
+function setDpdEstateTypeSelectedItem( dpdEstateTypeItemValue)
+    dpdEstateType.Value = dpdEstateTypeItemValue
+end
+function getDpdEstateTypeSelectedIndex( )
+    return dpdEstateType.SelectedIndex
+end
+function getDpdEstateTypeSelectedCode( )
+    return dpdEstateType.Value
+end
+function setDpdEstateTypeSelectedIndex( dpdEstateTypeIndexValue )
+    dpdEstateType.SelectedIndex = dpdEstateTypeIndexValue
+end
+function setDpdEstateTypeEnabled( isDpdEstateTypeEnabled )
+   dpdEstateType.Enabled = isDpdEstateTypeEnabled
+end
+
+function setLblSquareMetersText( lblSquareMetersValue )
+   lblSquareMeters.Value = lblSquareMetersValue
+end
+function getLblSquareMetersText( )
+    return lblSquareMeters.Value
+end
+
+function getTxtSquareMetersText( )
+    return txtSquareMeters.Value
+end
+function setTxtSquareMetersText( txtSquareMetersValue )
+    txtSquareMeters.Value = txtSquareMetersValue
+end
+function setTxtSquareMetersEnabled( isTxtSquareMetersEnabled )
+   txtSquareMeters.Enabled = isTxtSquareMetersEnabled
+end
+
+function setLblNotesText( lblNotesValue )
+   lblNotes.Value = lblNotesValue
+end
+function getLblNotesText( )
+    return lblNotes.Value
+end
+
+function getTxtNotesText( )
+    return txtNotes.Value
+end
+function setTxtNotesText( txtNotesValue )
+    txtNotes.Value = txtNotesValue
+end
+function setTxtNotesEnabled( isTxtNotesEnabled )
+   txtNotes.Enabled = isTxtNotesEnabled
+end
+
+function setBtnSaveText( btnSaveValue )
+   btnSave.Text = btnSaveValue
+end
+function getBtnSaveText( )
+    return btnSave.Text
+end
+function setBtnSaveEnabled( isBtnSaveEnabled )
+   btnSave.Enabled = isBtnSaveEnabled
+end
+
+function btnSave_Click( control )    	
+	Entity.setBeanFromView(btnSave.Form.Module);	
+	setIsNewObject(false);
+    if (Entity.saveBeanToDb() == true) then			        
+		if (table.count(getEntity().getAddressEntities()) > 0 ) then
+			lnkAddress.btnSave_Click()
+		end		
+		getObjectList().refreshForm(getEntity());		
+		setTxtInfoPanelText("Запись успешно сохранена в базу данных");
+		Форма_UnloadForm( btnSave.Form);
+    else
+        setTxtInfoPanelText("ВНИМАНИЕ!!! Запись не сохранена в базу данных");
+    end
+end
+
+function setBtnCloseText( btnCloseValue )
+   btnClose.Text = btnCloseValue
+end
+function getBtnCloseText( )
+    return btnClose.Text
+end
+function setBtnCloseEnabled( isBtnCloseEnabled )
+   btnClose.Enabled = isBtnCloseEnabled
+end
+
+function btnClose_Click( control )	    
+	setFormFromEntity(getEntity());		
+	if (table.count(getEntity().getAddressEntities()) > 0 ) then		
+		lnkAddress.btnClose_Click();		
+	end		
+    Форма_UnloadForm( control.Form);		
+end
+
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setTxtInfoPanelEnabled( isTxtInfoPanelEnabled )
+   txtInfoPanel.Enabled = isTxtInfoPanelEnabled
+end
+function setTxtInfoPanelBackColor( txtInfoPanelBackColor )
+   txtInfoPanel.BackColor = txtInfoPanelBackColor
+end
+
+function setBtnCreateAddressText( btnCreateAddressValue )
+   btnCreateAddress.Text = btnCreateAddressValue
+end
+function getBtnCreateAddressText( )
+    return btnCreateAddress.Text
+end
+function setBtnCreateAddressEnabled( isBtnCreateAddressEnabled )
+   btnCreateAddress.Enabled = isBtnCreateAddressEnabled
+end
+
+----------end autogenerated part---------------
+function btnCreateAddress_Click( control )
+	Entity.setBeanFromView(control.Form.Module);	
+	if Entity.saveBeanToDb() == true then	
+		--нужно очистить все поля что б не был заблокирован адрес
+		local emptyEstateEntity = getClassManager().newEntity(getClassManager(), getClassManager().getClass("Constanta").getCnstEstate())
+		setFormFromEntity(emptyEstateEntity);		
+		------------------------
+		local addressEntity = getClassManager().newEntity(getClassManager(),constanta.getCnstAddress());																
+		addressEntity.addEstateEntity(getEntity());
+		if addressEntity.saveBeanToDb() == true then			
+			getEntity().addAddressEntity(addressEntity);
+			getEntity().setLinks();
+			Arg.Data = {}				
+			table.insert(Arg.Data,getEntity());
+			table.insert(Arg.Data,addressEntity);	
+			adjustView(control.Form, control.Form.lnkAddress.Height)				
+			Форма_Load( control.Form );		
+			--возврат значений полец
+			setFormFromEntity(Entity);			
+			lnkAddress.setIsNewObject(true);
+			-----------------------
+		else
+			setTxtInfoPanelText("ВНИМАНИЕ!!!\n\rПроизошла ошибка при создании адреса.");
+		end
+	else
+        setTxtInfoPanelText("ВНИМАНИЕ!!!\n\rПри попытке сохранить запись о недвижемом имуществе ораганизации произошла ошибка.\n\Запись адреса не была создана.");
+	end
+end
+
+function adjustView(form, deltaY)	
+	if (deltaY < 0) then		
+		form.lblAddress.Visible = false;				
+		form.lnkAddress.Visible = false;				
+	else
+		form.lblAddress.Visible = true;
+		form.lnkAddress.Visible = true;	
+	end			
+	pnlButtons.Y = pnlButtons.Y + deltaY;			
+	form.Height = form.Height + deltaY;	
+end
+
+function Форма_BeforeSaveForm( event )
+	event.PermitSave = false;
+end

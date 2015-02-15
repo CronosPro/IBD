@@ -1,0 +1,205 @@
+local conviction = nil;
+local liabilityType = nil;
+local criminalLiabilityRecords = nil;
+local adminLiabilityRecords = nil;
+local personApproval = nil;
+local detailedData = nil;
+local classManager = nil;
+local entityRecord = nil;
+local entityBaseCode = nil;
+local personEntities = {};
+local checkDate = nil;
+
+function getClassManager()
+    return classManager;
+end
+function setClassManager(classManagerValue)
+    classManager = classManagerValue;
+end
+
+function getEntityRecord()
+    return entityRecord;
+end
+function setEntityRecord(entityRecordValue)
+    entityRecord = entityRecordValue;
+end
+
+function getEntityBaseCode()
+    return entityBaseCode;
+end
+function getEntityBaseCode()
+    return entityBaseCode;
+end
+function setEntityBaseCode(entityBaseCodeValue)
+    entityBaseCode = entityBaseCodeValue;
+end
+
+function getPersonEntities()
+    return personEntities;
+end
+function addPersonEntity(newPersonEntity)
+    table.insert(personEntities,newPersonEntity);
+end
+function setPersonEntities(newPersonEntities)
+    personEntities = newPersonEntities;
+end
+
+function setLinks()		
+	local breachesBase = CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstBreaches());								
+	local personBase 	= CroApp.GetBank():GetBase(getClassManager().getClass("Constanta").getCnstPerson());								
+	--persons linking	
+	for key, personEntity in pairs(getPersonEntities()) do						
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), getEntityRecord())) then
+			getEntityRecord():Unlock();
+		end
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), personEntity.getEntityRecord())) then
+			personEntity.getEntityRecord():Unlock();
+		end
+		breachesBase:AddLink(getEntityRecord().SN,7,personBase,personEntity.getEntityRecord().SN, Base.LockWait, Base.LockWait);																	
+	end		
+	setEntityRecord(breachesBase:GetRecord(getEntityRecord().SN));
+end
+
+function setBeanFromRecord(breachesRecord)	
+	local breachesBaseCode = getEntityBaseCode();
+	if breachesRecord.Base.Code == breachesBaseCode then				
+		setEntityRecord(breachesRecord)
+		setConviction(				getClassManager().getClass("FieldsWorker").getField(breachesBaseCode, breachesRecord , 8 , "" , "", ""));
+		setLiabilityType(			getClassManager().getClass("FieldsWorker").getField(breachesBaseCode, breachesRecord , 1 , "" , "", ""));
+		setCriminalLiabilityRecords(getClassManager().getClass("FieldsWorker").getField(breachesBaseCode, breachesRecord , 2 , "" , "", ""));
+		setAdminLiabilityRecords(	getClassManager().getClass("FieldsWorker").getField(breachesBaseCode, breachesRecord , 3 , "" , "", ""));		
+		setDetailedData(			getClassManager().getClass("FieldsWorker").getField(breachesBaseCode, breachesRecord , 5, "" , "", ""));			
+		setCheckDate(				getClassManager().getClass("FieldsWorker").getField(breachesBaseCode, breachesRecord , 6, "" , "", ""));			
+	end
+end
+
+function setBeanFromView(view)		
+	setConviction(view.getDpdConvictionSelectedCode());					
+	setLiabilityType(view.getDpdLiabilityTypeSelectedCode());			
+	setCriminalLiabilityRecords(view.getTxtCriminalLiabilityRecordsText());		
+	setAdminLiabilityRecords(view.getTxtAdminLiabilityRecordsText());				
+	setDetailedData(view.getTxtDetailedDataText());			
+	if (getPersonApproval() ~= nil)then						
+		view.getPctPersonApproval():SaveToFile(getPersonApproval(), 1, false)				
+	end	
+end
+
+function saveBeanToDb()		
+	local saveResult = true;			
+	local breachesBaseCode = getEntityBaseCode();	
+	if (getEntityRecord() == nil) then		
+		setEntityRecord(CroApp.GetBank():GetBase(breachesBaseCode):AddRecord())					
+	end				
+	local breachesRecord = getEntityRecord();					
+	if breachesRecord.Base.Code == breachesBaseCode then						
+		getClassManager().getClass("FieldsWorker").setField(breachesBaseCode, breachesRecord, 8 , "", getConviction(), nil, nil, true);						
+		getClassManager().getClass("FieldsWorker").setField(breachesBaseCode, breachesRecord, 1 , "", getLiabilityType(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(breachesBaseCode, breachesRecord, 2 , "", getCriminalLiabilityRecords(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(breachesBaseCode, breachesRecord, 3 , "", getAdminLiabilityRecords(), nil, nil, true);		
+		if (getPersonApproval() ~= nil) then			
+			if (string.len(getPersonApproval()) > 0 ) then							
+				getClassManager().getClass("FieldsWorker").setField(breachesBaseCode, breachesRecord, 4,"", nil, "@"..getPersonApproval(), nil, true);								
+				os.remove(getPersonApproval())								
+			else
+				breachesRecord:DeleteFieldValue(4)
+			end
+		end
+		getClassManager().getClass("FieldsWorker").setField(breachesBaseCode, breachesRecord, 5 , "", getDetailedData(), nil, nil, false);				
+		setLinks();
+	else
+		saveResult = false;
+	end		
+	return saveResult;
+end
+----------------------------------------
+function clearEntities()	
+	setPersonEntities({});	
+end
+
+function getConviction()
+    return conviction;
+end
+function  getConvictionDefinition()
+    local defIndexes = getClassManager().getClass("Service").getIndexesFromTable(
+						getClassManager().getClass("Constanta").getDpdConvictionCodes(),getConviction());	
+	return getClassManager().getClass("Service").getItemFromTableByIndex(getClassManager().getClass("Constanta").getDpdConvictionDefinitions(),
+																		getClassManager().getClass("Service").getItemFromTableByIndex(defIndexes,1));
+end
+function setConviction(convictionValue)
+    conviction = convictionValue;
+end
+
+function getLiabilityType()
+    return liabilityType;
+end
+function getLiabilityTypeDefinition()
+    local defIndexes = getClassManager().getClass("Service").getIndexesFromTable(
+						getClassManager().getClass("Constanta").getDpdLiabilityTypeCodes(),getLiabilityType());	
+	return getClassManager().getClass("Service").getItemFromTableByIndex(getClassManager().getClass("Constanta").getDpdLiabilityTypeDefinitions(),
+																		getClassManager().getClass("Service").getItemFromTableByIndex(defIndexes,1));
+end
+function setLiabilityType(liabilityTypeValue)
+    liabilityType = liabilityTypeValue;
+end
+
+function getCriminalLiabilityRecords()
+    return criminalLiabilityRecords;
+end
+function setCriminalLiabilityRecords(criminalLiabilityRecordsValue)
+    criminalLiabilityRecords = criminalLiabilityRecordsValue;
+end
+
+function getAdminLiabilityRecords()
+    return adminLiabilityRecords;
+end
+function setAdminLiabilityRecords(adminLiabilityRecordsValue)
+    adminLiabilityRecords = adminLiabilityRecordsValue;
+end
+
+function getPersonApproval()
+    return personApproval;
+end
+function setPersonApproval(personApprovalValue)
+    personApproval = personApprovalValue;
+end
+
+function getDetailedData()
+    return detailedData;
+end
+function setDetailedData(detailedDataValue)
+    detailedData = detailedDataValue;
+end
+
+function getCheckDate()
+    return checkDate;
+end
+function setCheckDate(checkDateValue)
+    checkDate = checkDateValue;
+end
+
+
+function toShortString(isWithConnectedItems)
+	local result = {};			
+	table.insert(result, getConvictionDefinition())		
+	table.insert(result, getLiabilityTypeDefinition())		
+	table.insert(result, getCriminalLiabilityRecords())		
+	table.insert(result, getAdminLiabilityRecords())			
+	table.insert(result, getCheckDate())			
+	if (isWithConnectedItems) then
+		for key, personEntity in pairs(getPersonEntities()) do		
+			table.insert(result, personEntity.toShortString(false))
+		end
+	end	
+	return table.concat(result," | ")
+end
+
+function clearEntity()
+	clearEntities()
+	setEntityRecord(nil)
+	setConviction(nil)
+	setLiabilityType(nil)
+	setCriminalLiabilityRecords(nil)
+	setAdminLiabilityRecords(nil)
+	setDetailedData(nil)
+	setCheckDate(nil)
+end	

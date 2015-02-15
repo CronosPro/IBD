@@ -1,0 +1,166 @@
+local CheckCompanyForm = nil
+local ObjectsList = nil
+local organizationView = nil;
+local personView = nil;
+local addressView = nil;
+local phonesView = nil;
+local connectedPersonView = nil;
+local createdEntities = {}
+local logger = nil;
+local classManager = nil
+
+function getClassManager()
+    return classManager;
+end
+function setClassManager(classManagerValue)
+    classManager = classManagerValue;
+end
+
+---описание базовых классов для функционаривания системы
+local classDescriptions = {{"ClassFormFieldsWorker", "FieldsWorker"},
+							{"ClassFormService", "Service"},
+							{"ClassFormMathWorker","MathWorker"},
+							{"ClassFormDBWorker","DBWorker"},
+							{"ClassFormFormsController","FormsController"},
+							{"ClassFormUnloadController","UnloadController"},
+							{"ClassFormRequestController","RequestController"},
+							{"ClassFormValidationController","ValidationController"},
+							{"ClassFormConstanta","Constanta"},
+							{"ClassFormLogger","Logger"},
+							{"ClassFormDataLoader","DataLoader"}}
+
+local runtimeClasses = {};
+function getRuntimeClass(runtimeClassName)	
+    for index, runtimeClassDescripton in pairs (runtimeClasses) do		
+		if (runtimeClassDescripton[1] == runtimeClassName) then		
+			return runtimeClassDescripton[2];
+		end
+	end	
+end
+function addRuntimeClass(runtimeClassDescription)
+    table.insert(runtimeClasses ,runtimeClassDescription);
+end
+
+function Форма_Open( form )	
+	local args={};
+	args.ClassManager = form.Module;
+	setClassManager(args.ClassManager)
+	--open form
+	for index, formDescription in pairs(classDescriptions) do
+		local classForm  = CroApp:GetBank():OpenForm(formDescription[1], nil,0,args)		
+		addRuntimeClass({formDescription[2], classForm.Module})		
+		classForm:CloseForm()
+	end				
+	return true;
+
+end
+
+function getClass(className)	
+	local classReference = nil;	
+	classReference = getRuntimeClass(className)
+	return classReference;
+end
+
+function setClass(form, value)		
+	--MsgBox("Метод setClass в ClassManager был упразднен, однако где то используется. Сделайте скриншот данного сообщения и отправьте разработчику.")
+end
+
+function new ()
+	local ClassFormClassManager  = CroApp:GetBank():OpenForm("ClassFormClassManager")
+	local ClassManager = ClassFormClassManager.Module
+	ClassFormClassManager:CloseForm()
+	return ClassManager
+end
+
+function newEntity(ClassManager, entityBaseCode, isSingleton, isClearEntity, entityIndex)
+	initLogger(ClassManager)
+	local entityForm = nil;
+	local entityModule = nil;			
+	logger.writeMemoryUsageMessage(ClassManager)
+	local prefix = entityBaseCode;
+	--необходимо для хранения и выдачи более 1 объекта одинакового типа
+	if (entityIndex ~= nil) then 
+		prefix = prefix..entityIndex
+	end		
+	if (createdEntities[prefix] == nil) then
+		if entityBaseCode == ClassManager.getClass("Constanta").getCnstOrganization() then --Организация
+			entityForm = CroApp:GetBank():OpenForm("OrgEntity");		
+		elseif entityBaseCode == ClassManager.getClass("Constanta").getCnstPerson() then  --Лицо
+			entityForm = CroApp:GetBank():OpenForm("PersonEntity");		
+		elseif entityBaseCode == ClassManager.getClass("Constanta").getCnstJobTrack() then  --Трудовая еятельность
+			entityForm = CroApp:GetBank():OpenForm("JobTrackEntity");		
+		elseif entityBaseCode == ClassManager.getClass("Constanta").getCnstAddressType() then  --Тип адреса
+			entityForm = CroApp:GetBank():OpenForm("AddressTypeEntity");		
+		elseif entityBaseCode == ClassManager.getClass("Constanta").getCnstAddress() then --Адрес
+			entityForm = CroApp:GetBank():OpenForm("AddressEntity");		
+		elseif entityBaseCode == ClassManager.getClass("Constanta").getCnstConnectionType() then --Тип связи
+			entityForm = CroApp:GetBank():OpenForm("ConnectionTypeEntity");				
+		elseif entityBaseCode == ClassManager.getClass("Constanta").getCnstConnection() then --Телефон, способ связи		
+			entityForm = CroApp:GetBank():OpenForm("ConnectionEntity");		
+		elseif entityBaseCode == ClassManager.getClass("Constanta").getCnstConnectedPerson() then --Лицо, имеющее отношение к проверяемой организации
+			entityForm = CroApp:GetBank():OpenForm("ConnectedPersonEntity");		
+		elseif entityBaseCode == ClassManager.getClass("Constanta").getCnstConnectedOrganization() then --Организация, имеющее отношение к проверяемой организации
+			entityForm = CroApp:GetBank():OpenForm("ConnectedOrganizationEntity");	
+		elseif entityBaseCode == ClassManager.getClass("Constanta").getCnstFoundersAndPartners() then --Учредители и партнеры
+			entityForm = CroApp:GetBank():OpenForm("FoundersAndPartnersEntity");			
+		elseif entityBaseCode == ClassManager.getClass("Constanta").getCnstRequestJournal() then --Журнал запросов
+			entityForm = CroApp:GetBank():OpenForm("RequestsJournalEntity");			
+		elseif entityBaseCode == ClassManager.getClass("Constanta").getCnstActionJournal() then --Журнал действий
+			entityForm = CroApp:GetBank():OpenForm("RequestsJournalEntity");			
+		elseif entityBaseCode == ClassManager.getClass("Constanta").getCnstBankAccount() then --Банковские счета
+			entityForm = CroApp:GetBank():OpenForm("BankAccountEntity");			
+		elseif entityBaseCode == ClassManager.getClass("Constanta").getCnstEducation() then --Образовнаие
+			entityForm = CroApp:GetBank():OpenForm("EducationEntity");			
+		elseif entityBaseCode == ClassManager.getClass("Constanta").getCnstDocument() then --Документ
+			entityForm = CroApp:GetBank():OpenForm("DocumentEntity");
+		elseif entityBaseCode == ClassManager.getClass("Constanta").getCnstLoan() then --Кредиты
+			entityForm = CroApp:GetBank():OpenForm("LoansEntity");				
+		elseif entityBaseCode == ClassManager.getClass("Constanta").getCnstPersonalID() then --Удостоверение личности
+			entityForm = CroApp:GetBank():OpenForm("PersonalIDEntity");			
+		elseif entityBaseCode == ClassManager.getClass("Constanta").getCnstBreaches() then --Правонарушения
+			entityForm = CroApp:GetBank():OpenForm("BreachesEntity");			
+		elseif entityBaseCode == ClassManager.getClass("Constanta").getCnstPersonRelations() then --Характер связи лиц		
+			entityForm = CroApp:GetBank():OpenForm("PersonRelationsEntity");					
+		elseif entityBaseCode == ClassManager.getClass("Constanta").getCnstEstate() then --Недвижимое имущество организации 	
+			entityForm = CroApp:GetBank():OpenForm("EstateEntity");					
+		elseif entityBaseCode == ClassManager.getClass("Constanta").getCnstBelgamsGroup() then --Группы BelGams 
+			entityForm = CroApp:GetBank():OpenForm("BelgamsGroupEntity");					
+		elseif entityBaseCode == ClassManager.getClass("Constanta").getCnstExternalVocs() then --Сопоставление внешних словарей с локальными
+			entityForm = CroApp:GetBank():OpenForm("ExternalVocsEntity");		
+		end				
+		if entityForm ~= nil then	
+			if (CroApp.GetBank():GetBase(entityBaseCode)~= nil) then
+				entityForm.Module.setEntityBaseCode(entityBaseCode); 
+			end
+			entityForm:CloseForm();
+			entityModule = entityForm.Module;
+			entityModule.setClassManager(ClassManager)
+			if (isSingleton) then				
+				createdEntities[prefix] = entityModule;											
+			end
+		else
+			MsgBox("Произошла техническая ошибка в модуле ClassManager: для базы данных "..entityBaseCode.." bean-форма не открылась");
+		end
+	else
+		entityModule = createdEntities[prefix]
+		if (isClearEntity) then
+			entityModule.clearEntity();		
+		end
+	end
+	--[[	
+	if (collectgarbage("count") > 10000) then
+		counter = 0;		
+		Pause (3600)
+		collectgarbage("count")
+		collectgarbage("restart")
+		collectgarbage("collect")
+		collectgarbage("stop")
+	end--]]	
+	return entityModule;
+end
+
+function initLogger(ClassManager)
+	if logger == nil then
+		logger = ClassManager.getClass("Logger");	
+	end
+end

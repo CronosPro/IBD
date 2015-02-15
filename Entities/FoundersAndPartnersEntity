@@ -1,0 +1,423 @@
+
+local logger = nil;
+local participationType = nil;
+local participateFromDate = nil;
+local participateToDate = nil;
+local entityRecord = nil;
+local foundersAndPartnersBaseCode = nil;
+local classManager = nil;
+local organizationEntities = {}
+local personEntities = {}
+local orgConnectionField = nil;
+local sharePercent = nil;
+
+local personToConnect = {};
+local controllingOrgToConnect = {};
+local controlledOrgToConnect = {};
+
+function initLogger()
+	if logger == nil then
+		logger = getClassManager().getClass("Logger");	
+	end
+end
+
+
+function getPersonToConnect()
+    return personToConnect;
+end
+function initPersonToConnect()
+	personToConnect = {}
+end
+function setPersonToConnect(personToConnectValue)
+    table.insert(personToConnect, personToConnectValue);
+end
+
+function getControllingOrgToConnect()
+    return controllingOrgToConnect;
+end
+function initControllingOrgToConnect()
+	controllingOrgToConnect = {}
+end
+function setControllingOrgToConnect(controllingOrgToConnectValue)
+    table.insert(controllingOrgToConnect, controllingOrgToConnectValue);
+end
+
+function getControlledOrgToConnect()
+    return controlledOrgToConnect;
+end
+function initControlledOrgToConnect()
+	controlledOrgToConnect = {}
+end
+function setControlledOrgToConnect(controlledOrgToConnectValue)
+    table.insert(controlledOrgToConnect, controlledOrgToConnectValue);
+end
+
+function getOrgConnectionField()
+    return orgConnectionField;
+end
+function setOrgConnectionField(orgConnectionFieldValue)
+    orgConnectionField = orgConnectionFieldValue;
+end
+
+function getClassManager()
+    return classManager;
+end
+function setClassManager(classManagerValue)
+    classManager = classManagerValue;
+end
+
+function getEntityRecord()
+    return entityRecord;
+end
+function setEntityRecord(entityRecordValue)
+    entityRecord = entityRecordValue;
+end
+function refreshEntityRecord()
+	if (getEntityRecord().Base:GetRecord(getEntityRecord().SN) ~= nil) then
+		setEntityRecord(getEntityRecord().Base:GetRecord(getEntityRecord().SN));		
+	end
+end
+
+function getEntityBaseCode()
+    return entityBaseCode;
+end
+function setEntityBaseCode(entityBaseCodeValue)
+    entityBaseCode = entityBaseCodeValue;
+end
+
+function getOrganizationEntities()
+    return organizationEntities;
+end
+function addOrganizationEntity(newOrganizationEntity)
+    table.insert(organizationEntities,newOrganizationEntity);
+end
+function setOrganizationEntities(newOrganizationEntities)
+    organizationEntities = newOrganizationEntities;
+end
+
+function getPersonEntities()
+    return personEntities;
+end
+function addPersonEntity(newPersonEntity)
+    table.insert(personEntities,newPersonEntity);
+end
+function setPersonEntities(newPersonEntities)
+    personEntities = newPersonEntities;
+end
+
+--------------------------------------------------
+function setBeanFromLine(dataTable, configTable, mode, isCurrentEntityOnly) -- передаем таблицу с данными для загрузки и  таблицу с конфигурацией для загрузки
+	initLogger();
+	local messages = {};	
+	local configValues = "";
+	local tConfigValues = "";
+	local terminPosition = 0;
+	local fieldNumber = 0;
+	local extractedTermin = "";	
+	local isConnectedEntityNew = true;
+	local passedEntitiesCodes = {}
+	for index, tConfigValues in pairs(configTable) do		
+		local localVocKey = nil;				
+		logger.writeDebugMessage( getClassManager(),"Получена конфигурация: "..render(tConfigValues));
+		logger.writeDebugMessage( getClassManager(),"Получение номера аттрибута базы данных");
+		fieldNumber = tonumber(tConfigValues[3]);	
+		logger.writeDebugMessage(getClassManager(),"Получение позиции в строке загрузки");		
+		if (string.sub(tConfigValues[1],1,1) ~= "@") then
+			terminPosition = tonumber(tConfigValues[1]);					
+			logger.writeDebugMessage( getClassManager(),"Получение термина строки по позиции № "..terminPosition);
+			extractedTermin = dataTable[terminPosition];
+		else
+			extractedTermin = string.sub(tConfigValues[1],2);
+			localVocKey = tonumber(extractedTermin)
+		end		
+		logger.writeDebugMessage( getClassManager(), "Был получен термин для загрузки в поле "..fieldNumber);		
+		if (extractedTermin ~= nil and string.len(extractedTermin)>0) then			
+			if (tConfigValues[2] == getEntityBaseCode()) then
+				if (fieldNumber == 4) then									
+					setParticipateFromDate(extractedTermin);	
+				elseif(fieldNumber == 5) then
+					setParticipateToDate(extractedTermin);
+				elseif(fieldNumber == 13) then
+					setSharePercent(extractedTermin);			
+				else
+					local vocCode = getClassManager().getClass("FieldsWorker").getVocFieldBaseCode(getClassManager(),getEntityBaseCode(),fieldNumber)				
+					if (vocCode ~= nil) then						
+						if (localVocKey == nil) then
+							localVocKey, errorMessages = getClassManager().getClass("DBWorker").convertExternalVocTermin(getClassManager(), extractedTermin, vocCode);				
+							for _,message in pairs(errorMessages) do
+								table.insert(messages, message)
+							end
+						end	
+						if(fieldNumber == 1) then
+							setParticipationType(localVocKey);					
+						end	
+					else
+						logger.writeDebugMessage( getClassManager(), "Поле № "..fieldNumber.. " не обрабатывает программным объектом");
+					end
+				end
+			else			
+				isConnectedEntityNew = table.count(getClassManager().getClass("Service").getIndexesFromTable(passedEntitiesCodes, tConfigValues[2]))==0										
+				if (not isCurrentEntityOnly) then
+					logger.writeDebugMessage( getClassManager(),"Термин принадлежит базе данных с мнемокодом "..tConfigValues[2]);			
+					logger.writeDebugMessage( getClassManager(),"Создание нового программного объекта")
+					local connectedEntity = getClassManager().newEntity(getClassManager(), tConfigValues[2], true, isConnectedEntityNew)								
+					if (isConnectedEntityNew) then
+						logger.writeDebugMessage( getClassManager(),"Добавление созданного объекта для установления связи")				
+						addConnectedEntity (connectedEntity);			
+					end
+					isConnectedEntityNew = false;				
+					logger.writeDebugMessage( getClassManager(),"Заполнение программного объекта на основе данных из файла загрузки и запись полученных сообщений");																								
+					local errorMessages = connectedEntity.setBeanFromLine(dataTable, {tConfigValues}, mode); 						
+					for _,message in pairs(errorMessages) do
+						table.insert(messages, message)
+					end	
+					logger.writeDebugMessage(getClassManager(),"Проверка режима работы системы: "..mode);	
+					if (mode == getClassManager().getClass("Constanta").getCnstDataLoaderLoadMode()) then
+						logger.writeDebugMessage(getClassManager(),"Сохранение программного объекта в базу данных с мнемокодом "..tConfigValues[2]);																													
+						connectedEntity.saveBeanToDb();						
+					end
+				end				
+			end
+			table.insert(passedEntitiesCodes,tConfigValues[2]);
+		end		
+	end	
+	return messages;
+end
+
+function addConnectedEntity (connectedEntity)
+	local connectedEntityCode = connectedEntity.getEntityBaseCode();
+	local connectedControlledEntity = nil
+	if (connectedEntityCode == getClassManager().getClass("Constanta").getCnstOrganization()) then
+		--addOrganizationEntity(connectedEntity);			
+		if (table.count(getControlledOrgToConnect()) == 0 ) then
+			setControlledOrgToConnect(connectedEntity)			
+		else			
+			--connectedControlledEntity = getClassManager().newEntity(getClassManager(), connectedEntityCode, connectedControlledEntity ~= nil, true);			
+			setControllingOrgToConnect(connectedEntity)						
+		end
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstPerson()) then
+		addPersonEntity(connectedEntity);	
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstAddressType()) then
+		addAddressTypeEntity(connectedEntity);	
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstAddress()) then		
+		for index, addressTypeEntity in pairs(connectedEntity.getAddressTypeEntities()) do
+			addAddressTypeEntity(addressTypeEntity);	
+		end	
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstDocument()) then
+		addDocumentEntity(connectedEntity);
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstBankAccount()) then
+		addBankAccountEntity(connectedEntity);	
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstConnectionType()) then		
+		addConnectionTypeEntity(connectionTypeEntity);			
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstConnection()) then
+		for index, connectionTypeEntity in pairs(connectedEntity.getConnectionTypeEntities()) do
+			addConnectionTypeEntity(connectionTypeEntity);	
+		end		
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstEstate()) then
+		addEstateEntity(connectedEntity);	
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstJobTrack()) then
+		addJobTrackEntity(connectedEntity);	
+	elseif (connectedEntityCode == getClassManager().getClass("Constanta").getCnstBelgamsGroup()) then
+		addBelgamsGroupEntity(connectedEntity);	
+	end		
+end
+
+function getAttributeByFieldNumber(fieldNumber)
+	local attribute = nil;
+	local noAttributeLineDefined = false;
+	fieldNumber = tonumber(fieldNumber)	
+	if (fieldNumber == 1) then									
+		attribute = getParticipationType();		
+	elseif(fieldNumber == 4) then
+		attribute = getParticipateFromDate();
+	elseif(fieldNumber == 5) then
+		attribute = getParticipateToDate();
+	elseif(fieldNumber == 13) then
+		attribute = getSharePercent();	
+	else
+		noAttributeLineDefined = true;
+	end		
+	--необходимо для логики выдачи сообщения про неопределенный номер поля в данном методе
+	if (noAttributeLineDefined == false and attribute == nil) then
+		attribute = "";		
+	end	
+	return attribute;
+end
+--------------------------------------------------
+function setBeanFromRecord(foundersAndPartnersRecord)	
+	local foundersAndPartnersBaseCode = getEntityBaseCode();	
+	if foundersAndPartnersRecord.Base.Code == foundersAndPartnersBaseCode then		
+		setEntityRecord(foundersAndPartnersRecord)		
+		setParticipationType(	getClassManager().getClass("FieldsWorker").getField(foundersAndPartnersBaseCode, foundersAndPartnersRecord , 1 , "" , "", ""));		
+		setParticipateFromDate(	getClassManager().getClass("FieldsWorker").getField(foundersAndPartnersBaseCode, foundersAndPartnersRecord , 4 , "" , "", ""));		
+		setParticipateToDate(	getClassManager().getClass("FieldsWorker").getField(foundersAndPartnersBaseCode, foundersAndPartnersRecord , 5 , "" , "", ""));				
+		setSharePercent(		getClassManager().getClass("FieldsWorker").getField(foundersAndPartnersBaseCode, foundersAndPartnersRecord , 13, "" , "", ""));				
+	end
+end
+
+function updateEntity()
+	setBeanFromRecord(getClassManager(), getEntityRecord())	
+end
+
+function setEntityFromCopy (entityCopy)
+	setParticipationType(entityCopy.getParticipationType());				
+	setParticipateFromDate(entityCopy.getParticipateFromDate());	
+	setParticipateToDate(entityCopy.getParticipateToDate());	
+	setSharePercent(entityCopy.getSharePercent());	
+end
+
+function setBeanFromView(view)
+	setParticipationType(view.getDpdParticipationTypeSelectedCode());				
+	setParticipateFromDate(view.getTxtParticipateFromDateText());	
+	setParticipateToDate(view.getTxtParticipateToDateText());			
+	setSharePercent(view.getTxtSharePercentText());			
+end
+
+function clearEntities()
+	setOrganizationEntities({})
+	setPersonEntities({})
+	initPersonToConnect({})
+	initControllingOrgToConnect({})
+	initControlledOrgToConnect({})
+end
+
+function setLinks(isLinkingEnabled)			
+	initLogger();
+	logger.writeDebugMessage(getClassManager(),"------------------------Метод setLinks() класса FoundersAndPartnersEntity------------------------")		
+	if (isLinkingEnabled == nil or isLinkingEnabled) then		
+		logger.writeDebugMessage(getClassManager(),"Проверка, установлено ли поле связи объекта Учредители и Партнеры с объектом Организации")		
+		if (getOrgConnectionField() == nil) then 
+			logger.writeDebugMessage(getClassManager(),"Поле связи не установлено. Устновка значения по умолчанию: 2")		
+			setOrgConnectionField(2);		 
+			logger.writeDebugMessage(getClassManager(),"Поле связи установлено")		
+		end	
+		logger.writeDebugMessage(getClassManager(),"Создание отсылки к объектам Организаций")		
+		setFounderAndPartnerLinks(getOrganizationEntities(), getOrgConnectionField())		
+		logger.writeDebugMessage(getClassManager(),"Отсылка создана")		
+		--persons linking		
+		logger.writeDebugMessage(getClassManager(),"Создание отсылки к объектам Лиц")		
+		for key, personEntity in pairs(getPersonEntities()) do				
+			logger.writeDebugMessage(getClassManager(),"Проверк не пустая ли запись программного объекта Лица")		
+			if (personEntity.getEntityRecord() ~= nil) then
+				logger.writeDebugMessage(getClassManager(),"Создание отсылки к объекту Лица")		
+				setFounderAndPartnerLinks({personEntity}, 9)
+				for key, organizationEntity in pairs(getOrganizationEntities()) do							
+					setFounderAndPartnerLinks(getOrganizationEntities(), 8)
+				end
+			end
+		end		
+		refreshEntityRecord()
+	end		
+	logger.writeDebugMessage(getClassManager(),"Создание отсылки к контролируемому объекту Организации")			
+	setFounderAndPartnerLinks(getControlledOrgToConnect(), 8)	
+	logger.writeDebugMessage(getClassManager(),"Создание отсылки к контролирующему объекту Организации")				
+	setFounderAndPartnerLinks(getControllingOrgToConnect(), 2)		
+	logger.writeDebugMessage(getClassManager(),"Создание отсылки к объекту Лицо")		
+	setFounderAndPartnerLinks(getPersonToConnect(), 9)
+	logger.writeDebugMessage(getClassManager(),"Обновление текущего объекта Учредители и Партнеры")		
+	refreshEntityRecord()
+	logger.writeDebugMessage(getClassManager(),"------------------------Метод setLinks() класса FoundersAndPartnersEntity завершил работу------------------------")		
+end
+
+function setFounderAndPartnerLinks(entities, linkingField)		
+	for key, entity in pairs(entities) do		
+		if (entity.getEntityRecord() ~= nil) then													
+			getClassManager().getClass("DBWorker").processRecordLink(getClassManager(), getClassManager().getClass("Constanta").getCnstAddLink(), getEntityRecord(), linkingField, entity.getEntityRecord())																		
+		end
+	end	
+end
+
+function deleteLinkOrganization(organizationEntity)
+	getClassManager().getClass("DBWorker").processRecordLink(getClassManager(), getClassManager().getClass("Constanta").getCnstDeleteLink(), getEntityRecord(), 8, organizationEntity.getEntityRecord())
+	getClassManager().getClass("DBWorker").processRecordLink(getClassManager(), getClassManager().getClass("Constanta").getCnstDeleteLink(), getEntityRecord(), 2, organizationEntity.getEntityRecord())	
+	refreshEntityRecord()
+end
+
+function saveBeanToDb(isLinkingEnabled)	
+	if (isLinkingEnabled == nil) then
+		isLinkingEnabled = true
+	end
+	local saveResult = true;		
+	local foundersAndPartnersBaseCode = getEntityBaseCode();	
+	if (getEntityRecord() == nil) then		
+		setEntityRecord(CroApp.GetBank():GetBase(foundersAndPartnersBaseCode):AddRecord())					
+	end					
+	local foundersAndPartnersRecord = getEntityRecord();	
+	if foundersAndPartnersRecord.Base.Code == foundersAndPartnersBaseCode then										
+		getClassManager().getClass("FieldsWorker").setField(foundersAndPartnersBaseCode, foundersAndPartnersRecord, 1 , "", getParticipationType(), nil, nil, true);				
+		getClassManager().getClass("FieldsWorker").setField(foundersAndPartnersBaseCode, foundersAndPartnersRecord, 4 , "", getParticipateFromDate(), nil, nil, true);						
+		getClassManager().getClass("FieldsWorker").setField(foundersAndPartnersBaseCode, foundersAndPartnersRecord, 5 , "", getParticipateToDate(), nil, nil, true);						
+		getClassManager().getClass("FieldsWorker").setField(foundersAndPartnersBaseCode, foundersAndPartnersRecord, 13, "", getSharePercent(), nil, nil, false);								
+		setLinks(isLinkingEnabled)					
+	else
+		saveResult = false;
+	end
+	return saveResult;
+end
+
+function getSharePercent()
+    return sharePercent;
+end
+function setSharePercent(sharePercentValue)
+    sharePercent = sharePercentValue;
+end
+-------------------
+function getParticipationType()
+    return participationType;
+end
+function getParticipationTypeDefinition()    	
+	return getClassManager().getClass("Service").getVocItem(getClassManager(), 
+															getClassManager().getClass("Constanta").getDpdOrgParticipationTypeCodes(), 
+															getClassManager().getClass("Constanta").getDpdOrgParticipationTypeDefinitions(),
+															"Definition",
+															getParticipationType());
+end
+function setParticipationType(participationTypeValue)
+    participationType = participationTypeValue;
+end
+function getParticipateFromDate()
+    return participateFromDate;
+end
+function setParticipateFromDate(participateFromDateValue)
+    participateFromDate = participateFromDateValue;
+end
+
+function getParticipateToDate()
+    return participateToDate;
+end
+function setParticipateToDate(participateToDateValue)
+    participateToDate = participateToDateValue;
+end
+
+function toShortStringAsConnectedPerson()
+	local result = {};				
+	table.insert(result, getParticipationTypeDefinition())	
+	table.insert(result, getParticipateFromDate())	
+	table.insert(result, getParticipateToDate())			
+	return table.concat(result," | ")
+end
+
+function toShortString(isWithConnectedEntities)
+	local result = {};				
+	table.insert(result, getParticipationTypeDefinition())	
+	table.insert(result, getParticipateFromDate())	
+	table.insert(result, getParticipateToDate())			
+	if (isWithConnectedEntities) then
+		for key, entity in pairs(getPersonEntities()) do
+			table.insert(result, entity.toShortString(false))
+		end	
+		for key, entity in pairs(getOrganizationEntities()) do
+			table.insert(result, entity.toShortString(false))
+		end	
+	end
+	return table.concat(result," | ")
+end
+
+function clearEntity()
+	clearEntities()
+	setEntityRecord(nil)
+	setParticipationType(nil)
+	setParticipateFromDate(nil)
+	setParticipateToDate(nil)
+	setSharePercent(nil)
+end

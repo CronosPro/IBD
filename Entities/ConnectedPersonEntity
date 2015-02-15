@@ -1,0 +1,95 @@
+local personEntity = nil;
+local jobTrackEntity = nil;
+local founderEntity = nil;
+local isFounder = nil;
+local listPosition = nil;
+local requestJournalEntity = nil;
+local classManager = nil;
+local isExisted = nil;
+
+function getClassManager()
+    return classManager;
+end
+function setClassManager(classManagerValue)
+    classManager = classManagerValue;
+end
+
+function getIsExisted()
+    return isExisted;
+end
+function setIsExisted(isExistedValue)
+    isExisted = isExistedValue;
+end
+
+function getPersonEntity()
+    return personEntity;
+end
+function setPersonEntity(personEntityValue)
+    personEntity = personEntityValue;
+end
+
+function getJobTrackEntity()
+    return jobTrackEntity;
+end
+function setJobTrackEntity(jobTrackEntityValue)
+    jobTrackEntity = jobTrackEntityValue;
+end
+
+function getFounderEntity()
+    return founderEntity;
+end
+function setFounderEntity(founderEntityValue)
+    founderEntity = founderEntityValue;
+end
+
+function checkIsFounder()
+    return isFounder;
+end
+function setIsFounder(isFounderValue)
+    isFounder = isFounderValue;
+end
+
+function getListPosition()
+    return listPosition;
+end
+function setListPosition(listPositionValue)
+    listPosition = listPositionValue;
+end
+
+function getRequestJournalEntity()
+    return requestJournalEntity;
+end
+function setRequestJournalEntity(requestJournalEntityValue)
+    requestJournalEntity = requestJournalEntityValue;
+end
+
+function toShortString ()
+	local result = {};		
+	if (checkIsFounder() ~= nil) then
+		if (getIsExisted()) then
+			table.insert(result,"Существующ.лицо")
+		else
+			table.insert(result,"Добавленное лицо")
+		end
+	end
+	table.insert(result, getPersonEntity().toShortString(false))	
+	if (checkIsFounder() ~= nil) then
+		if (checkIsFounder()) then		
+			table.insert(result, getFounderEntity().toShortStringAsConnectedPerson())	
+		else		
+			table.insert(result, getJobTrackEntity().toShortString(false))	
+		end	
+	end
+	return table.concat(result," | ")
+end
+
+function clearEntity()
+	setIsExisted(nil)
+	setPersonEntity(nil)
+	setFoundersAndPartnersEntity(nil)
+	setJobTrackEntity(nil)
+	setFounderEntity(nil)
+	setIsFounder(nil)
+	setListPosition(nil)
+	setRequestJournalEntity(nil)	
+end

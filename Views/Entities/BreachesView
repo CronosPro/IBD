@@ -1,0 +1,322 @@
+local ClassManager = nil;
+local Entity = nil;
+local unloadController = nil;
+local formsController = nil;
+local constanta = nil;
+local objectList = nil;
+local childForms = {};
+local isNewObject = false;
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function getObjectList()
+    return objectList;
+end
+function setObjectList(objectListValue)
+    objectList = objectListValue;
+end
+
+function getEntity()	
+    return Entity;
+end
+function setEntity(entityValue)
+    Entity = entityValue;
+end
+
+function getIsNewObject()
+    return isNewObject;
+end
+function setIsNewObject(isNewObjectValue)
+    isNewObject = isNewObjectValue;
+end
+
+function Форма_Open( form	)
+    setClassManager(Arg.ClassManager)
+    setControllersReferences()
+    return true;
+end
+
+function Форма_Load( form )
+    getClassManager().setClass(form, form)
+    setControls(form);
+	setObjectList(Arg.FormModule)	
+	--form.X = getObjectList().getCurrentForm().X+getObjectList().getCurrentForm().Width
+    if (Arg.Data ~= nil) then
+        for key,entity in pairs(Arg.Data) do
+            if (entity.getEntityBaseCode() == constanta.getCnstBreaches()) then
+                Entity = entity;
+                form.RecordNumber = Entity.getEntityRecord().SN;                
+            end
+        end
+    end
+    if (Entity == nil) then
+        Форма_UnloadForm( form);
+	else
+		setFormFromEntity(getEntity());
+		table.insert(childForms,form);
+		setIsNewObject(Arg.isNewObject);
+    end    
+end
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+    constanta = getClassManager().getClass("Constanta");
+end
+
+function Форма_UnloadForm( form, mode )
+    unloadController.doUnload(getClassManager(), form, childForms);
+    getClassManager().setClass(form, nil)
+    return true;
+end
+
+local lblConviction = nil;
+local dpdConviction = nil;
+local lblLiabilityType = nil;
+local dpdLiabilityType = nil;
+local lblCriminalLiabilityRecords = nil;
+local txtCriminalLiabilityRecords = nil;
+local lblAdminLiabilityRecords = nil;
+local txtAdminLiabilityRecords = nil;
+local lblPersonApproval = nil;
+local pctPersonApproval = nil;
+local lblDetailedData = nil;
+local txtDetailedData = nil;
+local pnlButtons = nil;
+local btnSave = nil;
+local btnClose = nil;
+local txtInfoPanel = nil;
+
+function setControls(form)
+    lblConviction = form.lblConviction;
+    dpdConviction = form.dpdConviction;
+    lblLiabilityType = form.lblLiabilityType;
+    dpdLiabilityType = form.dpdLiabilityType;
+    lblCriminalLiabilityRecords = form.lblCriminalLiabilityRecords;
+    txtCriminalLiabilityRecords = form.txtCriminalLiabilityRecords;
+    lblAdminLiabilityRecords = form.lblAdminLiabilityRecords;
+    txtAdminLiabilityRecords = form.txtAdminLiabilityRecords;
+    lblPersonApproval = form.lblPersonApproval;
+    pctPersonApproval = form.pctPersonApproval;    
+    lblDetailedData = form.lblDetailedData;
+    txtDetailedData = form.txtDetailedData;
+    pnlButtons = form.pnlButtons;
+    btnSave = form.btnSave;
+    btnClose = form.btnClose;
+    txtInfoPanel = form.txtInfoPanel;
+    populateLists();
+	setTxtInfoPanelBackColor(constanta.getSystemBackColor());
+end
+
+function populateLists()
+
+end
+
+function setFormFromEntity(entity)
+    setDpdConvictionSelectedItem(entity.getConviction());
+    setDpdLiabilityTypeSelectedItem(entity.getLiabilityType());
+    setTxtCriminalLiabilityRecordsText(entity.getCriminalLiabilityRecords());
+    setTxtAdminLiabilityRecordsText(entity.getAdminLiabilityRecords());
+    setTxtDetailedDataText(entity.getDetailedData());
+end
+function setLblConvictionText( lblConvictionValue )
+   lblConviction.Value = lblConvictionValue
+end
+function getLblConvictionText( )
+    return lblConviction.Value
+end
+
+function addDpdConvictionItem( dpdConvictionValue )
+   dpdConviction:Add(dpdConvictionValue)
+end
+function addDpdConvictionItems( dpdConvictionValues )
+    if dpdConvictionValues ~= nil then
+        for key, value in pairs (dpdConvictionValues) do
+            addDpdConvictionItem(value)
+        end
+    end
+end
+function clearDpdConvictionItesm( )
+   dpdConviction:Clear(index)
+end
+function getDpdConvictionSelectedItem( )
+    return dpdConviction.Text
+end
+function setDpdConvictionSelectedItem( dpdConvictionItemValue)
+    dpdConviction.Value = dpdConvictionItemValue
+end
+function getDpdConvictionSelectedIndex( )
+    return dpdConviction.SelectedIndex
+end
+function getDpdConvictionSelectedCode( )
+    return dpdConviction.Value
+end
+function setDpdConvictionSelectedIndex( dpdConvictionIndexValue )
+    dpdConviction.SelectedIndex = dpdConvictionIndexValue
+end
+
+function setLblLiabilityTypeText( lblLiabilityTypeValue )
+   lblLiabilityType.Value = lblLiabilityTypeValue
+end
+function getLblLiabilityTypeText( )
+    return lblLiabilityType.Value
+end
+
+function addDpdLiabilityTypeItem( dpdLiabilityTypeValue )
+   dpdLiabilityType:Add(dpdLiabilityTypeValue)
+end
+function addDpdLiabilityTypeItems( dpdLiabilityTypeValues )
+    if dpdLiabilityTypeValues ~= nil then
+        for key, value in pairs (dpdLiabilityTypeValues) do
+            addDpdLiabilityTypeItem(value)
+        end
+    end
+end
+function clearDpdLiabilityTypeItesm( )
+   dpdLiabilityType:Clear(index)
+end
+function getDpdLiabilityTypeSelectedItem( )
+    return dpdLiabilityType.Text
+end
+function setDpdLiabilityTypeSelectedItem( dpdLiabilityTypeItemValue)
+    dpdLiabilityType.Value = dpdLiabilityTypeItemValue
+end
+function getDpdLiabilityTypeSelectedIndex( )
+    return dpdLiabilityType.SelectedIndex
+end
+function getDpdLiabilityTypeSelectedCode( )
+    return dpdLiabilityType.Value
+end
+function setDpdLiabilityTypeSelectedIndex( dpdLiabilityTypeIndexValue )
+    dpdLiabilityType.SelectedIndex = dpdLiabilityTypeIndexValue
+end
+
+function setLblCriminalLiabilityRecordsText( lblCriminalLiabilityRecordsValue )
+   lblCriminalLiabilityRecords.Value = lblCriminalLiabilityRecordsValue
+end
+function getLblCriminalLiabilityRecordsText( )
+    return lblCriminalLiabilityRecords.Value
+end
+
+function getTxtCriminalLiabilityRecordsText( )
+    return txtCriminalLiabilityRecords.Value
+end
+function setTxtCriminalLiabilityRecordsText( txtCriminalLiabilityRecordsValue )
+    txtCriminalLiabilityRecords.Value = txtCriminalLiabilityRecordsValue
+end
+
+function setLblAdminLiabilityRecordsText( lblAdminLiabilityRecordsValue )
+   lblAdminLiabilityRecords.Value = lblAdminLiabilityRecordsValue
+end
+function getLblAdminLiabilityRecordsText( )
+    return lblAdminLiabilityRecords.Value
+end
+
+function getTxtAdminLiabilityRecordsText( )
+    return txtAdminLiabilityRecords.Value
+end
+function setTxtAdminLiabilityRecordsText( txtAdminLiabilityRecordsValue )
+    txtAdminLiabilityRecords.Value = txtAdminLiabilityRecordsValue
+end
+
+function setLblPersonApprovalText( lblPersonApprovalValue )
+   lblPersonApproval.Value = lblPersonApprovalValue
+end
+function getLblPersonApprovalText( )
+    return lblPersonApproval.Value
+end
+
+function setLblDetailedDataText( lblDetailedDataValue )
+   lblDetailedData.Value = lblDetailedDataValue
+end
+function getLblDetailedDataText( )
+    return lblDetailedData.Value
+end
+
+function getTxtDetailedDataText( )
+    return txtDetailedData.Value
+end
+function setTxtDetailedDataText( txtDetailedDataValue )
+    txtDetailedData.Value = txtDetailedDataValue
+end
+
+function setBtnSaveText( btnSaveValue )
+   btnSave.Text = btnSaveValue
+end
+function getBtnSaveText( )
+    return btnSave.Text
+end
+
+function btnSave_Click( control )		
+	local oldIsNewObject = getIsNewObject();
+	setIsNewObject(false);
+	Entity.setBeanFromView(btnSave.Form.Module);	
+    if (Entity.saveBeanToDb()  == true) then			
+		if (oldIsNewObject) then
+			Entity.setBeanFromRecord(Entity.getEntityRecord());
+		end
+		getObjectList().refreshForm(Entity);
+        setTxtInfoPanelText("Запись успешно сохранена в базу данных");
+		Форма_UnloadForm( btnSave.Form);
+    else
+        setTxtInfoPanelText("ВНИМАНИЕ!!! Запись не сохранена в базу данных");
+    end
+end
+
+function getPctPersonApproval( )	
+    return pctPersonApproval
+end
+function getPctPersonApprovalValue( )	
+    return pctPersonApproval.Value
+end
+function setPctPersonApprovalValue( pctPersonApprovalValue )
+    pctPersonApproval.Value = pctPersonApprovalValue	
+end
+function setPctPersonApprovalEnabled( isPctPersonApprovalEnabled )
+   pctPersonApproval.Enabled = isPctPersonApprovalEnabled
+end
+
+
+function setBtnCloseText( btnCloseValue )
+   btnClose.Text = btnCloseValue
+end
+function getBtnCloseText( )
+    return btnClose.Text
+end
+
+function btnClose_Click( control )
+    setFormFromEntity(Entity);
+    Форма_UnloadForm( control.Form);
+end
+
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setTxtInfoPanelText( txtInfoPanelText )
+    txtInfoPanel.Text = txtInfoPanelText
+end
+function setTxtInfoPanelBackColor( txtInfoPanelBackColor )
+   txtInfoPanel.BackColor = txtInfoPanelBackColor
+end
+
+function Форма_BeforeSaveForm( event )
+	--event.PermitSave = false;
+end
+
+function pctPersonApproval_DataChanged( control, data )
+local filePath = "";
+	if (string.match(data, ".exe") == nil) then
+		if (string.len(data) > 0) then
+			filePath = CroApp.TempDir..data;												
+		end		
+	else		
+		MsgBox("Файлы типа EXE запрещено сохранять в базу данных.\n\rФайл будет удален.", IconError)		
+	end		
+	getEntity().setPersonApproval(filePath)
+	return true;
+end

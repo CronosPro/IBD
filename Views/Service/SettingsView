@@ -1,0 +1,159 @@
+local ClassManager = nil;
+local Entity = nil;
+local unloadController = nil;
+local formsController = nil;
+local constanta = nil;
+local objectList = nil;
+local childForms = {};
+
+local lblListObjectsLength = nil;
+local txtListObjectsLength = nil;
+local frmDebugMode = nil;
+local rdbDebugEnabled = nil;
+local rdbDebugDisabled = nil;
+local btnSave = nil;
+local btnCancel = nil;
+
+function setClassManager(ClassManagerNew)
+    ClassManager = ClassManagerNew;
+end
+function getClassManager()
+    return ClassManager;
+end
+
+function getObjectList()
+    return objectList;
+end
+function setObjectList(objectListValue)
+    objectList = objectListValue;
+end
+
+function Форма_Open( form	)
+    setClassManager(Arg.ClassManager)
+    setControllersReferences()
+    return true;
+end
+
+function Форма_Load( form )
+    getClassManager().setClass(form, form)    
+	setControls(form);
+	table.insert(childForms,form);    
+end
+
+function setControllersReferences()
+    unloadController = getClassManager().getClass("UnloadController");
+    formsController = getClassManager().getClass("FormsController");
+    constanta = getClassManager().getClass("Constanta");
+end
+
+function Форма_UnloadForm( form, mode )    
+	unloadController.doUnload(getClassManager(), form, childForms);	
+    getClassManager().setClass(form, nil)	
+    return true;
+end
+
+function setControls(form)
+    lblListObjectsLength = form.lblListObjectsLength;
+    txtListObjectsLength = form.txtListObjectsLength;
+	setTxtListObjectsLengthText(constanta.getCnstListObjectsLimit())		
+    frmDebugMode = form.frmDebugMode;
+    rdbDebugEnabled = form.rdbDebugEnabled;
+	setRdbDebugEnabled(constanta.getIsDebug())
+    rdbDebugDisabled = form.rdbDebugDisabled;
+	setRdbDebugDisabled(not constanta.getIsDebug())
+    btnSave = form.btnSave;
+    btnCancel = form.btnCancel;
+    populateLists();
+end
+
+function populateLists()
+
+end
+
+function setLblListObjectsLengthText( lblListObjectsLengthValue )
+   lblListObjectsLength.Text = lblListObjectsLengthValue
+end
+function getLblListObjectsLengthText( )
+    return lblListObjectsLength.Text
+end
+
+function getTxtListObjectsLengthText( )
+    return txtListObjectsLength.Text
+end
+function setTxtListObjectsLengthText( txtListObjectsLengthValue )
+    txtListObjectsLength.Text = txtListObjectsLengthValue
+end
+function setTxtListObjectsLengthEnabled( isTxtListObjectsLengthEnabled )
+   txtListObjectsLength.Enabled = isTxtListObjectsLengthEnabled
+end
+
+function setBtnSaveText( btnSaveValue )
+   btnSave.Text = btnSaveValue
+end
+function getBtnSaveText( )
+    return btnSave.Text
+end
+function setBtnSaveEnabled( isBtnSaveEnabled )
+   btnSave.Enabled = isBtnSaveEnabled
+end
+
+function isRdbDebugEnabled()
+	return rdbDebugEnabled.Check;
+end
+function setRdbDebugEnabled(rdbDebugEnabledValue)
+	rdbDebugEnabled.Check = rdbDebugEnabledValue;
+end
+function getRdbDebugEnabledText()
+	return rdbDebugEnabled.Text;
+end 
+function setRdbDebugEnabledText(newText)
+	if (newText ~= nil) then		
+		rdbDebugEnabled.Text = getRdbDebugEnabledText().." '"..newText.."'";
+	end
+end
+
+function isRdbDebugDisabled()
+	return rdbDebugDisabled.Check;
+end
+function setRdbDebugDisabled(rdbDebugDisabledValue)
+	rdbDebugDisabled.Check = rdbDebugDisabledValue;
+end
+function getRdbDebugDisabledText()
+	return rdbDebugDisabled.Text;
+end 
+function setRdbDebugDisabledText(newText)
+	if (newText ~= nil) then		
+		rdbDebugDisabled.Text = getRdbDebugDisabledText().." '"..newText.."'";
+	end
+end
+
+function btnSave_Click( control )	
+    constanta.setCnstListObjectsLimit(getTxtListObjectsLengthText())		
+	constanta.setIsDebug(isRdbDebugEnabled())	
+	--[[
+    if (Entity.saveBeanToDb()  == true) then
+        setTxtInfoPanelText("Запись успешно сохранена в базу данных");
+    else
+        setTxtInfoPanelText("ВНИМАНИЕ!!! Запись не сохранена в базу данных");
+    end
+	--]]
+	Форма_UnloadForm( control.Form);	
+end
+
+function setBtnCancelText( btnCancelValue )
+   btnCancel.Text = btnCancelValue
+end
+function getBtnCancelText( )
+    return btnCancel.Text
+end
+function setBtnCancelEnabled( isBtnCancelEnabled )
+   btnCancel.Enabled = isBtnCancelEnabled
+end
+
+function btnCancel_Click( control )
+	Форма_UnloadForm( control.Form);
+end
+
+function rdbDebugEnabled_Click( control )
+	MsgBox("Включен Кронос лог!\n\rФайл Debug.Log будет писаться в папку "..constanta.getLogDirectory(),IconInformation)
+end

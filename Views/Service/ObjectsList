@@ -1,0 +1,787 @@
+---------Получение ссылок на класс-формы----------------
+local ClassManager = nil
+local objects = {};
+local objectPages={}
+local objectRecords = nil;
+local objectBaseCode = nil;
+local btnAddObject = nil;
+local unloadController = nil;
+local logger = nil;
+local formsController = nil;
+local constanta = nil;
+local validationController = nil;
+local requestController = nil;
+local service = nil
+local childForms = {};
+local mainObject = nil;
+local mainFormModule = nil;
+local currentForm = nil;
+local mainEntityBaseCode = nil;
+local populatedForm = nil;
+
+local objectsList = nil;
+local btnCreateObject = nil;
+local btnMergeRecords = nil;
+local btnGraph = nil;
+local pnlExtendedButtons = nil;
+local pnlButtons = nil;
+local btnFillPopulateSearch = nil;
+local isSingleSelect = false;
+local btnClose = nil;
+local btnDeleteLink = nil;
+local btnReport = nil;
+local lblPatternNumber = nil;
+local txtPatternNumber = nil;
+local isPopulateSearch = false;
+local btnPageUp = nil;
+local btnPageDown = nil;
+local btnRefreshList = nil;
+local pageNumber = 1;
+local lblPages = nil;
+
+function getPopulatedForm()
+    return populatedForm;
+end
+function setPopulatedForm(populatedFormValue)
+    populatedForm = populatedFormValue;
+end
+
+function getIsSingleSelect()
+    return isSingleSelect;
+end
+function setIsSingleSelect(isSingleSelectValue)
+    isSingleSelect = isSingleSelectValue;
+end
+
+function getIsPopulateSearch()
+    return isPopulateSearch;
+end
+function setIsPopulateSearch(isPopulateSearchValue)
+    isPopulateSearch = isPopulateSearchValue;	
+end
+
+function getMainEntityBaseCode()
+    return mainEntityBaseCode;
+end
+function setMainEntityBaseCode(mainEntityBaseCodeValue)
+    mainEntityBaseCode = mainEntityBaseCodeValue;
+end
+
+function getClassManager()
+	return ClassManager
+end
+
+function setClassManager(ClassManagerNew)
+	ClassManager = ClassManagerNew
+end
+
+function getChildForms()
+	return childForms;
+end
+
+function getCurrentForm()
+    return currentForm;
+end
+function getCurrentFormNameInList()
+	return currentForm.NameInList
+end
+function setCurrentForm(currentFormValue)
+    currentForm = currentFormValue;
+end
+
+function setControllersReferences()
+	constanta = getClassManager().getClass("Constanta");
+	unloadController = getClassManager().getClass("UnloadController");
+	formsController = getClassManager().getClass("FormsController");
+	validationController = getClassManager().getClass("ValidationController");
+	requestController = getClassManager().getClass("RequestController");
+	logger = getClassManager().getClass("Logger");
+	service = getClassManager().getClass("Service");
+end
+
+function Форма_Open( form )
+	setClassManager(Arg.ClassManager)	
+	setControllersReferences();
+	return true;
+end
+
+function Форма_Load( form )		
+	logger.writeDebugMessage(ClassManager,"------------------------Метод Форма_Load() класса ObjectList ------------------------")	
+	getClassManager().setClass(form, form)		
+	logger.writeDebugMessage(ClassManager,"Связывание элементов управления")
+	setControls(form)		
+	logger.writeDebugMessage(ClassManager,"Добавление формы во внутренний список открытых форм")
+	table.insert(childForms,form)		
+	logger.writeDebugMessage(ClassManager,"Устновка массива объектов для загрузки в лист")
+	objects = Arg.Data;	
+	objectRecords = Arg.Records;	
+	logger.writeDebugMessage(ClassManager,"Устновка родительской формы, из которой пришло управление")
+	setPopulatedForm(Arg.Form);
+	logger.writeDebugMessage(ClassManager,"Устновка текущей формы")
+	setCurrentForm(form)		
+	logger.writeDebugMessage(ClassManager,"Устновка скрипта родительской формы, из которой пришло управление")
+	setMainFormModule(Arg.FormModule)		
+	logger.writeDebugMessage(ClassManager,"Заполнение листа объектов")
+	populateObjectList (objects)	
+	--btnGraph.Enabled = (getObjectBaseCode() ~= nil);
+	logger.writeDebugMessage(ClassManager,"------------------------Метод Форма_Load() класса ObjectList завершил работу------------------------")	
+end
+
+--метод заполнения списка объектов
+function populateObjectList (loadingObjects)	
+	logger.writeDebugMessage(ClassManager,"------------------------Метод populateObjectList() класса ObjectList------------------------")	
+	local objectCode = nil;	
+	local isObjectBaseSimilar = true;							
+	objects = loadingObjects;	
+	logger.writeDebugMessage(ClassManager,"Необходимо заполнить список из массива объектов с количеством элементов "..table.count(objects))
+	for key, object in pairs(objects) do								
+		logger.writeDebugMessage(ClassManager,"Проверка элементов на однородность")		
+		if isObjectBaseSimilar then		
+			logger.writeDebugMessage(ClassManager,"Проверка, заполнен ли код базы данных объектов")						
+			if objectCode == nil then								
+				logger.writeDebugMessage(ClassManager,"Заполнение кода базы данных для объектов")
+				objectCode = object.getEntityRecord().Base.Code;										
+			else						
+				logger.writeDebugMessage(ClassManager,"Проверка, принадлежит ли данный объект базе данных с кодом "..objectCode)
+				if objectCode ~= object.getEntityBaseCode() then									
+					logger.writeDebugMessage(ClassManager,"Объект принадлежит другой базе данных с кодом "..object.getEntityBaseCode())
+					isObjectBaseSimilar = false;					
+				end
+			end			
+		end										
+		logger.writeDebugMessage(ClassManager,"Добавление объекта в список")
+		addLstObjectsItem(object.toShortString(true));													
+		logger.writeDebugMessage(ClassManager,"Объект добавлен")
+	end			
+	logger.writeDebugMessage(ClassManager,"Устновка номера страницы")
+	setLblPagesText(pageNumber);
+	logger.writeDebugMessage(ClassManager,"Проверка элементов на однородность")
+	if isObjectBaseSimilar then				
+		logger.writeDebugMessage(ClassManager,"Заполнение кода базы данных списка")
+		setObjectBaseCode(objectCode);	
+	end	
+	logger.writeDebugMessage(ClassManager,"Проверка, не пришел ли пустой набор записей")
+	if (objectRecords ~= nil) then					
+		logger.writeDebugMessage(ClassManager,"Установка параметра видимости кнопок листания страниц")
+		setBtnPageDownVisibility(pageNumber*constanta.getCnstListObjectsLimit()+1 <= objectRecords.Count);	
+		logger.writeDebugMessage(ClassManager,"Установка параметра видимости кнопки перехода к предыдущей странице")
+		setBtnPageUpVisibility(pageNumber>1);	
+		logger.writeDebugMessage(ClassManager,"Проверка, доступна ли кнопка создания новых объектов")
+		if (getBtnCreateObjectEnabled()) then
+			logger.writeDebugMessage(ClassManager,"Установка параметра доступности кнопки создания новых объектов")
+			setBtnCreateObjectEnabled(isObjectBaseSimilar);			
+		end	
+		logger.writeDebugMessage(ClassManager,"Проверка, равняется ли количество страниц объектов нулю")
+		if (table.count(objectPages) ==0 ) then
+			logger.writeDebugMessage(ClassManager,"Добавление текущей страницы (первой) в массив для последующего листания")
+			table.insert(objectPages, {pageNumber,loadingObjects})
+		end
+	else
+		logger.writeDebugMessage(ClassManager,"Сокрытие кнопок листания страниц")
+		setBtnPageDownVisibility(false)
+		setBtnPageUpVisibility(false)
+	end
+	logger.writeDebugMessage(ClassManager,"------------------------Метод populateObjectList() класса ObjectList завершил работу------------------------")	
+end
+
+function refreshForm(newObject, isOpenInForm)				
+	local isExists = false;		
+	local objectIndex = 0;
+	for key, object in pairs(objects) do										
+		if (object ~= nil) then
+			if (object.getEntityRecord().SN == newObject.getEntityRecord().SN) then								
+				if (CroApp.GetBank():GetBase(object.getEntityBaseCode()):GetRecord(object.getEntityRecord().SN) ~= nil) then
+					object.setBeanFromRecord(newObject.getEntityRecord());			
+					local isChecked = isLstObjectsItemChecked(key);
+					removeLstObjectsItem(key)									
+					insertLstObjectsItem(newObject.toShortString(true), key)			
+					isExists = true;			
+					setLstObjectsItemChecked(key, isChecked)						
+					objectIndex = key;
+				else					
+					removeLstObjectsItem(key);									
+				end
+			end		
+		end
+	end
+	if (not isExists) then		
+		table.insert(objects,newObject)	
+		addLstObjectsItem(newObject.toShortString(true));				
+		if (getMainFormModule().getEntity().getEntityBaseCode() == constanta.getCnstOrganization() or
+				getMainFormModule().getEntity().getEntityBaseCode() == constanta.getCnstPerson() or
+				getMainFormModule().getEntity().getEntityBaseCode() == constanta.getCnstJobTrack() or
+				getMainFormModule().getEntity().getEntityBaseCode() == constanta.getCnstFoundersAndPartners() or
+				getMainFormModule().getEntity().getEntityBaseCode() == constanta.getCnstDocument()) then
+			getMainFormModule().detectConnectedEntitiesNumber();			
+		end
+		objectIndex = getLstObjectsItemsCount()
+	end
+	if (isOpenInForm) then
+		setLstObjectsSelectedIndex (objectIndex);
+		lstObjects_DoubleClick( objectsList );
+	end
+end
+	
+function Форма_UnloadForm( form, mode )	
+	unloadController.doUnload(getClassManager(), form, childForms)
+	--getClassManager().setClass(form,nil)	
+	return true;
+end
+
+function setObjectListText(newObjectListText)		
+	getCurrentForm().Text = newObjectListText;		
+end
+---------------------------
+
+function setControls(form)
+	objectsList = form.lstObjects;
+	btnCreateObject = form.btnAddObject;
+	btnMergeRecords = form.btnMergeRecords;
+	btnGraph = form.btnGraph
+	pnlButtons = form.pnlButtons;
+	pnlExtendedButtons = form.pnlExtendedButtons;    
+    btnFillPopulateSearch = form.btnFillPopulateSearch;
+	btnDeleteLink = form.btnDeleteLink;	
+	btnClose = form.btnClose;
+	lblPatternNumber = form.lblPatternNumber;
+    txtPatternNumber = form.txtPatternNumber;
+	btnPageUp = form.btnPageUp;
+    btnPageDown = form.btnPageDown;
+	btnRefreshList = form.btnRefreshList;
+	lblPages = form.lblPages;
+	btnReport = form.btnReport;
+end
+
+function getObjectBaseCode()
+    return objectBaseCode;
+end
+function setObjectBaseCode(objectBaseCodeValue)	
+    objectBaseCode = objectBaseCodeValue;				
+end
+
+function getMainObject()
+    return mainObject;
+end
+function setMainObject(mainObjectValue)
+    mainObject = mainObjectValue;
+	setBtnDeleteLinkText(getBtnDeleteLinkText()..getMainObject().getEntityRecord().Base.Name);
+end
+
+function getMainFormModule()
+    return mainFormModule;
+end
+function setMainFormModule(mainFormModuleValue)
+    mainFormModule = mainFormModuleValue;
+end
+
+function getBtnAddObject()
+    return btnCreateObject;
+end
+function setBtnAddObjectText( btnAddObjectValue )
+   btnCreateObject.Text = btnAddObjectValue
+end
+function getBtnAddObjectText( )
+    return btnCreateObject.Text
+end
+function setBtnAddObjectEnabled( isBtnAddObjectEnabled )
+   btnCreateObject.Enabled = isBtnAddObjectEnabled
+end
+function setBtnCreateObjectEnabled(isVisible)
+	btnCreateObject.Enabled = isVisible;	
+end
+function getBtnCreateObjectEnabled()
+	return btnCreateObject.Enabled;	
+end
+---lstObjects
+function getLstObjectsControl()
+	return objectsList;
+end
+function addLstObjectsItem (newLstObjectsItem)
+	objectsList:Add(newLstObjectsItem)
+end
+function clearLstObjects ()
+	objectsList:Clear()
+	objectsList:Redraw()
+end
+
+function addLstObjectsItems (newLstObjectsItems)
+	local i=0;
+	for i =0,table.count(newLstObjectsItems)-1 do
+		addLstObjectsItem(newLstObjectsItems(i))
+	end	
+end
+function getLstObjectsSelectedIndex()
+	return objectsList.SelectedIndex;
+end
+function setLstObjectsSelectedIndex (newLstObjectsSelectedIndex)
+	objectsList.SelectedIndex = newLstObjectsSelectedIndex;
+end
+function insertLstObjectsItem( lstObjectsValue, index )
+   objectsList:Insert(lstObjectsValue, index);
+end
+function clearLstObjectsItems( )
+   objectsList:Clear();
+end
+function removeLstObjectsItem( index )
+   objectsList:Remove(index);
+end
+function getLstObjectsItem( index )
+    return objectsList:GetItem(index);
+end
+function setLstObjectsItemChecked( index, isChecked)
+    objectsList:SetItemChecked(index, isChecked);
+end
+function isLstObjectsItemChecked( lstObjectsIndexValue )
+	return objectsList:IsIndexChecked (lstObjectsIndexValue);
+end
+function getLstObjectsCheckedItems( )
+    return objectsList.CheckedItems;
+end
+function getLstObjectsCheckedIndices( )
+    return objectsList.CheckedIndices;
+end
+function getLstObjectsItemsCount( )
+    return objectsList.ItemsCount;
+end
+
+function setBtnMergeRecordsText( btnMergeRecordsValue )
+   btnMergeRecords.Text = btnMergeRecordsValue
+end
+function getBtnMergeRecordsText( )
+    return btnMergeRecords.Text
+end
+function setBtnMergeRecordsEnabled( isBtnMergeRecordsEnabled )
+   btnMergeRecords.Enabled = isBtnMergeRecordsEnabled
+end
+
+function getBtnFillPopulateSearch()
+    return btnFillPopulateSearch;
+end
+function setBtnFillPopulateSearchText( btnFillPopulateSearchValue )
+   btnFillPopulateSearch.Text = btnFillPopulateSearchValue
+end
+function getBtnFillPopulateSearchText( )
+    return btnFillPopulateSearch.Text
+end
+function setBtnFillPopulateSearchEnabled( isBtnFillPopulateSearchEnabled )
+   btnFillPopulateSearch.Enabled = isBtnFillPopulateSearchEnabled
+end
+
+function getPnlExtendedButtons()
+    return pnlExtendedButtons;
+end
+function setPnlExtendedButtons(pnlExtendedButtonsValue)
+    pnlExtendedButtons = pnlExtendedButtonsValue;
+end
+
+function getPnlButtons()
+    return pnlButtons;
+end
+function setPnlButtons(pnlButtonsValue)
+    pnlButtons = pnlButtonsValue;
+end
+
+function setBtnCloseText( btnCloseValue )
+   btnClose.Text = btnCloseValue
+end
+function getBtnCloseText( )
+    return btnClose.Text
+end
+function setBtnCloseEnabled( isBtnCloseEnabled )
+   btnClose.Enabled = isBtnCloseEnabled
+end
+
+function setBtnDeleteLinkText( btnDeleteLinkValue )
+   btnDeleteLink.Text = btnDeleteLinkValue
+end
+function getBtnDeleteLinkText( )
+    return btnDeleteLink.Text
+end
+function setBtnDeleteLinkEnabled( isBtnDeleteLinkEnabled )
+   btnDeleteLink.Enabled = isBtnDeleteLinkEnabled
+end
+
+function setFormFromEntity(entity)
+    setTxtPatternNumberText(entity.getPatternNumber());
+end
+function setLblPatternNumberText( lblPatternNumberValue )
+   lblPatternNumber.Value = lblPatternNumberValue
+end
+function getLblPatternNumberText( )
+    return lblPatternNumber.Value
+end
+
+function getTxtPatternNumberText( )
+    return txtPatternNumber.Value
+end
+function setTxtPatternNumberText( txtPatternNumberValue )
+    txtPatternNumber.Value = txtPatternNumberValue
+end
+function setTxtPatternNumberEnabled( isTxtPatternNumberEnabled )
+   txtPatternNumber.Enabled = isTxtPatternNumberEnabled
+end
+
+function setFormFromEntity(entity)
+end
+function setBtnGraphText( btnGraphValue )
+   btnGraph.Text = btnGraphValue
+end
+function getBtnGraphText( )
+    return btnGraph.Text
+end
+function setBtnGraphEnabled( isBtnGraphEnabled )
+   btnGraph.Enabled = isBtnGraphEnabled
+end
+
+function setFormFromEntity(entity)
+end
+function setBtnReportText( btnReportValue )
+   btnReport.Text = btnReportValue
+end
+function getBtnReportText( )
+    return btnReport.Text
+end
+function setBtnReportEnabled( isBtnReportEnabled )
+   btnReport.Enabled = isBtnReportEnabled
+end
+
+function setBtnPageUpText( btnPageUpValue )
+   btnPageUp.Text = btnPageUpValue
+end
+function getBtnPageUpText( )
+    return btnPageUp.Text
+end
+function setBtnPageUpEnabled( isBtnPageUpEnabled )
+   btnPageUp.Enabled = isBtnPageUpEnabled
+end
+function setBtnPageUpVisibility( isPageUpVisible )
+   btnPageUp.Visible = isPageUpVisible
+end
+
+function setBtnPageDownText( btnPageDownValue )
+   btnPageDown.Text = btnPageDownValue
+end
+function getBtnPageDownText( )
+    return btnPageDown.Text
+end
+function setBtnPageDownEnabled( isBtnPageDownEnabled )
+   btnPageDown.Enabled = isBtnPageDownEnabled
+end
+function setBtnPageDownVisibility( isPageDownVisible )
+   btnPageDown.Visible = isPageDownVisible
+end
+
+function setLblPagesText( lblPagesValue )
+   lblPages.Text = lblPagesValue
+end
+function getLblPagesText( )
+    return lblPages.Text
+end
+
+-------------------------------
+function lstObjects_DoubleClick( control )
+	local i=0;	
+	local chosenObj = {}
+	local selectedIndex = getLstObjectsSelectedIndex();	
+	local selectedObject = nil;	
+	--определение какой объект запрошен	
+	for key, object in pairs(objects) do				
+		i = i+1;
+		if selectedIndex == i then
+			selectedObject = object;								
+			break;
+		end
+	end		
+	if selectedObject ~= nil then			
+		if (CroApp.GetBank():GetBase(selectedObject.getEntityBaseCode()):GetRecord(selectedObject.getEntityRecord().SN) ~= nil) then
+			if (btnCreateObject.Enabled) then
+				getMainFormModule().getEntity().getEntityRecord():Unlock()
+			end
+			local objRecordSet = RecordSet.new({},CroApp.GetBank():GetBase(selectedObject.getEntityRecord().Base.Code));				
+			objRecordSet:Add(selectedObject.getEntityRecord().SN);					
+			table.insert(childForms,formsController.openNeccessaryForm(getClassManager(), control, objRecordSet));
+		else
+			removeLstObjectsItem(selectedIndex);
+			table.remove(objects, selectedIndex);
+			MsgBox("Запись была слита и удалена в процессе идентификации.", IconInformation)
+		end
+	else
+		MsgBox("Не выделен ни один из объектов списка. Повторите операцию.", IconWarning)
+	end	
+end
+
+function btnClose_Click( control )
+	Форма_UnloadForm( btnClose.Form)
+end
+
+function btnAddObject_Click( control )
+	table.insert(childForms,formsController.openNeccessaryForm(getClassManager(), control, nil));
+end
+
+function btnMergeRecords_Click( control )
+	local checkedIndexes = getLstObjectsCheckedIndices();
+	local entities = {}
+	--получение отмеченных объектов
+	for key, index in pairs(checkedIndexes) do		
+		local object = service.getItemFromTableByIndex(objects, index);
+		if (object ~= nil) then			
+			if (CroApp.GetBank():GetBase(object.getEntityBaseCode()):GetRecord(object.getEntityRecord().SN) ~= nil) then
+				table.insert(entities, object);	
+			else
+				removeLstObjectsItem(index);
+				table.remove(objects, index);
+				--поднять галочки нижележащих записей на 1 позицию вверх
+				for i=index, getLstObjectsItemsCount() do
+					if (isLstObjectsItemChecked( index )) then
+						setLstObjectsItemChecked( index, false)
+						setLstObjectsItemChecked( index-1, true)
+					end
+				end
+			end					
+		end
+	end			
+	if (table.count(entities) > 1) then
+		local mergedRecord = getClassManager().getClass("DBWorker").doMergeRecords(getClassManager(), getObjectBaseCode(), entities);
+		--обновление списка в соответствии с выполненным слиянием
+		for key, index in pairs(checkedIndexes) do		
+			local object = service.getItemFromTableByIndex(objects, index);
+			local isRemoveFromList = false;		
+			if (object ~= nil) then
+				if (object.getEntityRecord().SN == nil) then
+					isRemoveFromList = true;
+				else				
+					local baseRecord = CroApp.GetBank():GetBase(getObjectBaseCode()):GetRecord(object.getEntityRecord().SN) 
+					if (baseRecord) == nil then				
+						isRemoveFromList = true;			
+					end
+				end
+			else
+				isRemoveFromList = true;
+			end
+			if (isRemoveFromList) then
+				removeLstObjectsItem(index);
+				table.remove(objects, index);
+			end
+		end
+	end
+	btnRefreshList_Click( btnRefreshList )
+end
+
+function lstObjects_CheckStateChanged( event )
+	setBtnMergeRecordsEnabled(table.count(getLstObjectsCheckedIndices()) > 1);
+	setBtnDeleteLinkEnabled(table.count(getLstObjectsCheckedIndices()) > 0 and getObjectBaseCode() ~= nil and getMainObject() ~= nil);	
+	setBtnFillPopulateSearchEnabled(table.count(getLstObjectsCheckedIndices()) == 1 and getIsPopulateSearch());
+	setBtnGraphEnabled(table.count(getLstObjectsCheckedIndices()) > 0 and getObjectBaseCode() ~= nil);
+	setBtnReportEnabled(table.count(getLstObjectsCheckedIndices()) > 0 and getObjectBaseCode() ~= nil and constanta.getEntityReportFormNumber(getObjectBaseCode())>0)
+end
+
+function btnRefreshList_Click( control )
+	for key, object in pairs(objects) do												
+		local record = CroApp.GetBank():GetBase(object.getEntityBaseCode()):GetRecord(object.getEntityRecord().SN);
+		if (record ~= nil) then			
+			object.setBeanFromRecord(record);						
+			local isChecked = isLstObjectsItemChecked(key);
+			removeLstObjectsItem(key)									
+			insertLstObjectsItem(object.toShortString(true), key)						
+			setLstObjectsItemChecked(key, isChecked)						
+		else
+			removeLstObjectsItem(key);									
+		end
+	end
+end
+
+function btnGraph_Click( control )
+	local checkedIndexes = getLstObjectsCheckedIndices();	
+	local recordSet = RecordSet.new ({}, CroApp.GetBank():GetBase(getObjectBaseCode())); 
+	for key, index in pairs(checkedIndexes) do
+		local object = service.getItemFromTableByIndex(objects, index);
+		recordSet:Add(object.getEntityRecord().SN)
+	end
+	CroApp:GetBank():OpenGraphView(recordSet, getTxtPatternNumberText());
+end
+
+function setControlVisible(control, isVisible)
+	control.Visible = isVisible;
+end
+
+function setControlEnabled(control, isEnabled)
+	control.Enabled = isEnabled;
+end
+
+function btnFillPopulateSearch_Click( control )
+	--проверка, выбран ли один объект		
+	btnClose_Click( btnClose );
+	local object = nil	
+	for _, index in pairs(getLstObjectsCheckedIndices()) do		
+		object = service.getItemFromTable(objects, index);		
+	end			
+	if (object ~= nil) then				
+		getPopulatedForm().Module.setChosenRecord(getPopulatedForm(), object.getEntityRecord());		
+	end	
+end
+
+
+function btnDeleteLink_Click( control )	
+	logger.writeDebugMessage(ClassManager,"------------------------Метод btnDeleteLink_Click() класса ObjectList ------------------------")		
+	--проверка, не заблокирован ли объект
+	local mainObjectBase = CroApp.GetBank():GetBase(getMainObject().getEntityBaseCode());
+	logger.writeDebugMessage(ClassManager,"Получен объект базы данных основного объекта: "..mainObjectBase.Name)	
+	local objBaseCode = getObjectBaseCode();	
+	if (getObjectBaseCode() == constanta.getCnstBranch()) then
+		objBaseCode = constanta.getCnstOrganization();		
+	end
+	logger.writeDebugMessage(ClassManager,"Получен мнемокод объекта базы данных основного объекта: "..objBaseCode)	
+	local objectBase = CroApp.GetBank():GetBase(objBaseCode);
+	logger.writeDebugMessage(ClassManager,"Получен объект базы данных объекта: "..objectBase.Name)	
+	local linkingField = nil;
+	local linkedField = nil;
+	logger.writeDebugMessage(ClassManager,"Получение полей связи объектов")	
+	--определение номера поля связи
+	local fields = mainObjectBase.Fields;		
+	for key, field in pairs(fields) do
+		if (linkingField == nil) then
+			--если поле является ссылкой, то поучим связанные БД и проверим мнемокод связанной БД
+			if ((field.Type >= 7 and field.Type <=9) or field.Type == 17) then
+				local linkedBases = field.LinkedBases;				
+				--проверяем мнемокод связанной БД
+				for linkedKey, linkedBase in pairs(linkedBases) do					
+					if (linkedBase.Base.Code == objBaseCode) then						
+						linkingField = field;
+						linkedField = linkedBase.Field
+						break; 
+					end
+				end
+			end
+		else
+			break;
+		end
+	end
+	logger.writeDebugMessage(ClassManager,"Получены номера полей связи объектов")	
+	if (linkingField ~= nil) then
+		--проверяем, не забликрованы ли объекты	
+		logger.writeDebugMessage(ClassManager,"Проверка, заблокирован ли оснвоной объект базы данных")	
+		if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), getMainObject().getEntityRecord())) then
+			logger.writeDebugMessage(ClassManager,"Деблокирование оснвоного объекта базы данных")	
+			getMainObject().getEntityRecord():Unlock();
+		end		
+		---для отмеченных записей выполняем удаление ссылок	
+		logger.writeDebugMessage(ClassManager,"Проход по выделенным объектам и удаление отсылок на основной объект")	
+		for index, object in pairs(getCheckedObjects()) do				
+			logger.writeDebugMessage(ClassManager,"Объект базы данных "..object.getEntityBaseCode()..", номер записи "..object.getEntityRecord().SN)	
+			logger.writeDebugMessage(ClassManager,"Проверка, заблокирован ли объект базы данных")	
+			if (getClassManager().getClass("DBWorker").isRecordLocked(getClassManager(), object.getEntityRecord())) then
+				logger.writeDebugMessage(ClassManager,"Деблокирование оснвоного объекта базы данных")	
+				object.getEntityRecord():Unlock();
+			end	
+			logger.writeDebugMessage(ClassManager,"Разрыв связи между объектами "..getMainObject().getEntityBaseCode()..":"..getMainObject().getEntityRecord().SN.." и "..object.getEntityBaseCode()..":"..object.getEntityRecord().SN)	
+			mainObjectBase:DeleteLink(getMainObject().getEntityRecord().SN, linkingField.Number, objectBase, object.getEntityRecord().SN, Base.NoLock, Base.NoLock);									
+			--если загруженный объект не является Организацией, то удаляем все другие ссылки из записи
+			if (objBaseCode ~= getMainObject().getEntityBaseCode()) then
+				--Обнаружен баг разрыва связей записи
+				---getClassManager().getClass("FieldsWorker").disconnectRecord(getClassManager(), object.getEntityRecord(), nil, true);			
+			else
+				logger.writeDebugMessage(ClassManager,"Разрыв связи между объектами ".." и "..object.getEntityBaseCode()..":"..object.getEntityRecord().SN.." и "..getMainObject().getEntityBaseCode()..":"..getMainObject().getEntityRecord().SN)	
+				objectBase:DeleteLink(object.getEntityRecord(), linkedField, mainObjectBase, getMainObject().getEntityRecord().SN, Base.NoLock, Base.NoLock);						
+			end			
+		end			
+		--переичитываем запись из БД и обновлем форму объекта		
+		logger.writeDebugMessage(ClassManager,"Обновление записи из БД")
+		getMainObject().setEntityRecord(mainObjectBase:GetRecord(getMainObject().getEntityRecord().SN));				
+		logger.writeDebugMessage(ClassManager,"Обновление информации о связанных объектах")
+		mainFormModule.detectConnectedEntitiesNumber();			
+		--удаляем записи о связанных объектах
+		local countDeleted = 0;
+		logger.writeDebugMessage(ClassManager,"Обновлене списка связанных объектов")
+		for i=1,getLstObjectsItemsCount() do
+			if (isLstObjectsItemChecked(i)) then
+				removeLstObjectsItem(i-countDeleted);
+				table.remove(objects, i-countDeleted)
+				countDeleted = countDeleted + 1;				
+			end
+		end
+	else
+		MsgBox("Не удалось найти номер поля для связи с базой данных "..objectBase.Name)
+	end
+end
+
+function getCheckedObjects()
+	local entities = {};
+	local checkedIndexes = getLstObjectsCheckedIndices();
+	--получение отмеченных объектов
+	for key, index in pairs(checkedIndexes) do		
+		local object = service.getItemFromTableByIndex(objects, index);
+		if (object ~= nil) then			
+			if (CroApp.GetBank():GetBase(object.getEntityBaseCode()):GetRecord(object.getEntityRecord().SN) ~= nil) then
+				table.insert(entities, object);				
+			end					
+		end							
+	end			
+	return entities;
+end
+
+
+
+function btnPageDown_Click( control )		
+	setBtnPageUpVisibility(true);
+	local nextObjects={};	
+	local records = nil	
+	local isExists = false;		
+	pageNumber = pageNumber+1;	
+	for _,page in pairs(objectPages) do
+		if page[1] == pageNumber then
+			isExists = true;
+			clearLstObjectsItems();
+			populateObjectList(page[2])
+			break;
+		end
+	end
+	if (not isExists) then
+		for i=(pageNumber-1)*constanta.getCnstListObjectsLimit()+1,(pageNumber)*constanta.getCnstListObjectsLimit() do
+			local record = objectRecords:GetRecordByIndex(i);
+			if (record ~= nil) then
+				table.insert(nextObjects, record.SN)
+			end
+		end	
+		records = RecordSet.new(nextObjects, objectRecords.Base)
+		nextObjects = formsController.getEntitiesFromRecordSet(getClassManager(), records)	
+		if (table.count(nextObjects))>0 then
+			clearLstObjectsItems();
+		end					
+		table.insert(objectPages, {pageNumber,nextObjects})
+		populateObjectList(nextObjects)
+	end
+end
+
+function btnPageUp_Click( control )		
+	pageNumber = pageNumber-1;	
+	local prevObjects={};	
+	local records = nil;
+	local isExists = false;
+	for _,page in pairs(objectPages) do
+		if page[1] == pageNumber then
+			isExists = true;
+			clearLstObjectsItems();
+			populateObjectList(page[2])
+			break;
+		end
+	end
+	if (not isExists) then
+		MsgBox("Произошла ошибка: не найдена предыдущая страница №"..pageNumber)
+	end
+
+end
+
+function btnReport_Click( control )
+	local reportFormNumber = constanta.getEntityReportFormNumber(getObjectBaseCode())
+	if (reportFormNumber > 0) then
+		local checkedIndexes = getLstObjectsCheckedIndices();	
+		local recordSet = RecordSet.new ({}, CroApp.GetBank():GetBase(getObjectBaseCode())); 
+		for key, index in pairs(checkedIndexes) do
+			local object = service.getItemFromTableByIndex(objects, index);
+			recordSet:Add(object.getEntityRecord().SN)
+		end	
+		CroApp:GetBank():OpenReport (getObjectBaseCode(),reportFormNumber, recordSet);
+	else
+		MsgBox("Для данных объектов не определена конфигурация выходной формы по умолчанию. \n\rНеобходимо внести запись в константу reportsDescription",IconWarning)
+	end
+end
