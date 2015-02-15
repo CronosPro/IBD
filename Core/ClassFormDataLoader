@@ -369,14 +369,17 @@ function detectDelta(ClassManager, mainDirPath, files, dataLoadFormScript)
 		if (result and absentDeltaResult) then
 			logger.writeDebugMessage( ClassManager,"Составление карты предыдущего файла");					
 			for line in io.lines(fileBeforeLast) do												
-				fileBeforeLastLines[line]="Line";			
+				fileBeforeLastLines[line]="Line";				
 			end	
+			MsgBox(table.count(fileBeforeLastLines))			
 			
 			logger.writeDebugMessage( ClassManager,"Составление карты последнего файла");		
 			for line in io.lines(lastFile) do												
-				fileLastLines[line]="Line";			
-			end		
-					
+				fileLastLines[line]="Line";	
+				
+			end	
+			MsgBox(table.count(fileLastLines))
+			
 			logger.writeDebugMessage( ClassManager,"Карты построены");	
 			logger.writeDebugMessage( ClassManager,"Цикл вычисления информационной дельты: новые объекты");
 			for line in io.lines(lastFile) do	
@@ -525,7 +528,7 @@ function readFilesInDirr(ClassManager, initialPathValue, mode, isDataTestPassedB
 								logger.writeDebugMessage( ClassManager,"Чтение конфигурации загрузки "..render(configLoad));																																
 								local isEntityNew = true
 								logger.writeDebugMessage( ClassManager,"Получение программного объекта для базы данных с мнемокодом "..getConfBase());																																
-								local entity = ClassManager.newEntity(ClassManager, getConfBase(), true, isEntityNew);								
+								local entity = ClassManager.newEntity(ClassManager, getConfBase(), true, isEntityNew);
 								isEntityNew = false
 								logger.writeDebugMessage( ClassManager,"Заполнение программного объекта на основе данных из файла загрузки и запись полученных сообщений");																																		
 								local entityErrorMessages = entity.setBeanFromLine(loadingDataTable, configLoad, mode, false);									
@@ -1037,11 +1040,6 @@ function doTestData(ClassManager, entity, configTable)
 		logger.writeDebugMessage(ClassManager,"Очистка элементов конфигурации от фигурных скобок")		
 		logger.writeDebugMessage(ClassManager,"Получение мнемокода таблицы, в которую должны загружаться данные")	
 		local baseCode = tConfigValues[2];
-		logger.writeDebugMessage(ClassManager,"Проверка типа пришедшого объекта")	
-		if baseCode ~= entity.getEntityBaseCode()then
-			logger.writeDebugMessage(ClassManager,"Получение программного объекта типа для таблица с мнемокодом "..baseCode)	
-			entity = ClassManager.newEntity(ClassManager, baseCode, true, false)
-		end
 		logger.writeDebugMessage(ClassManager,"Получение номер поля таблицы, в которое должно сохраняться значение")					
 		local fieldNumber = tonumber(tConfigValues[3]);					
 		logger.writeDebugMessage(ClassManager,"Получение ранее сохраненных свойств поля № "..fieldNumber.." базы данных с мнемокодом '"..baseCode.."'")	
@@ -1051,14 +1049,21 @@ function doTestData(ClassManager, entity, configTable)
 		else
 			logger.writeDebugMessage(ClassManager,"Проверка типа поля и выявление необходимости проверки на длину загружаемого понятия")	
 			if (fieldParameters.fieldType == Field.Text or fieldParameters.fieldType == Field.Numeric or
-				fieldParameters.fieldType == Field.Date or fieldParameters.fieldType == Field.Time) then						
-				logger.writeDebugMessage(ClassManager,"Получение понятия")	
-				local entityTermin = entity.getAttributeByFieldNumber(fieldNumber);														
+				fieldParameters.fieldType == Field.Date or fieldParameters.fieldType == Field.Time) then
+				logger.writeDebugMessage(ClassManager,"Проверка целевого объекта, из которого будут возвращаться значения для проверки")	
+				if (entity.getEntityBaseCode() ~= baseCode) then
+					logger.writeDebugMessage(ClassManager,"Получение программного объекта записи таблица с мнемокодом "..baseCode)	
+					entity = ClassManager.newEntity(ClassManager, baseCode, true, false)
+				end
+				
+				logger.writeDebugMessage(ClassManager,"Получение понятия")
+				local entityTermin = entity.getAttributeByFieldNumber(fieldNumber);										
 				logger.writeDebugMessage(ClassManager,"Проверка статуса поля, не множественное ли оно")	
 				if (fieldParameters.fieldStatus == Field.Multiple) then
-					logger.writeDebugMessage(ClassManager,"Поле множественное. Итерирование по таблице значений множественного поля")					
+					logger.writeDebugMessage(ClassManager,"Поле множественное. Итерирование по таблице значений множественного поля")
+										
 					if (entityTermin ~= nil) then							
-						for index, termin in pairs (entityTermin) do
+					for index, termin in pairs (entityTermin) do																
 							logger.writeDebugMessage(ClassManager,"Проверка длины понятия")								
 							local messages = checkEntityTermin (ClassManager, fieldParameters, termin)
 							logger.writeDebugMessage(ClassManager,"Проверка понятия по типу данных")								

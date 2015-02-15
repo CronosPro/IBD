@@ -6,7 +6,7 @@ local documentDescription = {};
 local accoutArrests = {};
 local indemnityContract = {};
 local accredetiveContract = {};
-local creditStatus = nil;
+local creditStatus = {};
 
 local personEntities = {};
 local organizationEntities = {};
@@ -109,13 +109,13 @@ function setDocumentName(documentNameValue)
 end
 
 function getDocumentDescription()
-	return documentDescription
+	return documentDescription;
 end 
 function setDocumentDescription(documentDescriptionValue)
 	documentDescription = table.iunion(documentDescriptionValue, {})
 end
 function addDocumentDescription(documentDescriptionValue)
-    table.insert(documentDescription,documentDescriptionValue);
+    table.insert(documentDescription,documentDescriptionValue);	
 end
 
 function getAccoutArrests()
@@ -154,11 +154,11 @@ function getCreditStatus()
 	return creditStatus
 end 
 function setCreditStatus(creditStatusValue)
-	 creditStatus = creditStatusValue;
+	 creditStatus = table.iunion(creditStatusValue, {});
 end
---[[function addCreditStatus(creditStatusValue)
+function addCreditStatus(creditStatusValue)
     table.insert(creditStatus,creditStatusValue);
-end]]
+end
 
 -------------------------------------------------------------------------
 function setBeanFromLine(dataTable, configTable, mode, isCurrentEntityOnly) -- передаем таблицу с данными для загрузки и  таблицу с конфигурацией для загрузки
@@ -186,11 +186,14 @@ function setBeanFromLine(dataTable, configTable, mode, isCurrentEntityOnly) -- п
 			localVocKey = tonumber(extractedTermin)
 		end		
 		logger.writeDebugMessage( getClassManager(), "Был получен термин для загрузки в поле "..fieldNumber);
-		if (extractedTermin ~= nil and string.len(extractedTermin)>0) then			
+		if (extractedTermin ~= nil and string.len(extractedTermin)>0) then	
+			
+			
 			if (tConfigValues[2] == getEntityBaseCode()) then
 				if(fieldNumber == 1) then
 					setDocumentName(extractedTermin);
 				elseif(fieldNumber == 2) then
+					
 					addDocumentDescription(extractedTermin);
 				elseif(fieldNumber == 5) then
 					addAccoutArrests(extractedTermin);
@@ -199,7 +202,7 @@ function setBeanFromLine(dataTable, configTable, mode, isCurrentEntityOnly) -- п
 				elseif(fieldNumber == 7) then
 					addAccredetiveContract(extractedTermin);
 				elseif(fieldNumber == 8) then
-					setCreditStatus(extractedTermin);
+					addCreditStatus(extractedTermin);
 				end
 			else			
 				isConnectedEntityNew = table.count(getClassManager().getClass("Service").getIndexesFromTable(passedEntitiesCodes, tConfigValues[2]))==0
@@ -241,11 +244,11 @@ end
 
 function getAttributeByFieldNumber(fieldNumber)
 	local attribute = nil;
-	local noAttributeLineDefined = false;
+	local noAttributeLineDefined = false;	
 	fieldNumber = tonumber(fieldNumber)	
 	if (fieldNumber == 1) then									
 		attribute = getDocumentName();		
-	elseif(fieldNumber == 2) then
+	elseif(fieldNumber == 2) then		
 		attribute = getDocumentDescription();
 	elseif(fieldNumber == 5) then
 		attribute = getAccoutArrests();
@@ -372,11 +375,10 @@ function saveBeanToDb()
 	local documentRecord = getEntityRecord();					
 	if documentRecord.Base.Code == documentBaseCode then						
 		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 1, "", getDocumentName(), nil, nil, true);						
-		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 2, "", getDocumentDescription(), nil, nil, false);
-		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 5, "", getAccoutArrests(), nil, nil, false);		
-		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 6, "", getIndemnityContract(), nil, nil, false);		
-		
-		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 7, "", getAccredetiveContract(), nil, nil, false);
+		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 2, "", getDocumentDescription(), nil, nil, true);
+		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 5, "", getAccoutArrests(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 6, "", getIndemnityContract(), nil, nil, true);		
+		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 7, "", getAccredetiveContract(), nil, nil, true);
 		getClassManager().getClass("FieldsWorker").setField(documentBaseCode, documentRecord, 8, "", getCreditStatus(), nil, nil, false);						
 		setLinks();
 	else
@@ -394,5 +396,9 @@ function clearEntity()
 	setAccoutArrests({})	
 	setIndemnityContract({})	
 	setAccredetiveContract({})	
-	setCreditStatus(nil)	
+	setCreditStatus({})	
+end
+
+function testMessage()
+	MsgBox("Hello")
 end
